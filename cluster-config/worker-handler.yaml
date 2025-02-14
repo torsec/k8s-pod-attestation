@@ -1,0 +1,84 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: worker-handler-sa
+  namespace: attestation-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: worker-handler-role
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch", "delete"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: ["example.com"]  # Change this to your specific CRD group
+    resources: ["agents"]  # Add your CRD resources here
+    verbs: ["get", "list", "watch", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: worker-handler-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: worker-handler-role
+subjects:
+  - kind: ServiceAccount
+    name: worker-handler-sa
+    namespace: attestation-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-handler
+  namespace: attestation-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-handler
+  template:
+    metadata:
+      labels:
+        app: worker-handler
+    spec:
+      serviceAccountName: worker-handler-sa
+      containers:
+        - name: worker-handler
+          image: franczar/k8s-attestation-worker-handler:latest
+          env:
+            - name: REGISTRAR_HOST
+              value: "192.168.0.103"
+            - name: REGISTRAR_PORT
+              value: "30000"
+            - name: WHITELIST_HOST
+              value: "192.168.0.103"
+            - name: WHITELIST_PORT
+              value: "30002"
+            - name: IMA_MOUNT_PATH
+              value: "/root/ascii_runtime_measurements"
+            - name: IMA_ML_PATH
+              value: "/sys/kernel/security/integrity/ima/ascii_runtime_measurements"
+            - name: TPM_PATH
+              value: "/dev/tpm0"
+            - name: VERIFIER_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: attestation-secrets
+                  key: verifier-public-key
+          ports:
+            - containerPort: 8080
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"

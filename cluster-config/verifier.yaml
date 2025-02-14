@@ -1,0 +1,88 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: verifier-sa
+  namespace: attestation-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: verifier-role
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: ["example.com"]  # Change this to your specific CRD group
+    resources: ["attestationrequests"]  # Add your CRD resources here
+    verbs: ["get", "list", "watch", "update", "delete"]
+  - apiGroups: ["example.com"]  
+    resources: ["agents"]  
+    verbs: ["get", "list", "watch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: verifier-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: verifier-role
+subjects:
+  - kind: ServiceAccount
+    name: verifier-sa
+    namespace: attestation-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: verifier
+  namespace: attestation-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: verifier
+  template:
+    metadata:
+      labels:
+        app: verifier
+    spec:
+      serviceAccountName: verifier-sa
+      containers:
+        - name: verifier
+          image: franczar/k8s-attestation-verifier:latest
+          env:
+            - name: REGISTRAR_HOST
+              value: "192.168.0.103"
+            - name: REGISTRAR_PORT
+              value: "30000"
+            - name: WHITELIST_HOST
+              value: "192.168.0.103"
+            - name: WHITELIST_PORT
+              value: "30002"
+            - name: VERIFIER_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: attestation-secrets
+                  key: verifier-private-key
+            - name: ATTESTATION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: attestation-secrets
+                  key: attestation-secret-hmac             
+          volumeMounts:
+            - name: kube-config
+              mountPath: /root/.kube
+      volumes:
+        - name: kube-config
+          hostPath:
+            path: /home/node/.kube
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
