@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -14,7 +13,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"github.com/fatih/color"
 	"github.com/google/go-tpm-tools/client"
@@ -51,7 +49,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/torsec/k8s-pod-attestation/pkg/crypto"
+	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 )
 
@@ -608,7 +606,7 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 	}
 
 	// Decode EK and AIK
-	EK, err := decodePublicKeyFromPEM(workerData.EK)
+	EK, err := cryptoUtils.DecodePublicKeyFromPEM(workerData.EK)
 	if err != nil {
 		fmt.Printf(red.Sprintf("[%s] Failed to parse EK from PEM: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
 		return false
@@ -621,7 +619,7 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 	}
 
 	// Generate ephemeral key
-	ephemeralKey, err := generateEphemeralKey(32)
+	ephemeralKey, err := cryptoUtils.GenerateEphemeralKey(32)
 	if err != nil {
 		fmt.Printf(red.Sprintf("[%s] Failed to generate challenge ephemeral key: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
 		return false
@@ -656,7 +654,7 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 	}
 
 	// Verify the HMAC response from the agent
-	if err := verifyHMAC([]byte(workerData.UUID), ephemeralKey, decodedHMAC); err != nil {
+	if err := cryptoUtils.VerifyHMAC([]byte(workerData.UUID), ephemeralKey, decodedHMAC); err != nil {
 		fmt.Printf(red.Sprintf("[%s] Failed to verify HMAC: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
 		return false
 	}

@@ -11,7 +11,7 @@ import (
 )
 
 // Helper function to verify HMAC
-func verifyHMAC(message, ephemeralKey, providedHMAC []byte) error {
+func VerifyHMAC(message, ephemeralKey, providedHMAC []byte) error {
 	h := hmac.New(sha256.New, ephemeralKey)
 	h.Write(message)
 	expectedHMAC := h.Sum(nil)
@@ -23,7 +23,7 @@ func verifyHMAC(message, ephemeralKey, providedHMAC []byte) error {
 	return nil
 }
 
-func decodePublicKeyFromPEM(publicKeyPEM string) (*rsa.PublicKey, error) {
+func DecodePublicKeyFromPEM(publicKeyPEM string) (*rsa.PublicKey, error) {
 	block, _ := pem.Decode([]byte(publicKeyPEM))
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block containing public key")
@@ -55,7 +55,7 @@ func decodePublicKeyFromPEM(publicKeyPEM string) (*rsa.PublicKey, error) {
 }
 
 // Generate a cryptographically secure random symmetric key of the specified size in bytes
-func generateEphemeralKey(size int) ([]byte, error) {
+func GenerateEphemeralKey(size int) ([]byte, error) {
 	if size <= 0 {
 		return nil, fmt.Errorf("key size must be greater than 0")
 	}
