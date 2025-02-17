@@ -51,6 +51,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 )
 
@@ -122,19 +123,6 @@ func isNamespaceEnabledForAttestation(podNamespace string) bool {
 		}
 	}
 	return false
-}
-
-// Helper function to verify HMAC
-func verifyHMAC(message, ephemeralKey, providedHMAC []byte) error {
-	h := hmac.New(sha256.New, ephemeralKey)
-	h.Write(message)
-	expectedHMAC := h.Sum(nil)
-
-	if !hmac.Equal(expectedHMAC, providedHMAC) {
-		return fmt.Errorf("HMAC verification failed")
-	}
-
-	return nil
 }
 
 func getWorkerInternalIP(newWorker *corev1.Node) (string, error) {
@@ -428,51 +416,6 @@ func nodeIsControlPlane(node *corev1.Node) bool {
 	return exists
 }
 
-func decodePublicKeyFromPEM(publicKeyPEM string) (*rsa.PublicKey, error) {
-	block, _ := pem.Decode([]byte(publicKeyPEM))
-	if block == nil {
-		return nil, errors.New("failed to decode PEM block containing public key")
-	}
-
-	var rsaPubKey *rsa.PublicKey
-	var err error
-
-	switch block.Type {
-	case "RSA PUBLIC KEY":
-		rsaPubKey, err = x509.ParsePKCS1PublicKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse PKCS1 public key: %v", err)
-		}
-	case "PUBLIC KEY":
-		parsedKey, err := x509.ParsePKIXPublicKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse PKIX public key: %v", err)
-		}
-		var ok bool
-		rsaPubKey, ok = parsedKey.(*rsa.PublicKey)
-		if !ok {
-			return nil, errors.New("not an RSA public key")
-		}
-	default:
-		return nil, fmt.Errorf("unsupported public key type: %s", block.Type)
-	}
-	return rsaPubKey, nil
-}
-
-// Generate a cryptographically secure random symmetric key of the specified size in bytes
-func generateEphemeralKey(size int) ([]byte, error) {
-	if size <= 0 {
-		return nil, errors.New("key size must be greater than 0")
-	}
-
-	key := make([]byte, size)
-	_, err := rand.Read(key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate random key: %v", err)
-	}
-	return key, nil
-}
-
 func workerRemoval(removedWorkerName string) error {
 	registrarWorkerDeletionURL := fmt.Sprintf("http://%s:%s/worker/deleteByName?name=%s", registrarHOST, registrarPORT, removedWorkerName)
 
@@ -653,7 +596,7 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 
 	// TEST: this allows the agent in 'simulator' mode to be compliant with the framework
 	if workerData.EKCert != "EK Certificate not provided" {
-		EKCertCheckRequest := VerifyTPMEKCertificateRequest{
+		EKCertCheckRequest := model.VerifyTPMEKCertificateRequest{
 			EndorsementKey: workerData.EK,
 			EKCertificate:  workerData.EKCert,
 		}
@@ -694,7 +637,7 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 	}
 
 	// Prepare challenge payload for sending
-	workerChallenge := WorkerChallenge{
+	workerChallenge := model.WorkerChallenge{
 		AIKCredential:      encodedCredentialBlob,
 		AIKEncryptedSecret: encodedEncryptedSecret,
 	}
@@ -724,7 +667,7 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 		return false
 	}
 
-	workerWhitelistCheckRequest := WorkerWhitelistCheckRequest{
+	workerWhitelistCheckRequest := model.WorkerWhitelistCheckRequest{
 		OsName:        newWorker.Status.NodeInfo.OSImage,
 		BootAggregate: bootAggregate,
 		HashAlg:       hashAlg,
@@ -742,7 +685,7 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 		return false
 	}
 
-	workerNode := WorkerNode{
+	workerNode := model.WorkerNode{
 		WorkerId: workerData.UUID,
 		Name:     newWorker.GetName(),
 		AIK:      AIKPublicKeyPEM,
@@ -754,7 +697,7 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 		fmt.Printf(red.Sprintf("[%s] Failed to create Worker Node: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
 	}
 
-	registrationAcknowledge := RegistrationAcknowledge{
+	registrationAcknowledge := model.RegistrationAcknowledge{
 		Message: createWorkerResponse.Message,
 		Status:  createWorkerResponse.Status,
 	}
@@ -775,7 +718,7 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 	return true
 }
 
-func verifyEKCertificate(EKCertcheckRequest VerifyTPMEKCertificateRequest) error {
+func verifyEKCertificate(EKCertcheckRequest model.VerifyTPMEKCertificateRequest) error {
 	registrarCertificateValidateURL := fmt.Sprintf("http://%s:%s/worker/verifyEKCertificate", registrarHOST, registrarPORT)
 
 	// Marshal the attestation request to JSON
@@ -805,7 +748,7 @@ func verifyEKCertificate(EKCertcheckRequest VerifyTPMEKCertificateRequest) error
 	return nil
 }
 
-func verifyBootAggregate(checkRequest WorkerWhitelistCheckRequest) error {
+func verifyBootAggregate(checkRequest model.WorkerWhitelistCheckRequest) error {
 	whitelistProviderWorkerValidateURL := fmt.Sprintf("http://%s:%s/whitelist/worker/os/check", whitelistHOST, whitelistPORT)
 
 	// Marshal the attestation request to JSON
@@ -836,7 +779,7 @@ func verifyBootAggregate(checkRequest WorkerWhitelistCheckRequest) error {
 }
 
 // Helper function to call the agent identification API
-func getWorkerRegistrationData(url string) (*WorkerResponse, error) {
+func getWorkerRegistrationData(url string) (*model.WorkerResponse, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call agent identification API: %v", err)
@@ -853,7 +796,7 @@ func getWorkerRegistrationData(url string) (*WorkerResponse, error) {
 		return nil, fmt.Errorf("Agent failed to process identification request: %s (status: %d)", string(body), resp.StatusCode)
 	}
 
-	var workerResponse WorkerResponse
+	var workerResponse model.WorkerResponse
 	if err := json.Unmarshal(body, &workerResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
 	}
@@ -861,7 +804,7 @@ func getWorkerRegistrationData(url string) (*WorkerResponse, error) {
 }
 
 // Helper function to call the agent identification API
-func workerRegistrationAcknowledge(url string, acknowledge RegistrationAcknowledge) error {
+func workerRegistrationAcknowledge(url string, acknowledge model.RegistrationAcknowledge) error {
 	// Marshal the attestation request to JSON
 	jsonPayload, err := json.Marshal(acknowledge)
 	if err != nil {
@@ -903,7 +846,7 @@ func validateWorkerQuote(quoteJSON, nonce string, AIK *rsa.PublicKey) (string, s
 	}
 
 	// Parse inputQuote JSON
-	var inputQuote InputQuote
+	var inputQuote model.InputQuote
 	err = json.Unmarshal([]byte(quoteJSON), &inputQuote)
 	if err != nil {
 		return "", "", fmt.Errorf("Failed to unmarshal Quote: %v", err)
@@ -1050,7 +993,7 @@ func SamePCRSelection(p *pb.PCRs, sel tpm2legacy.PCRSelection) bool {
 }
 
 // Helper function to send the challenge request to the agent
-func sendChallengeRequest(url string, challenge WorkerChallenge) (*WorkerChallengeResponse, error) {
+func sendChallengeRequest(url string, challenge model.WorkerChallenge) (*model.WorkerChallengeResponse, error) {
 	// Marshal the challenge struct into JSON
 	jsonData, err := json.Marshal(challenge)
 	if err != nil {
@@ -1070,7 +1013,7 @@ func sendChallengeRequest(url string, challenge WorkerChallenge) (*WorkerChallen
 	}
 
 	// Decode the response JSON into the WorkerChallengeResponse struct
-	var challengeResponse WorkerChallengeResponse
+	var challengeResponse model.WorkerChallengeResponse
 	if err := json.NewDecoder(resp.Body).Decode(&challengeResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode challenge response: %v", err)
 	}
@@ -1079,7 +1022,7 @@ func sendChallengeRequest(url string, challenge WorkerChallenge) (*WorkerChallen
 }
 
 // Create a new worker in the registrar
-func createWorker(url string, workerNode *WorkerNode) (*NewWorkerResponse, error) {
+func createWorker(url string, workerNode *model.WorkerNode) (*model.NewWorkerResponse, error) {
 	jsonData, err := json.Marshal(workerNode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal worker data: %v", err)
@@ -1097,7 +1040,7 @@ func createWorker(url string, workerNode *WorkerNode) (*NewWorkerResponse, error
 	if resp.StatusCode != http.StatusCreated {
 		return nil, fmt.Errorf("unexpected response status when creating worker: %s. Response body: %s", resp.Status, string(body))
 	}
-	var workerResponse NewWorkerResponse
+	var workerResponse model.NewWorkerResponse
 	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&workerResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode created worker response: %v", err)
 	}

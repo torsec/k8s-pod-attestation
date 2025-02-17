@@ -6,6 +6,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/google/go-tpm v0.9.3
 	github.com/google/go-tpm-tools v0.4.4
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250217144428-b64f1b520ef5
 	k8s.io/api v0.32.2
 	k8s.io/apiextensions-apiserver v0.32.2
 	k8s.io/apimachinery v0.32.2
