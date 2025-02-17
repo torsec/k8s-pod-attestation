@@ -4,15 +4,12 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/subtle"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"github.com/fatih/color"
 	"github.com/google/go-tpm-tools/client"
@@ -545,33 +542,6 @@ func generateCredentialActivation(AIKNameData string, ekPublic *rsa.PublicKey, a
 	return encodedCredentialBlob, encodedEncryptedSecret, nil
 }
 
-// generateNonce creates a random nonce of specified byte length
-func generateNonce(size int) (string, error) {
-	nonce := make([]byte, size)
-
-	// Fill the byte slice with random data
-	_, err := rand.Read(nonce)
-	if err != nil {
-		return "", fmt.Errorf("error generating nonce: %v", err)
-	}
-
-	// Return the nonce as a hexadecimal string
-	return hex.EncodeToString(nonce), nil
-}
-
-// Helper function to encode the public key to PEM format (for printing)
-func encodePublicKeyToPEM(pubKey crypto.PublicKey) string {
-	pubASN1, err := x509.MarshalPKIXPublicKey(pubKey)
-	if err != nil {
-		return ""
-	}
-	pubPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC KEY", // Use "PUBLIC KEY" for X.509 encoded keys
-		Bytes: pubASN1,
-	})
-	return string(pubPEM)
-}
-
 // workerRegistration registers the worker node by calling the identification API
 func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) bool {
 	agentIdentifyURL := fmt.Sprintf("http://%s:%s/agent/worker/registration/identify", agentHOST, agentPORT)
@@ -677,7 +647,7 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 		return false
 	}
 
-	AIKPublicKeyPEM := encodePublicKeyToPEM(AIKPublicKey)
+	AIKPublicKeyPEM := cryptoUtils.EncodePublicKeyToPEM(AIKPublicKey)
 	if AIKPublicKeyPEM == "" {
 		fmt.Printf(red.Sprintf("[%s] Failed to parse AIK Public Key to PEM format\n", time.Now().Format("02-01-2006 15:04:05"), err))
 		return false
