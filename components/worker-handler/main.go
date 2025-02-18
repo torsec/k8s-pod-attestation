@@ -3,20 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto"
 	"crypto/rsa"
-	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/fatih/color"
-	"github.com/google/go-tpm-tools/client"
-	pb "github.com/google/go-tpm-tools/proto/tpm"
-	tpm2legacy "github.com/google/go-tpm/legacy/tpm2"
-	"github.com/google/go-tpm/legacy/tpm2/credactivation"
-	"github.com/google/go-tpm/tpmutil"
 	"io"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -36,7 +28,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -48,6 +39,7 @@ import (
 
 	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
+	"github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation"
 )
 
 // Color variables for output
@@ -71,6 +63,8 @@ var (
 	IMAMeasurementLogPath        string
 	TPMPath                      string
 )
+
+const ephemeralKeySize = 32
 
 // initializeColors sets up color variables for console output.
 func initializeColors() {
@@ -469,79 +463,6 @@ func waitForAgent(retryInterval, timeout time.Duration, agentHOST, agentPORT str
 	}
 }
 
-func validateAIKPublicData(AIKNameData, AIKPublicArea string) (*rsa.PublicKey, error) {
-	decodedNameData, err := base64.StdEncoding.DecodeString(AIKNameData)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to decode AIK Name data")
-	}
-
-	decodedPublicArea, err := base64.StdEncoding.DecodeString(AIKPublicArea)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to decode AIK Name data")
-	}
-
-	retrievedName, err := tpm2legacy.DecodeName(bytes.NewBuffer(decodedNameData))
-	if err != nil {
-		return nil, fmt.Errorf("Failed to decode AIK Name")
-	}
-
-	if retrievedName.Digest == nil {
-		return nil, fmt.Errorf("AIK Name is not a digest")
-	}
-
-	hash, err := retrievedName.Digest.Alg.Hash()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get AIK Name hash: %v", err)
-	}
-
-	pubHash := hash.New()
-	pubHash.Write(decodedPublicArea)
-	pubDigest := pubHash.Sum(nil)
-	if !bytes.Equal(retrievedName.Digest.Value, pubDigest) {
-		return nil, fmt.Errorf("Computed AIK Name does not match received Name digest")
-	}
-
-	retrievedAKPublicArea, err := tpm2legacy.DecodePublic(decodedPublicArea)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to decode received AIK Public Area")
-	}
-
-	if !retrievedAKPublicArea.MatchesTemplate(client.AKTemplateRSA()) {
-		return nil, fmt.Errorf("provided AIK does not match AIK Template")
-	}
-
-	AIKPub, err := retrievedAKPublicArea.Key()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve AIK Public Key from AIK Public Area")
-	}
-
-	return AIKPub.(*rsa.PublicKey), nil
-}
-
-func generateCredentialActivation(AIKNameData string, ekPublic *rsa.PublicKey, activateCredentialSecret []byte) (string, string, error) {
-	decodedNameData, err := base64.StdEncoding.DecodeString(AIKNameData)
-	if err != nil {
-		return "", "", fmt.Errorf("Failed to decode AIK Name data")
-	}
-
-	retrievedName, err := tpm2legacy.DecodeName(bytes.NewBuffer(decodedNameData))
-	if err != nil {
-		return "", "", fmt.Errorf("Failed to decode AIK Name")
-	}
-
-	symBlockSize := 16
-	// Re-generate the credential blob and encrypted secret based on AK public info
-	credentialBlob, encryptedSecret, err := credactivation.Generate(retrievedName.Digest, ekPublic, symBlockSize, activateCredentialSecret)
-	if err != nil {
-		return "", "", fmt.Errorf("Failed to generate credential activation challenge: %v", err)
-	}
-
-	encodedCredentialBlob := base64.StdEncoding.EncodeToString(credentialBlob)
-	encodedEncryptedSecret := base64.StdEncoding.EncodeToString(encryptedSecret)
-
-	return encodedCredentialBlob, encodedEncryptedSecret, nil
-}
-
 // workerRegistration registers the worker node by calling the identification API
 func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) bool {
 	agentIdentifyURL := fmt.Sprintf("http://%s:%s/agent/worker/registration/identify", agentHOST, agentPORT)
@@ -589,13 +510,13 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 	}
 
 	// Generate ephemeral key
-	ephemeralKey, err := cryptoUtils.GenerateEphemeralKey(32)
+	ephemeralKey, err := cryptoUtils.GenerateEphemeralKey(ephemeralKeySize)
 	if err != nil {
 		fmt.Printf(red.Sprintf("[%s] Failed to generate challenge ephemeral key: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
 		return false
 	}
 
-	// Some TPM cannot process secrets > 32 bytes, so first 8 bytes of the ephemeral key are used as nonce of quote computation
+	// Some TPMs cannot process secrets > 32 bytes, so first 8 bytes of the ephemeral key are used as nonce of quote computation
 	quoteNonce := hex.EncodeToString(ephemeralKey[:8])
 
 	encodedCredentialBlob, encodedEncryptedSecret, err := generateCredentialActivation(workerData.AIKNameData, EK, ephemeralKey)
@@ -684,6 +605,28 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 
 	fmt.Printf(green.Sprintf("[%s] Successfully registered Worker Node '%s': %s\n", time.Now().Format("02-01-2006 15:04:05"), newWorker.GetName(), createWorkerResponse.WorkerId))
 	return true
+}
+
+func validateWorkerQuote(quoteJSON, nonce string, AIK *rsa.PublicKey) (string, string, error) {
+	// decode nonce from hex
+	nonceBytes, err := hex.DecodeString(nonce)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to decode nonce: %v", err)
+	}
+
+	// Parse inputQuote JSON
+	var workerQuote model.InputQuote
+	err = json.Unmarshal([]byte(quoteJSON), &workerQuote)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to unmarshal worker quote: %v", err)
+	}
+
+	bootAggregate, hashAlg, err := tpm_attestation.ValidateWorkerQuote(workerQuote, nonceBytes, AIK)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to validate worker quote: %v", err)
+	}
+
+	return bootAggregate, hashAlg, nil
 }
 
 func verifyEKCertificate(EKCertcheckRequest model.VerifyTPMEKCertificateRequest) error {
@@ -798,166 +741,6 @@ func workerRegistrationAcknowledge(url string, acknowledge model.RegistrationAck
 		return fmt.Errorf("Agent failed to acknowledge registration: %s (status: %d)", string(body), resp.StatusCode)
 	}
 	return nil
-}
-
-func verifySignature(rsaPubKey *rsa.PublicKey, message []byte, signature tpmutil.U16Bytes) error {
-	hashed := sha256.Sum256(message)
-	err := rsa.VerifyPKCS1v15(rsaPubKey, crypto.SHA256, hashed[:], signature)
-	return err
-}
-
-func validateWorkerQuote(quoteJSON, nonce string, AIK *rsa.PublicKey) (string, string, error) {
-	// decode nonce from hex
-	nonceBytes, err := hex.DecodeString(nonce)
-	if err != nil {
-		return "", "", fmt.Errorf("Failed to decode nonce: %v", err)
-	}
-
-	// Parse inputQuote JSON
-	var inputQuote model.InputQuote
-	err = json.Unmarshal([]byte(quoteJSON), &inputQuote)
-	if err != nil {
-		return "", "", fmt.Errorf("Failed to unmarshal Quote: %v", err)
-	}
-
-	// Decode Base64-encoded quote and signature
-	quoteBytes, err := base64.StdEncoding.DecodeString(inputQuote.Quote)
-	if err != nil {
-		return "", "", fmt.Errorf("Failed to decode Quote: %v", err)
-	}
-
-	// Decode Base64-encoded quote and signature
-	quoteSig, err := base64.StdEncoding.DecodeString(inputQuote.RawSig)
-	if err != nil {
-		return "", "", fmt.Errorf("Failed to decode Quote: %v", err)
-	}
-
-	sig, err := tpm2legacy.DecodeSignature(bytes.NewBuffer(quoteSig))
-	if err != nil {
-		return "", "", fmt.Errorf("Failed to decode Quote Signature")
-	}
-
-	// Verify the signature
-	if verifySignature(AIK, quoteBytes, sig.RSA.Signature) != nil {
-		return "", "", fmt.Errorf("Quote Signature verification failed")
-	}
-
-	// Decode and check for magic TPMS_GENERATED_VALUE.
-	attestationData, err := tpm2legacy.DecodeAttestationData(quoteBytes)
-	if err != nil {
-		return "", "", fmt.Errorf("Decoding Quote attestation data failed: %v", err)
-	}
-	if attestationData.Type != tpm2legacy.TagAttestQuote {
-		return "", "", fmt.Errorf("Expected quote tag, got: %v", attestationData.Type)
-	}
-	attestedQuoteInfo := attestationData.AttestedQuoteInfo
-	if attestedQuoteInfo == nil {
-		return "", "", fmt.Errorf("attestation data does not contain quote info")
-	}
-	if subtle.ConstantTimeCompare(attestationData.ExtraData, nonceBytes) == 0 {
-		return "", "", fmt.Errorf("Quote extraData %v did not match expected extraData %v", attestationData.ExtraData, nonceBytes)
-	}
-
-	inputPCRs, err := convertPCRs(inputQuote.PCRs.PCRs)
-	if err != nil {
-		return "", "", fmt.Errorf("Failed to convert PCRs from received Quote")
-	}
-
-	quotePCRs := &pb.PCRs{
-		Hash: pb.HashAlgo(inputQuote.PCRs.Hash),
-		Pcrs: inputPCRs,
-	}
-
-	pcrHashAlgo, err := convertToCryptoHash(quotePCRs.GetHash())
-	if err != nil {
-		return "", "", fmt.Errorf("Failed to parse hash algorithm: %v", err)
-	}
-
-	err = validatePCRDigest(attestedQuoteInfo, quotePCRs, pcrHashAlgo)
-	if err != nil {
-		return "", "", fmt.Errorf("PCRs digest validation failed: %v", err)
-	}
-
-	return hex.EncodeToString(attestedQuoteInfo.PCRDigest), quotePCRs.GetHash().String(), nil
-}
-
-func convertToCryptoHash(algo pb.HashAlgo) (crypto.Hash, error) {
-	switch algo {
-	case 4:
-		return crypto.SHA1, nil
-	case 11:
-		return crypto.SHA256, nil
-	case 12:
-		return crypto.SHA384, nil
-	case 13:
-		return crypto.SHA512, nil
-	default:
-		return 0, fmt.Errorf("unsupported hash algorithm: %v", algo)
-	}
-}
-
-func convertPCRs(input map[string]string) (map[uint32][]byte, error) {
-	converted := make(map[uint32][]byte)
-
-	// Iterate over the input map
-	for key, value := range input {
-		// Convert string key to uint32
-		keyUint32, err := strconv.ParseUint(key, 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert key '%s' to uint32: %v", key, err)
-		}
-
-		// Decode base64-encoded value
-		valueBytes, err := base64.StdEncoding.DecodeString(value)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode base64 value for key '%s': %v", key, err)
-		}
-
-		// Add the converted key-value pair to the new map
-		converted[uint32(keyUint32)] = valueBytes
-	}
-
-	return converted, nil
-}
-
-func validatePCRDigest(quoteInfo *tpm2legacy.QuoteInfo, pcrs *pb.PCRs, hash crypto.Hash) error {
-	if !SamePCRSelection(pcrs, quoteInfo.PCRSelection) {
-		return fmt.Errorf("given PCRs and Quote do not have the same PCR selection")
-	}
-	pcrDigest := PCRDigest(pcrs, hash)
-	if subtle.ConstantTimeCompare(quoteInfo.PCRDigest, pcrDigest) == 0 {
-		return fmt.Errorf("given PCRs digest not matching")
-	}
-	return nil
-}
-
-// PCRDigest computes the digest of the Pcrs. Note that the digest hash
-// algorithm may differ from the PCRs' hash (which denotes the PCR bank).
-func PCRDigest(p *pb.PCRs, hashAlg crypto.Hash) []byte {
-	hash := hashAlg.New()
-	for i := uint32(0); i < 24; i++ {
-		if pcrValue, exists := p.GetPcrs()[i]; exists {
-			hash.Write(pcrValue)
-		}
-	}
-	return hash.Sum(nil)
-}
-
-// SamePCRSelection checks if the Pcrs has the same PCRSelection as the
-// provided given tpm2.PCRSelection (including the hash algorithm).
-func SamePCRSelection(p *pb.PCRs, sel tpm2legacy.PCRSelection) bool {
-	if tpm2legacy.Algorithm(p.GetHash()) != sel.Hash {
-		return false
-	}
-	if len(p.GetPcrs()) != len(sel.PCRs) {
-		return false
-	}
-	for _, pcr := range sel.PCRs {
-		if _, ok := p.Pcrs[uint32(pcr)]; !ok {
-			return false
-		}
-	}
-	return true
 }
 
 // Helper function to send the challenge request to the agent

@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"github.com/google/go-tpm/tpmutil"
 )
 
 // Helper function to verify HMAC
@@ -95,4 +96,10 @@ func GenerateHexNonce(size int) (string, error) {
 
 	// Return the nonce as a hexadecimal string
 	return hex.EncodeToString(nonce), nil
+}
+
+func VerifyTPMSignature(rsaPubKey *rsa.PublicKey, message []byte, signature tpmutil.U16Bytes) error {
+	hashed := sha256.Sum256(message)
+	err := rsa.VerifyPKCS1v15(rsaPubKey, crypto.SHA256, hashed[:], signature)
+	return err
 }
