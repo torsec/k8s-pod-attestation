@@ -61,3 +61,22 @@ type VerifyTPMEKCertificateRequest struct {
 	EndorsementKey string `json:"endorsementKey"`
 	EKCertificate  string `json:"EKCertificate"`
 }
+
+// VerifySignatureRequest represents the input data for signature verification
+type VerifySignatureRequest struct {
+	Name      string `json:"name"`
+	Message   string `json:"message"`
+	Signature string `json:"signature"`
+}
+
+type TPMCACertificate struct {
+	CertificateID  string `json:"certificateId,omitempty"`
+	CommonName     string `json:"commonName"`
+	PEMCertificate string `json:"PEMCertificate"`
+}
+
+type TPMVendor struct {
+	VendorID      string `json:"vendorId,omitempty"`
+	Name          string `json:"vendorName"`
+	TCGIdentifier string `json:"TCGIdentifier"`
+}

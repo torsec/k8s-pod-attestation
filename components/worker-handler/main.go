@@ -503,7 +503,7 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 		return false
 	}
 
-	AIKPublicKey, err := validateAIKPublicData(workerData.AIKNameData, workerData.AIKPublicArea)
+	AIKPublicKey, err := tpm_attestation.ValidateAIKPublicData(workerData.AIKNameData, workerData.AIKPublicArea)
 	if err != nil {
 		fmt.Printf(red.Sprintf("[%s] Failed to validate received Worker AIK: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
 		return false
@@ -519,7 +519,7 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 	// Some TPMs cannot process secrets > 32 bytes, so first 8 bytes of the ephemeral key are used as nonce of quote computation
 	quoteNonce := hex.EncodeToString(ephemeralKey[:8])
 
-	encodedCredentialBlob, encodedEncryptedSecret, err := generateCredentialActivation(workerData.AIKNameData, EK, ephemeralKey)
+	encodedCredentialBlob, encodedEncryptedSecret, err := tpm_attestation.GenerateCredentialActivation(workerData.AIKNameData, EK, ephemeralKey)
 	if err != nil {
 		fmt.Printf(red.Sprintf("[%s] Failed to generate AIK credential activation challenge: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
 		return false
@@ -615,7 +615,7 @@ func validateWorkerQuote(quoteJSON, nonce string, AIK *rsa.PublicKey) (string, s
 	}
 
 	// Parse inputQuote JSON
-	var workerQuote model.InputQuote
+	var workerQuote *model.InputQuote
 	err = json.Unmarshal([]byte(quoteJSON), &workerQuote)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to unmarshal worker quote: %v", err)
@@ -627,36 +627,6 @@ func validateWorkerQuote(quoteJSON, nonce string, AIK *rsa.PublicKey) (string, s
 	}
 
 	return bootAggregate, hashAlg, nil
-}
-
-func verifyEKCertificate(EKCertcheckRequest model.VerifyTPMEKCertificateRequest) error {
-	registrarCertificateValidateURL := fmt.Sprintf("http://%s:%s/worker/verifyEKCertificate", registrarHOST, registrarPORT)
-
-	// Marshal the attestation request to JSON
-	jsonPayload, err := json.Marshal(EKCertcheckRequest)
-	if err != nil {
-		return fmt.Errorf("failed to marshal EK Certificate check request: %v", err)
-	}
-
-	// Make the POST request to the agent
-	resp, err := http.Post(registrarCertificateValidateURL, "application/json", bytes.NewBuffer(jsonPayload))
-	if err != nil {
-		return fmt.Errorf("failed to send EK Certificate check request: %v", err)
-	}
-
-	defer resp.Body.Close()
-
-	// Read response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	// Check if the status is OK (200)
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Registrar failed to validate EK Certificate: %s (status: %d)", string(body), resp.StatusCode)
-	}
-	return nil
 }
 
 func verifyBootAggregate(checkRequest model.WorkerWhitelistCheckRequest) error {

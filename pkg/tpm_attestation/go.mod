@@ -5,6 +5,7 @@ go 1.23.4
 require (
 	github.com/google/go-tpm v0.9.3
 	github.com/google/go-tpm-tools v0.3.13-0.20230620182252-4639ecce2aba
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250217161922-14448ffed00b
 	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250217161922-14448ffed00b
 )
 

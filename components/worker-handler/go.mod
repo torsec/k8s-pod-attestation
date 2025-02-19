@@ -4,10 +4,9 @@ go 1.23.4
 
 require (
 	github.com/fatih/color v1.18.0
-	github.com/google/go-tpm v0.9.3
-	github.com/google/go-tpm-tools v0.4.4
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250217161922-14448ffed00b
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250217144428-b64f1b520ef5
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250217161922-14448ffed00b
+	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250218104700-a59528e40450
 	k8s.io/api v0.32.2
 	k8s.io/apiextensions-apiserver v0.32.2
 	k8s.io/apimachinery v0.32.2
@@ -29,6 +28,8 @@ require (
 	github.com/google/go-configfs-tsm v0.2.2 // indirect
 	github.com/google/go-sev-guest v0.9.3 // indirect
 	github.com/google/go-tdx-guest v0.3.1 // indirect
+	github.com/google/go-tpm v0.9.3 // indirect
+	github.com/google/go-tpm-tools v0.4.4 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/logger v1.1.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect

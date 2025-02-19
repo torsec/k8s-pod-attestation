@@ -71,7 +71,7 @@ var (
 	registrarPORT string
 )
 
-// TCG recognized TPM manufacturers
+// TPMManufacturers TCG recognized TPM manufacturers
 // https://trustedcomputinggroup.org/resource/vendor-id-registry/
 var TPMManufacturers = []TPMVendor{
 	{Name: "AMD", TCGIdentifier: "id:414D4400"},

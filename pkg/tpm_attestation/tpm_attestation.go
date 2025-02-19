@@ -12,13 +12,14 @@ import (
 	pb "github.com/google/go-tpm-tools/proto/tpm"
 	tpm2legacy "github.com/google/go-tpm/legacy/tpm2"
 	"github.com/google/go-tpm/legacy/tpm2/credactivation"
+	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"strconv"
 )
 
 const symBlockSize = 16
 
-func validateAIKPublicData(AIKNameData, AIKPublicArea string) (*rsa.PublicKey, error) {
+func ValidateAIKPublicData(AIKNameData, AIKPublicArea string) (*rsa.PublicKey, error) {
 	decodedNameData, err := base64.StdEncoding.DecodeString(AIKNameData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode AIK Name data")
