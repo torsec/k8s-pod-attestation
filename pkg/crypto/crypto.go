@@ -10,12 +10,14 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	x509ext "github.com/google/go-attestation/x509"
 	"github.com/google/go-tpm/tpmutil"
+	"github.com/torsec/k8s-pod-attestation/pkg/model"
 )
 
 // Helper function to verify HMAC
-func VerifyHMAC(message, ephemeralKey, providedHMAC []byte) error {
-	h := hmac.New(sha256.New, ephemeralKey)
+func VerifyHMAC(message, key, providedHMAC []byte) error {
+	h := hmac.New(sha256.New, key)
 	h.Write(message)
 	expectedHMAC := h.Sum(nil)
 
@@ -102,4 +104,84 @@ func VerifyTPMSignature(rsaPubKey *rsa.PublicKey, message []byte, signature tpmu
 	hashed := sha256.Sum256(message)
 	err := rsa.VerifyPKCS1v15(rsaPubKey, crypto.SHA256, hashed[:], signature)
 	return err
+}
+
+// LoadCertificateFromPEM loads a certificate from a PEM string
+func LoadCertificateFromPEM(pemCert string) (*x509.Certificate, error) {
+	block, _ := pem.Decode([]byte(pemCert))
+	if block == nil || block.Type != "CERTIFICATE" {
+		return nil, fmt.Errorf("failed to decode PEM block containing the certificate")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse certificate: %v", err)
+	}
+	return cert, nil
+}
+
+// handleTPMSubjectAltName processes the subjectAltName extension to mark it as handled
+func handleTPMSubjectAltName(cert *x509.Certificate, tpmVendors []model.TPMVendor) error {
+	for _, ext := range cert.Extensions {
+		if ext.Id.Equal([]int{2, 5, 29, 17}) { // OID for subjectAltName
+			subjectAltName, err := x509ext.ParseSubjectAltName(ext)
+			if err != nil {
+				return err
+			}
+
+			// check if Certificate Vendor is a TCG valid one
+			TPMVendorId := (subjectAltName.DirectoryNames[0].Names[0].Value).(string)
+			var foundTPMVendor *model.TPMVendor
+
+			for _, tpmVendor := range tpmVendors {
+				if tpmVendor.VendorID == TPMVendorId {
+					foundTPMVendor = &tpmVendor
+				}
+			}
+
+			if foundTPMVendor == nil {
+				return fmt.Errorf("TPM Vendor Not Found")
+			}
+
+			// TODO implement checks on platform model and firmware version
+			//TPMModel := subjectAltName.DirectoryNames[0].Names[1]
+			//TPMVersion := subjectAltName.DirectoryNames[0].Names[2]
+
+			// Remove from UnhandledCriticalExtensions if it's the SAN extension
+			for i, unhandledExt := range cert.UnhandledCriticalExtensions {
+				if unhandledExt.Equal(ext.Id) {
+					// Remove the SAN extension from UnhandledCriticalExtensions
+					cert.UnhandledCriticalExtensions = append(cert.UnhandledCriticalExtensions[:i], cert.UnhandledCriticalExtensions[i+1:]...)
+					break
+				}
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("SubjectAltName extension not found")
+}
+
+// VerifyEKCertificateChain verifies the provided certificate chain from PEM strings
+func VerifyEKCertificateChain(ekCert, intermediateCACert, rootCACert *x509.Certificate, tpmVendors []model.TPMVendor) error {
+	roots := x509.NewCertPool()
+	roots.AddCert(rootCACert)
+
+	intermediates := x509.NewCertPool()
+	intermediates.AddCert(intermediateCACert)
+
+	opts := x509.VerifyOptions{
+		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+		Roots:         roots,
+		Intermediates: intermediates,
+	}
+
+	err := handleTPMSubjectAltName(ekCert, tpmVendors)
+	if err != nil {
+		return fmt.Errorf("EK Certificate verification failed: %v", err)
+	}
+
+	if _, err := ekCert.Verify(opts); err != nil {
+		return fmt.Errorf("EK Certificate verification failed: %v", err)
+	}
+	return nil
 }

@@ -193,10 +193,10 @@ func convertPCRs(input map[string]string) (map[uint32][]byte, error) {
 }
 
 func validatePCRDigest(quoteInfo *tpm2legacy.QuoteInfo, pcrs *pb.PCRs, hash crypto.Hash) error {
-	if !SamePCRSelection(pcrs, quoteInfo.PCRSelection) {
+	if !samePCRSelection(pcrs, quoteInfo.PCRSelection) {
 		return fmt.Errorf("given PCRs and Quote do not have the same PCR selection")
 	}
-	pcrDigest := PCRDigest(pcrs, hash)
+	pcrDigest := pcrDigest(pcrs, hash)
 	if subtle.ConstantTimeCompare(quoteInfo.PCRDigest, pcrDigest) == 0 {
 		return fmt.Errorf("given PCRs digest not matching")
 	}
@@ -205,7 +205,7 @@ func validatePCRDigest(quoteInfo *tpm2legacy.QuoteInfo, pcrs *pb.PCRs, hash cryp
 
 // PCRDigest computes the digest of the Pcrs. Note that the digest hash
 // algorithm may differ from the PCRs' hash (which denotes the PCR bank).
-func PCRDigest(p *pb.PCRs, hashAlg crypto.Hash) []byte {
+func pcrDigest(p *pb.PCRs, hashAlg crypto.Hash) []byte {
 	hash := hashAlg.New()
 	for i := uint32(0); i < 24; i++ {
 		if pcrValue, exists := p.GetPcrs()[i]; exists {
@@ -217,7 +217,7 @@ func PCRDigest(p *pb.PCRs, hashAlg crypto.Hash) []byte {
 
 // SamePCRSelection checks if the Pcrs has the same PCRSelection as the
 // provided given tpm2.PCRSelection (including the hash algorithm).
-func SamePCRSelection(p *pb.PCRs, sel tpm2legacy.PCRSelection) bool {
+func samePCRSelection(p *pb.PCRs, sel tpm2legacy.PCRSelection) bool {
 	if tpm2legacy.Algorithm(p.GetHash()) != sel.Hash {
 		return false
 	}

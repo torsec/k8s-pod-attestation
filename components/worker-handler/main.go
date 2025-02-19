@@ -489,7 +489,7 @@ func workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) boo
 			EndorsementKey: workerData.EK,
 			EKCertificate:  workerData.EKCert,
 		}
-		err = verifyEKCertificate(EKCertCheckRequest)
+		err = registrar.VerifyEKCertificate(EKCertCheckRequest)
 		if err != nil {
 			fmt.Printf(red.Sprintf("[%s] Failed to verify EK Certificate: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
 			return false
