@@ -185,3 +185,10 @@ func VerifyEKCertificateChain(ekCert, intermediateCACert, rootCACert *x509.Certi
 	}
 	return nil
 }
+
+// Utility function: Verify a signature using provided public key
+func VerifySignature(publicKey *rsa.PublicKey, message, signature []byte) error {
+	hashed := sha256.Sum256(message)
+	err := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hashed[:], signature)
+	return err
+}

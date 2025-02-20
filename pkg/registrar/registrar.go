@@ -7,6 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"io"
 	"net/http"
@@ -63,20 +66,204 @@ func getKnownTPMCACertificates() []model.TPMCACertificate {
 	}
 }
 
-func getTPMVendorById(vendorTCGIdentifier string) (model.TPMVendor, error) {
-	var tpmVendor model.TPMVendor
+func getTPMVendorById(vendorTCGIdentifier string) (*model.TPMVendor, error) {
+	var tpmVendor *model.TPMVendor
 	query := "SELECT vendorId, name, TCGIdentifier FROM tpm_vendors WHERE TCGIdentifier = ?"
-	err := db.QueryRow(query, vendorTCGIdentifier).Scan(&tpmVendor.VendorID, &tpmVendor.Name, &tpmVendor.TCGIdentifier)
+	err := db.QueryRow(query, vendorTCGIdentifier).Scan(tpmVendor.VendorID, tpmVendor.Name, tpmVendor.TCGIdentifier)
 	if errors.Is(err, sql.ErrNoRows) {
-		return tpmVendor, errors.New("TPM Vendor not found")
+		return tpmVendor, fmt.Errorf("TPM Vendor not found")
 	} else if err != nil {
 		return tpmVendor, err
 	}
 	return tpmVendor, nil
 }
 
-// Exposed endpoints
+// Fetch the Certificate by commonName from the database
+func getCertificateByCommonName(commonName string) (*model.TPMCACertificate, error) {
+	var tpmCert *model.TPMCACertificate
+	query := "SELECT certificateId, cn, PEMCertificate FROM tpm_ca_certificates WHERE cn = ?"
+	err := db.QueryRow(query, commonName).Scan(tpmCert.CertificateID, tpmCert.CommonName, tpmCert.PEMCertificate)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("certificate not found")
+	} else if err != nil {
+		return tpmCert, err
+	}
+	return tpmCert, nil
+}
 
+// Insert a new certificate into the database
+func insertCertificate(tpmCertificate *model.TPMCACertificate) error {
+	query := "INSERT INTO tpm_ca_certificates (cn, PEMCertificate) VALUES (?, ?, ?)"
+	_, err := db.Exec(query, tpmCertificate.CommonName, tpmCertificate.PEMCertificate)
+	return err
+}
+
+// Endpoint: Verify worker's TPM EK certificate
+func verifyWorkerEKCertificate(c *gin.Context) {
+	var req model.VerifyTPMEKCertificateRequest
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": "error"})
+		return
+	}
+
+	tpmEKCertificate, err := cryptoUtils.LoadCertificateFromPEM(req.EKCertificate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "EK Certificate is not valid PEM", "status": "error"})
+		return
+	}
+
+	decodedEK, err := cryptoUtils.DecodePublicKeyFromPEM(req.EndorsementKey)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "EK is not valid PEM", "status": "error"})
+		return
+	}
+
+	// Verify that the public key in the certificate matches the provided public key
+	if !decodedEK.Equal(tpmEKCertificate.PublicKey) {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "EK does not match public key in provided EK Certificate", "status": "error"})
+		return
+	}
+
+	// Get intermediate CA's certificate
+	intermediateCA, err := getCertificateByCommonName(tpmEKCertificate.Issuer.CommonName)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"message": "Intermediate CA not found", "status": "error"})
+		return
+	}
+
+	intermediateCACert, err := cryptoUtils.LoadCertificateFromPEM(intermediateCA.PEMCertificate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Intermediate CA Certificate is not valid PEM", "status": "error"})
+		return
+	}
+
+	// Get intermediate CA's certificate
+	rootCA, err := getCertificateByCommonName(intermediateCACert.Issuer.CommonName)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"message": "Root CA not found", "status": "error"})
+		return
+	}
+
+	rootCACert, err := cryptoUtils.LoadCertificateFromPEM(rootCA.PEMCertificate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Root CA Certificate is not valid PEM", "status": "error"})
+		return
+	}
+
+	err = cryptoUtils.VerifyEKCertificateChain(tpmEKCertificate, intermediateCACert, rootCACert, getKnownTPMManufacturers())
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Certificate verification failed", "status": "error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "TPM EK Certificate verification successful", "status": "success"})
+	return
+}
+
+// Tenant funcs
+
+// Utility function: Check if a tenant already exists by name
+func tenantExistsByName(name string) (bool, error) {
+	var count int
+	query := "SELECT COUNT(*) FROM tenants WHERE name = ?"
+	err := db.QueryRow(query, name).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// Utility function: Check if a public key already exists
+func tenantExistsByPublicKey(publicKey string) (bool, error) {
+	var count int
+	query := "SELECT COUNT(*) FROM tenants WHERE publicKey = ?"
+	err := db.QueryRow(query, publicKey).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// Fetch the tenant by name from the database
+func getTenantByName(name string) (*model.Tenant, error) {
+	var tenant *model.Tenant
+	query := "SELECT tenantId, name, publicKey FROM tenants WHERE name = ?"
+	err := db.QueryRow(query, name).Scan(tenant.TenantID, tenant.Name, tenant.PublicKey)
+	if errors.Is(err, sql.ErrNoRows) {
+		return tenant, fmt.Errorf("tenant not found")
+	} else if err != nil {
+		return tenant, err
+	}
+	return tenant, nil
+}
+
+// Insert a new tenant into the database
+func insertTenant(tenant *model.Tenant) error {
+	query := "INSERT INTO tenants (tenantId, name, publicKey) VALUES (?, ?, ?)"
+	_, err := db.Exec(query, tenant.TenantID, tenant.Name, tenant.PublicKey)
+	return err
+}
+
+// Endpoint: Create a new tenant (with name and public key, generating UUID for TenantID)
+func createTenant(c *gin.Context) {
+	var newTenantRequest *model.NewTenantRequest
+
+	if err := c.BindJSON(&newTenantRequest); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": "error"})
+		return
+	}
+
+	// Lock access to prevent race conditions
+	mtx.Lock()
+	defer mtx.Unlock()
+
+	// Check if tenant with the same name already exists
+	nameExists, err := tenantExistsByName(newTenantRequest.Name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to check tenant by name", "status": "error"})
+		return
+	}
+	if nameExists {
+		c.JSON(http.StatusConflict, gin.H{"message": "Tenant with the same name already exists", "status": "error"})
+		return
+	}
+
+	// Check if the public key already exists
+	pubKeyExists, err := tenantExistsByPublicKey(newTenantRequest.PublicKey)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to check tenant by public key", "status": "error"})
+		return
+	}
+	if pubKeyExists {
+		c.JSON(http.StatusConflict, gin.H{"message": "Public key already exists", "status": "error"})
+		return
+	}
+
+	// Generate a new UUID for the tenant
+	tenantID := uuid.New().String()
+
+	// Create a new tenant object
+	newTenant := model.Tenant{
+		TenantID:  tenantID,
+		Name:      req.Name,
+		PublicKey: req.PublicKey,
+	}
+
+	// Insert the new tenant into the database
+	if err := insertTenant(newTenant); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to create tenant", "status": "error"})
+		return
+	}
+
+	// Send a successful response
+	c.JSON(http.StatusCreated, gin.H{
+		"message":  "Tenant created successfully",
+		"tenantId": tenantID,
+		"status":   "success",
+	})
+}
+
+// Exposed endpoints
 func (r *Registrar) VerifyEKCertificate(EKCertcheckRequest model.VerifyTPMEKCertificateRequest) error {
 	registrarCertificateValidateURL := fmt.Sprintf("http://%s:%s/worker/verifyEKCertificate", r.registrarHost, r.registrarPort)
 
