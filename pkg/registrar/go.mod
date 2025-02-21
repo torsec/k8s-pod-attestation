@@ -5,6 +5,7 @@ go 1.23.4
 require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
+	github.com/torsec/k8s-pod-attestation v0.0.0-20250221142252-1ed01aef77ac
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250221134959-8bf990f328c9
 	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250221134959-8bf990f328c9
 	modernc.org/sqlite v1.35.0
@@ -14,7 +15,6 @@ require (
 	github.com/bytedance/sonic v1.12.9 // indirect
 	github.com/bytedance/sonic/loader v0.2.3 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
-	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/gin-contrib/sse v1.0.0 // indirect

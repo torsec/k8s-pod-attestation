@@ -1,4 +1,4 @@
-module github.com/torsec/k8s-pod-attestation
+module github.com/torsec/k8s-pod-attestation/pkg/logger
 
 go 1.23.4
 

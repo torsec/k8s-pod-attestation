@@ -8,7 +8,6 @@ import (
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"io"
 	"net/http"
-	"time"
 )
 
 type Client struct {
@@ -55,8 +54,7 @@ func (c *Client) VerifyTenantSignature(verifySignatureRequest *model.VerifySigna
 
 // VerifyEKCertificate verifies provided Endorsement Key certificate by rebuilding the certificate chain with the TPM manufacturer intermediate and root CAs
 func (c *Client) VerifyEKCertificate(EKCertcheckRequest model.VerifyTPMEKCertificateRequest) (*model.RegistrarResponse, error) {
-	registrarCertificateValidateURL := fmt.Sprintf("http://%s:%d/worker/verifyEKCertificate",
-		c.registrarHost, c.registrarPort)
+	registrarCertificateValidateURL := fmt.Sprintf("http://%s:%d/worker/verifyEKCertificate", c.registrarHost, c.registrarPort)
 
 	// Marshal the attestation request to JSON
 	jsonPayload, err := json.Marshal(EKCertcheckRequest)
@@ -158,7 +156,6 @@ func (c *Client) RemoveWorker(workerName string) (*model.RegistrarResponse, erro
 		return nil, fmt.Errorf("failed to decode worker remove response: %v", err)
 	}
 
-	fmt.Printf("[%s] worker node: '%s' removed from registrar with success\n", time.Now().Format("02-01-2006 15:04:05"), workerName)
 	return registrarResponse, nil
 }
 
@@ -317,6 +314,5 @@ func (c *Client) DeleteTenantByName(tenantName string) (*model.RegistrarResponse
 		return nil, fmt.Errorf("failed to decode tenant remove response: %v", err)
 	}
 
-	fmt.Printf("[%s] tenant: '%s' removed from registrar with success\n", time.Now().Format("02-01-2006 15:04:05"), tenantName)
 	return registrarResponse, nil
 }

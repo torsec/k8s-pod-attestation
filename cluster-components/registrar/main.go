@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/google/logger"
 	"github.com/torsec/k8s-pod-attestation/pkg/registrar"
 	"log"
 	"os"
@@ -28,7 +29,7 @@ func loadEnvironmentVariables() {
 	registrarHost = getEnv("REGISTRAR_HOST", "localhost")
 	registrarPort, err = strconv.Atoi(getEnv("REGISTRAR_PORT", "8080"))
 	if err != nil {
-		log.Fatalf("failed to parse REGISTRAR_PORT: %v", err)
+		logger.Fatal("failed to parse REGISTRAR_PORT: %v", err)
 	}
 }
 

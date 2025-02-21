@@ -9,8 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
+	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
-	"log"
 	_ "modernc.org/sqlite"
 	"net/http"
 	"strconv"
@@ -613,7 +613,12 @@ func (s *Server) initTPMVendors() error {
 func (s *Server) Start() {
 	// Initialize Gin router
 	s.router = gin.Default()
-	defer s.db.Close()
+	defer func(db *sql.DB) {
+		err := db.Close()
+		if err != nil {
+			return
+		}
+	}(s.db)
 
 	// Define routes for the Tenant API
 	s.router.POST("/tenant/create", s.createTenant)               // POST create tenant
@@ -628,10 +633,10 @@ func (s *Server) Start() {
 	s.router.DELETE("/worker/deleteByName", s.deleteWorkerByName)             // DELETE worker by Name
 
 	// Start the server
-	fmt.Println("Server is running on port: %i", s.registrarPort)
+	logger.Info("Server is running on port: %d", s.registrarPort)
 	err := s.router.Run(":" + strconv.Itoa(s.registrarPort))
 	if err != nil {
-		log.Fatal("Error while starting Server server")
+		return
 	}
 }
 
