@@ -54,3 +54,8 @@ type VerifySignatureRequest struct {
 	Message   string `json:"message"`
 	Signature string `json:"signature"`
 }
+
+type RegistrarResponse struct {
+	Message string `json:"message"`
+	Status  string `json:"status"`
+}

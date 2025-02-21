@@ -354,22 +354,6 @@ func watchNodes(stopCh chan os.Signal) {
 	fmt.Println("Stopping application...")
 }
 
-func nodeIsRegistered(nodeName string) bool {
-	registrarSearchWorkerURL := fmt.Sprintf("http://%s:%s/worker/getIdByName?name=%s", registrarHOST, registrarPORT, nodeName)
-
-	resp, err := http.Get(registrarSearchWorkerURL)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return false
-	}
-
-	return true
-}
-
 // deleteNode deletes the node from the Kubernetes cluster.
 func deleteNodeFromCluster(nodeName string) error {
 	err := clientset.CoreV1().Nodes().Delete(context.TODO(), nodeName, metav1.DeleteOptions{})
@@ -740,32 +724,6 @@ func sendChallengeRequest(url string, challenge model.WorkerChallenge) (*model.W
 	}
 
 	return &challengeResponse, nil
-}
-
-// Create a new worker in the registrar
-func createWorker(url string, workerNode *model.WorkerNode) (*model.NewWorkerResponse, error) {
-	jsonData, err := json.Marshal(workerNode)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal worker data: %v", err)
-	}
-
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create worker: %v", err)
-	}
-	defer resp.Body.Close()
-
-	// Read response body in case of an unexpected status
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("unexpected response status when creating worker: %s. Response body: %s", resp.Status, string(body))
-	}
-	var workerResponse model.NewWorkerResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&workerResponse); err != nil {
-		return nil, fmt.Errorf("failed to decode created worker response: %v", err)
-	}
-	return &workerResponse, nil
 }
 
 func createAgentCRDInstance(nodeName string) bool {

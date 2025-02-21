@@ -32,6 +32,8 @@ github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeN
 github.com/google/go-tpm v0.9.3 h1:+yx0/anQuGzi+ssRqeD6WpXjW2L/V0dItUayO0i9sRc=
 github.com/google/go-tpm v0.9.3/go.mod h1:h9jEsEECg7gtLis0upRBQU+GhYVH6jMjrFxI8u6bVUY=
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
+github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/klauspost/cpuid/v2 v2.0.9/go.mod h1:FInQzS24/EEf25PyTYn52gqo7WaD8xa0213Md/qVLRg=
@@ -65,8 +67,12 @@ github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsT
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250219154623-76561407d904 h1:xesGuoW82DUGfKFF4mY77BhapKQzLAYBWYBVwIoLQEI=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250219154623-76561407d904/go.mod h1:Fg7mAieDYrS6TvJmVXDADMZNbOY3kSDVntwEQpHVQwQ=
+github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250220115402-d31689b300d6 h1:U22ejUtat6BUIO/bnLB6YlXC7LA5glA0NZ7s0feU334=
+github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250220115402-d31689b300d6/go.mod h1:K4aAXIgL8IN63Rb2+10gsWmiUslhlnl4DufSaQHangY=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250219154623-76561407d904 h1:4nwKYGlJt/H6go1PFLmER45HzfJlRv8HAMGHicmjUKM=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250219154623-76561407d904/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250220115402-d31689b300d6 h1:HdTe9X+OKBQhiSvKKMEMq1Z+Wm/a6rn/44fCn4zXeNg=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250220115402-d31689b300d6/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
 github.com/twitchyliquid64/golang-asm v0.15.1 h1:SU5vSMR7hnwNxj24w34ZyCi/FmDZTkS4MhqMhdFk5YI=
 github.com/twitchyliquid64/golang-asm v0.15.1/go.mod h1:a1lVb/DtPvCB8fslRZhAngC2+aY1QWCk3Cedj/Gdt08=
 github.com/ugorji/go/codec v1.2.12 h1:9LC83zGrHhuUA9l16C9AHXAqEV/2wBQ4nkvumAE65EE=
