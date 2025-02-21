@@ -3,7 +3,7 @@ package model
 // Struct definitions
 
 type Tenant struct {
-	TenantID  string `json:"tenantId"`
+	TenantId  string `json:"tenantId"`
 	Name      string `json:"name"`
 	PublicKey string `json:"publicKey"`
 }

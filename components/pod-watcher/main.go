@@ -130,7 +130,7 @@ func watchPods(stopCh chan os.Signal) {
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			// Handle Pod updates if needed
-			// Example: Compare oldObj and newObj states and log changes
+			// Example: Compare oldObj and newObj states and logger changes
 		},
 		DeleteFunc: func(obj interface{}) {
 			pod := obj.(*corev1.Pod)

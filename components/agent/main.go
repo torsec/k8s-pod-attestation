@@ -421,7 +421,7 @@ func getWorkerIMAMeasurementLog() (string, error) {
 	// Open the file
 	IMAMeasurementLog, err := os.Open(IMAMeasurementLogPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to open IMA measurement log: %v", err)
+		return "", fmt.Errorf("failed to open IMA measurement logger: %v", err)
 	}
 	defer IMAMeasurementLog.Close()
 

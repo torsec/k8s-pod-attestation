@@ -507,14 +507,14 @@ func podAttestation(obj interface{}) (*AttestationResult, error) {
 
 	IMAPodEntries, IMAContainerRuntimeEntries, err := IMAVerification(attestationResponse.Evidence.WorkerIMA, PCR10Digest, podUID)
 	if err != nil {
-		fmt.Printf(red.Sprintf("[%s] Failed to validate IMA measurement log: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
+		fmt.Printf(red.Sprintf("[%s] Failed to validate IMA measurement logger: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
 		return &AttestationResult{
 			Agent:      agentName,
 			Target:     workerName,
 			TargetType: "Node",
 			Result:     "UNTRUSTED",
-			Reason:     "Failed to validate IMA Measurement log",
-		}, fmt.Errorf("Failed to validate IMA Measurement log")
+			Reason:     "Failed to validate IMA Measurement logger",
+		}, fmt.Errorf("Failed to validate IMA Measurement logger")
 	}
 
 	podImageName, podImageDigest, err := getPodImageDataByUID(podUID)
@@ -674,13 +674,13 @@ func extendIMAEntries(previousHash []byte, templateHash string) ([]byte, error) 
 	return hash.Sum(nil), nil
 }
 
-// IMAVerification checks the integrity of the IMA measurement log against the received Quote and returns the entries related to the pod being attested for statical analysis of executed software and the AttestationResult
+// IMAVerification checks the integrity of the IMA measurement logger against the received Quote and returns the entries related to the pod being attested for statical analysis of executed software and the AttestationResult
 func IMAVerification(IMAMeasurementLog, PCR10Digest, podUID string) ([]IMAEntry, []IMAEntry, error) {
 	isIMAValid := false
 
 	decodedLog, err := base64.StdEncoding.DecodeString(IMAMeasurementLog)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decode IMA measurement log: %v", err)
+		return nil, nil, fmt.Errorf("failed to decode IMA measurement logger: %v", err)
 	}
 
 	logLines := strings.Split(string(decodedLog), "\n")
@@ -698,7 +698,7 @@ func IMAVerification(IMAMeasurementLog, PCR10Digest, podUID string) ([]IMAEntry,
 		// Split the line by whitespace
 		IMAFields := strings.Fields(IMALine)
 		if len(IMAFields) < 7 {
-			return nil, nil, fmt.Errorf("IMA measurement log integrity check failed: entry %d not compliant with template: %s", idx, IMALine)
+			return nil, nil, fmt.Errorf("IMA measurement logger integrity check failed: entry %d not compliant with template: %s", idx, IMALine)
 		}
 
 		templateHashField := IMAFields[1]
@@ -709,12 +709,12 @@ func IMAVerification(IMAMeasurementLog, PCR10Digest, podUID string) ([]IMAEntry,
 
 		hashAlgo, fileHash, err := extractSHADigest(fileHashField)
 		if err != nil {
-			return nil, nil, fmt.Errorf("IMA measurement log integrity check failed: entry: %d file hash is invalid: %s", idx, IMALine)
+			return nil, nil, fmt.Errorf("IMA measurement logger integrity check failed: entry: %d file hash is invalid: %s", idx, IMALine)
 		}
 
 		extendValue, err := validateIMAEntry(templateHashField, depField, cgroupPathField, hashAlgo, fileHash, filePathField)
 		if err != nil {
-			return nil, nil, fmt.Errorf("IMA measurement log integrity check failed: entry: %d is invalid: %s", idx, IMALine)
+			return nil, nil, fmt.Errorf("IMA measurement logger integrity check failed: entry: %d is invalid: %s", idx, IMALine)
 		}
 
 		// Use the helper function to extend ML cumulative hash with the newly computed template hash
@@ -769,7 +769,7 @@ func IMAVerification(IMAMeasurementLog, PCR10Digest, podUID string) ([]IMAEntry,
 	cumulativeHashIMAHex := hex.EncodeToString(previousHash)
 	// Compare the computed hash with the provided PCR10Digest
 	if cumulativeHashIMAHex != PCR10Digest {
-		return nil, nil, fmt.Errorf("IMA measurement log integrity check failed: computed hash does not match quote value")
+		return nil, nil, fmt.Errorf("IMA measurement logger integrity check failed: computed hash does not match quote value")
 	}
 
 	// Convert the unique entries back to a slice

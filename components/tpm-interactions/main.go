@@ -109,11 +109,11 @@ func main() {
 
 	rwc, err := simulator.GetWithFixedSeedInsecure(1073741825) //tpmutil.OpenTPM("/dev/tpm0")
 	if err != nil {
-		log.Fatalf("can't open TPM: %v", err)
+		logger.Fatalf("can't open TPM: %v", err)
 	}
 	defer func() {
 		if err := rwc.Close(); err != nil {
-			log.Fatalf("\ncan't close TPM: %v", err)
+			logger.Fatalf("\ncan't close TPM: %v", err)
 		}
 	}()
 
@@ -124,45 +124,45 @@ func main() {
 	retrievedAK, err := client.NewCachedKey(rwc, tpm2legacy.HandleOwner, client.AKTemplateRSA(), akHandle)
 	defer retrievedAK.Close()
 	if err != nil {
-		log.Fatalf(err.Error())
+		logger.Fatalf(err.Error())
 	}
-	log.Printf("------ Retrieved AK --------")
-	log.Printf(encodePublicKeyToPEM(retrievedAK.PublicKey()))
+	logger.Printf("------ Retrieved AK --------")
+	logger.Printf(encodePublicKeyToPEM(retrievedAK.PublicKey()))
 
-	//log.Printf("------ Signature Verification with AK --------")
+	//logger.Printf("------ Signature Verification with AK --------")
 	signature := signDataWithAK(akHandle, "hello world", rwc)
 	//verifySignature(retrievedAK.PublicKey().(*rsa.PublicKey), []byte("hello world"), signature)
 
-	log.Printf("------ Encrypting challenge using EK --------")
+	logger.Printf("------ Encrypting challenge using EK --------")
 	ekk, err := client.EndorsementKeyRSA(rwc)
 	if err != nil {
-		log.Fatalf("ERROR:  could not get EndorsementKeyRSA: %v", err)
+		logger.Fatalf("ERROR:  could not get EndorsementKeyRSA: %v", err)
 	}
 	defer ekk.Close()
 	ciphertext := encryptWithEK(ekk.PublicKey().(*rsa.PublicKey), []byte("secret challenge"))
 
-	log.Printf("------ Decrypting challenge using EK --------")
+	logger.Printf("------ Decrypting challenge using EK --------")
 	decryptedData := decryptWithEK(rwc, ciphertext)
 	if string(decryptedData) == "secret challenge" {
-		log.Printf("------ Successfully decrypted challenge using EK: %s --------", string(decryptedData))
+		logger.Printf("------ Successfully decrypted challenge using EK: %s --------", string(decryptedData))
 	}
 
-	log.Printf("------ Attestation using AK --------")
+	logger.Printf("------ Attestation using AK --------")
 	//attestationProcess(rwc, akHandle)
 
-	//log.Printf("------ Validation of quote --------")
+	//logger.Printf("------ Validation of quote --------")
 	//validateQuote(rwc, akHandle)
 
 	osName, err := GetOSDescription()
 	if err != nil {
-		log.Fatalf("failed to get OS info")
+		logger.Fatalf("failed to get OS info")
 	}
-	log.Printf(osName)
+	logger.Printf(osName)
 
 	if !checkPodUUIDMatch("/kubepods/burstable/pod5c6ae4d3-475b-4897-b1e4-eb6367716cbd/5aeab4fc9a54050cab3f08b5e6e9b9566116e47716cb4a657b909a1e6a0ce188", "5c6ae4d3-475b-4897-b1e4-eb6367716cbd") {
-		log.Fatalf("uuid not matching")
+		logger.Fatalf("uuid not matching")
 	}
-	log.Printf("uuid match")
+	logger.Printf("uuid match")
 }
 */
 
@@ -291,7 +291,7 @@ func verifyIMAHash(pcr10 string, tmpIMA string) {
 	// Open the file
 	IMAMeasurementLog, err := os.Open(tmpIMA)
 	if err != nil {
-		log.Fatalf("failed to open IMA measurement log: %v", err)
+		log.Fatalf("failed to open IMA measurement logger: %v", err)
 	}
 	defer IMAMeasurementLog.Close()
 
@@ -301,7 +301,7 @@ func verifyIMAHash(pcr10 string, tmpIMA string) {
 		log.Fatalf("failed to read file: %v", err)
 	}
 
-	// Convert the decoded log to a string and split it into lines
+	// Convert the decoded logger to a string and split it into lines
 	logLines := strings.Split(string(fileContent), "\n")
 	if len(logLines) > 0 && logLines[len(logLines)-1] == "" {
 		logLines = logLines[:len(logLines)-1] // Remove the last empty line --> each entry adds a \n so last line will add an empty line
@@ -366,7 +366,7 @@ func IMAAnalysis(podUID string) {
 	// Open the file
 	IMAMeasurementLog, err := os.Open("./ascii_runtime_measurements_sha256")
 	if err != nil {
-		log.Fatalf("failed to open IMA measurement log: %v", err)
+		log.Fatalf("failed to open IMA measurement logger: %v", err)
 	}
 	defer IMAMeasurementLog.Close()
 
@@ -376,7 +376,7 @@ func IMAAnalysis(podUID string) {
 		log.Fatalf("failed to read file: %v", err)
 	}
 
-	// Convert the decoded log to a string and split it into lines
+	// Convert the decoded logger to a string and split it into lines
 	logLines := strings.Split(string(fileContent), "\n")
 
 	// Use a map to ensure unique entries
@@ -387,7 +387,7 @@ func IMAAnalysis(podUID string) {
 		// Split the line by whitespace
 		IMAFields := strings.Fields(IMALine)
 		if len(IMAFields) < 7 {
-			log.Fatalf("IMA measurement log integrity check failed: found entry not compliant with template: %s", IMALine)
+			log.Fatalf("IMA measurement logger integrity check failed: found entry not compliant with template: %s", IMALine)
 		}
 		depField := IMAFields[3]
 		// Extract the cgroup path (fifth element)
@@ -730,17 +730,17 @@ func main() {
 		rootCert := "-----BEGIN CERTIFICATE-----\nMIIFqzCCA5OgAwIBAgIBAzANBgkqhkiG9w0BAQsFADB3MQswCQYDVQQGEwJERTEh\nMB8GA1UECgwYSW5maW5lb24gVGVjaG5vbG9naWVzIEFHMRswGQYDVQQLDBJPUFRJ\nR0EoVE0pIERldmljZXMxKDAmBgNVBAMMH0luZmluZW9uIE9QVElHQShUTSkgUlNB\nIFJvb3QgQ0EwHhcNMTMwNzI2MDAwMDAwWhcNNDMwNzI1MjM1OTU5WjB3MQswCQYD\nVQQGEwJERTEhMB8GA1UECgwYSW5maW5lb24gVGVjaG5vbG9naWVzIEFHMRswGQYD\nVQQLDBJPUFRJR0EoVE0pIERldmljZXMxKDAmBgNVBAMMH0luZmluZW9uIE9QVElH\nQShUTSkgUlNBIFJvb3QgQ0EwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoIC\nAQC7E+gc0B5T7awzux66zMMZMTtCkPqGv6a3NVx73ICg2DSwnipFwBiUl9soEodn\n25SVVN7pqmvKA2gMTR5QexuYS9PPerfRZrBY00xyFx84V+mIRPg4YqUMLtZBcAwr\nR3GO6cffHp20SBH5ITpuqKciwb0v5ueLdtZHYRPq1+jgy58IFY/vACyF/ccWZxUS\nJRNSe4ruwBgI7NMWicxiiWQmz1fE3e0mUGQ1tu4M6MpZPxTZxWzN0mMz9noj1oIT\nZUnq/drN54LHzX45l+2b14f5FkvtcXxJ7OCkI7lmWIt8s5fE4HhixEgsR2RX5hzl\n8XiHiS7uD3pQhBYSBN5IBbVWREex1IUat5eAOb9AXjnZ7ivxJKiY/BkOmrNgN8k2\n7vOS4P81ix1GnXsjyHJ6mOtWRC9UHfvJcvM3U9tuU+3dRfib03NGxSPnKteL4SP1\nbdHfiGjV3LIxzFHOfdjM2cvFJ6jXg5hwXCFSdsQm5e2BfT3dWDBSfR4h3Prpkl6d\ncAyb3nNtMK3HR5yl6QBuJybw8afHT3KRbwvOHOCR0ZVJTszclEPcM3NQdwFlhqLS\nghIflaKSPv9yHTKeg2AB5q9JSG2nwSTrjDKRab225+zJ0yylH5NwxIBLaVHDyAEu\n81af+wnm99oqgvJuDKSQGyLf6sCeuy81wQYO46yNa+xJwQIDAQABo0IwQDAdBgNV\nHQ4EFgQU3LtWq/EY/KaadREQZYQSntVBkrkwDgYDVR0PAQH/BAQDAgAGMA8GA1Ud\nEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggIBAGHTBUx3ETIXYJsaAgb2pyyN\nUltVL2bKzGMVSsnTCrXUU8hKrDQh3jNIMrS0d6dU/fGaGJvehxmmJfjaN/IFWA4M\nBdZEnpAe2fJEP8vbLa/QHVfsAVuotLD6QWAqeaC2txpxkerveoV2JAwj1jrprT4y\nrkS8SxZuKS05rYdlG30GjOKTq81amQtGf2NlNiM0lBB/SKTt0Uv5TK0jIWbz2WoZ\ngGut7mF0md1rHRauWRcoHQdxWSQTCTtgoQzeBj4IS6N3QxQBKV9LL9UWm+CMIT7Y\nnp8bSJ8oW4UdpSuYWe1ZwSjZyzDiSzpuc4gTS6aHfMmEfoVwC8HN03/HD6B1Lwo2\nDvEaqAxkya9IYWrDqkMrEErJO6cqx/vfIcfY/8JYmUJGTmvVlaODJTwYwov/2rjr\nla5gR+xrTM7dq8bZimSQTO8h6cdL6u+3c8mGriCQkNZIZEac/Gdn+KwydaOZIcnf\nRdp3SalxsSp6cWwJGE4wpYKB2ClM2QF3yNQoTGNwMlpsxnU72ihDi/RxyaRTz9OR\npubNq8Wuq7jQUs5U00ryrMCZog1cxLzyfZwwCYh6O2CmbvMoydHNy5CU3ygxaLWv\nJpgZVHN103npVMR3mLNa3QE+5MFlBlP3Mmystu8iVAKJas39VO5y5jad4dRLkwtM\n6sJa8iBpdRjZrBp5sJBI\n-----END CERTIFICATE-----\n"
 		err := VerifyCertificateChain(tpmCert, intermediateCert, rootCert)
 		if err != nil {
-			log.Fatalf("Certificate is not valid: %v", err)
+			logger.Fatalf("Certificate is not valid: %v", err)
 		}
-		log.Printf("Valid certificate tpm")
+		logger.Printf("Valid certificate tpm")
 
 		rwc, err := tpmutil.OpenTPM("/dev/tpm0") //simulator.GetWithFixedSeedInsecure(1073741825)
 		if err != nil {
-			log.Fatalf("can't open TPM: %v", err)
+			logger.Fatalf("can't open TPM: %v", err)
 		}
 		defer func() {
 			if err := rwc.Close(); err != nil {
-				log.Fatalf("\ncan't close TPM: %v", err)
+				logger.Fatalf("\ncan't close TPM: %v", err)
 			}
 		}()
 
@@ -748,9 +748,9 @@ func main() {
 
 		pcrValue, err := tpm2legacy.ReadPCR(rwc, 10, tpm2legacy.AlgSHA256)
 		if err != nil {
-			log.Fatalf("failed to read PCR: %v", err)
+			logger.Fatalf("failed to read PCR: %v", err)
 		}
-		log.Printf("PCR 10 VALUE: %x", pcrValue)
+		logger.Printf("PCR 10 VALUE: %x", pcrValue)
 		validateQuote(rwc, akHandle)
 
 
@@ -1092,7 +1092,7 @@ func verifySignature(rsaPubKey *rsa.PublicKey, message []byte, signature tpmutil
 	hashed := sha256.Sum256(message)
 	//sigBytes, err := base64.StdEncoding.DecodeString(signature)
 	//if err != nil {
-	//	log.Fatalf("Error decoding signature: %v", err)
+	//	logger.Fatalf("Error decoding signature: %v", err)
 	//}
 
 	err := rsa.VerifyPKCS1v15(rsaPubKey, crypto.SHA256, hashed[:], signature)

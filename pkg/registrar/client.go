@@ -19,59 +19,81 @@ type Client struct {
 
 // Exposed endpoints
 
-// Verify the provided signature by contacting Server API
-func (c *Client) VerifyTenantSignature(verifySignatureRequest *model.VerifySignatureRequest) (bool, error) {
-	registrarURL := fmt.Sprintf("http://%s:%s/tenant/verify", c.registrarHost, c.registrarPort)
+// VerifyTenantSignature verifies the provided signature by contacting Server API
+func (c *Client) VerifyTenantSignature(verifySignatureRequest *model.VerifySignatureRequest) (*model.RegistrarResponse, error) {
+	registrarURL := fmt.Sprintf("http://%s:%d/tenant/verify", c.registrarHost, c.registrarPort)
 
 	jsonPayload, err := json.Marshal(verifySignatureRequest)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	resp, err := http.Post(registrarURL, "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	defer resp.Body.Close()
 
-	return resp.StatusCode == http.StatusOK, nil
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(resp.Body)
+
+	var registrarResponse *model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode signature verification response: %v", err)
+	}
+	return registrarResponse, nil
 }
 
-func (c *Client) VerifyEKCertificate(EKCertcheckRequest model.VerifyTPMEKCertificateRequest) error {
-	registrarCertificateValidateURL := fmt.Sprintf("http://%s:%s/worker/verifyEKCertificate",
+// VerifyEKCertificate verifies provided Endorsement Key certificate by rebuilding the certificate chain with the TPM manufacturer intermediate and root CAs
+func (c *Client) VerifyEKCertificate(EKCertcheckRequest model.VerifyTPMEKCertificateRequest) (*model.RegistrarResponse, error) {
+	registrarCertificateValidateURL := fmt.Sprintf("http://%s:%d/worker/verifyEKCertificate",
 		c.registrarHost, c.registrarPort)
 
 	// Marshal the attestation request to JSON
 	jsonPayload, err := json.Marshal(EKCertcheckRequest)
 	if err != nil {
-		return fmt.Errorf("failed to marshal EK Certificate check request: %v", err)
+		return nil, fmt.Errorf("failed to marshal EK Certificate check request: %v", err)
 	}
 
 	// Make the POST request to the agent
 	resp, err := http.Post(registrarCertificateValidateURL, "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		return fmt.Errorf("failed to send EK Certificate check request: %v", err)
+		return nil, fmt.Errorf("failed to send EK Certificate check request: %v", err)
 	}
 
-	defer resp.Body.Close()
-
-	// Read response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read response body: %v", err)
+		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
 
-	// Check if the status is OK (200)
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to validate EK Certificate: %c (status: %d)", string(body), resp.StatusCode)
+	// Read response body
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(resp.Body)
+
+	var registrarResponse *model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode endorsement key verification response: %v", err)
 	}
-	return nil
+	return registrarResponse, nil
 }
 
 // Create a new worker in the registrar
 
 func (c *Client) CreateWorker(workerNode *model.WorkerNode) (*model.NewWorkerResponse, error) {
-	createWorkerURL := fmt.Sprintf("http://%s:%s/worker/create", c.registrarHost, c.registrarPort)
+	createWorkerURL := fmt.Sprintf("http://%s:%d/worker/create", c.registrarHost, c.registrarPort)
 
 	jsonData, err := json.Marshal(workerNode)
 	if err != nil {
@@ -82,38 +104,10 @@ func (c *Client) CreateWorker(workerNode *model.WorkerNode) (*model.NewWorkerRes
 	if err != nil {
 		return nil, fmt.Errorf("failed to create worker: %v", err)
 	}
-	defer resp.Body.Close()
 
-	// Read response body in case of an unexpected status
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("unexpected response status when creating worker: %s. Response body: %s", resp.Status, string(body))
-	}
-
-	var registrarResponse *model.RegistrarResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
-		return nil, fmt.Errorf("failed to decode created worker response: %v", err)
-	}
-	return registrarResponse, nil
-}
-
-func (c *Client) RemoveWorker(workerName string) error {
-	registrarWorkerDeletionURL := fmt.Sprintf("http://%s:%s/worker/deleteByName?name=%s", c.registrarHost, c.registrarPort, workerName)
-
-	// Create a new HTTP request
-	req, err := http.NewRequest(http.MethodDelete, registrarWorkerDeletionURL, nil)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("error creating worker node removal request: %v", err)
-
-	}
-
-	// Send the request using the default HTTP client
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error sending worker node removal request: %v", err)
-
+		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
 
 	defer func(Body io.ReadCloser) {
@@ -123,55 +117,110 @@ func (c *Client) RemoveWorker(workerName string) error {
 		}
 	}(resp.Body)
 
-	// Check the response status
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to remove worker node from Server: received status code %d", resp.StatusCode)
+	var registrarResponse *model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode created worker response: %v", err)
 	}
-
-	fmt.Printf("[%s] worker node: '%s' removed from Server with success\n", time.Now().Format("02-01-2006 15:04:05"), workerName)
-	return nil
+	return registrarResponse, nil
 }
 
-func (c *Client) GetWorkerIdByName(nodeName string) (*model.WorkerIdResponse, error) {
-	registrarSearchWorkerURL := fmt.Sprintf("http://%s:%s/worker/getIdByName?name=%s", c.registrarHost, c.registrarPort, nodeName)
+func (c *Client) RemoveWorker(workerName string) (*model.RegistrarResponse, error) {
+	registrarWorkerDeletionURL := fmt.Sprintf("http://%s:%d/worker/deleteByName?name=%s", c.registrarHost, c.registrarPort, workerName)
+
+	// Create a new HTTP request
+	req, err := http.NewRequest(http.MethodDelete, registrarWorkerDeletionURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send worker remove request: %v", err)
+	}
+
+	// Send the request using the default HTTP client
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send worker remove request: %v", err)
+	}
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(resp.Body)
+
+	var registrarResponse *model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode worker remove response: %v", err)
+	}
+
+	fmt.Printf("[%s] worker node: '%s' removed from registrar with success\n", time.Now().Format("02-01-2006 15:04:05"), workerName)
+	return registrarResponse, nil
+}
+
+func (c *Client) GetWorkerIdByName(nodeName string) (*model.RegistrarResponse, error) {
+	registrarSearchWorkerURL := fmt.Sprintf("http://%s:%d/worker/getIdByName?name=%s", c.registrarHost, c.registrarPort, nodeName)
 
 	resp, err := http.Get(registrarSearchWorkerURL)
 	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, err
+		return nil, fmt.Errorf("failed to get worker node id from registrar: %v", err)
 	}
 
-	var workerIdResponse *model.WorkerIdResponse
-	if err := json.NewDecoder(resp.Body).Decode(workerIdResponse); err != nil {
-		return nil, fmt.Errorf("failed to parse Tenant response: %v", err.Error())
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
 
-	return workerIdResponse, nil
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(resp.Body)
+
+	var registrarResponse *model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode get worker response: %v", err.Error())
+	}
+
+	return registrarResponse, nil
 }
 
 // Get Tenant Info from Server
 func (c *Client) GetTenantIdByName(tenantName string) (*model.Tenant, error) {
-	registrarURL := fmt.Sprintf("http://%s:%s/tenant/getIdByName?name=%s", c.registrarHost, c.registrarPort, tenantName)
+	registrarURL := fmt.Sprintf("http://%s:%d/tenant/getIdByName?name=%s", c.registrarHost, c.registrarPort, tenantName)
 	resp, err := http.Get(registrarURL)
-	if err != nil || resp.StatusCode != http.StatusOK {
+	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve Tenant info: %v", err.Error())
 	}
-	defer resp.Body.Close()
 
 	var tenantResp *model.Tenant
-	if err := json.NewDecoder(resp.Body).Decode(tenantResp); err != nil {
-		return nil, fmt.Errorf("failed to parse Tenant response: %v", err.Error())
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(resp.Body)
+
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(tenantResp); err != nil {
+		return nil, fmt.Errorf("failed to decode get tenant response: %v", err.Error())
 	}
 	return tenantResp, nil
 }
 
 // Verify the provided signature by contacting Server API
 func (c *Client) VerifyWorkerSignature(verifySignatureRequest *model.VerifySignatureRequest) (*model.RegistrarResponse, error) {
-	registrarURL := fmt.Sprintf("http://%s:%s/worker/verify", c.registrarHost, c.registrarPort)
+	registrarURL := fmt.Sprintf("http://%s:%d/worker/verify", c.registrarHost, c.registrarPort)
 
 	// Marshal payload to JSON
 	jsonPayload, err := json.Marshal(verifySignatureRequest)
@@ -192,17 +241,82 @@ func (c *Client) VerifyWorkerSignature(verifySignatureRequest *model.VerifySigna
 		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
 
-	// Check if the response status is OK (200)
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to verify signature: %s (status: %d)", string(body), resp.StatusCode)
-	}
-
 	// Parse the response into the RegistrarResponse struct
 	var registrarResponse *model.RegistrarResponse
-	if err := json.Unmarshal(body, registrarResponse); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %v", err)
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode signature verification response: %v", err.Error())
 	}
 
 	// Verify if the status and message indicate success
+	return registrarResponse, nil
+}
+
+func (c *Client) CreateTenant(tenant *model.Tenant) (*model.RegistrarResponse, error) {
+	createTenantURL := fmt.Sprintf("http://%s:%d/tenant/create", c.registrarHost, c.registrarPort)
+
+	jsonData, err := json.Marshal(tenant)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal tenant data: %v", err)
+	}
+
+	resp, err := http.Post(createTenantURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create tenant: %v", err)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(resp.Body)
+
+	var registrarResponse *model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode created tenant response: %v", err)
+	}
+	return registrarResponse, nil
+}
+
+func (c *Client) DeleteTenantByName(tenantName string) (*model.Tenant, error) {
+	deleteTenantURL := fmt.Sprintf("http://%s:%d/tenant/deleteByName?name=%s", c.registrarHost, c.registrarPort, tenantName)
+
+	// Create a new HTTP request
+	req, err := http.NewRequest(http.MethodDelete, deleteTenantURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send tenant remove request: %v", err)
+	}
+
+	// Send the request using the default HTTP client
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send tenant remove request: %v", err)
+	}
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(resp.Body)
+
+	var registrarResponse *model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode tenant remove response: %v", err)
+	}
+
+	fmt.Printf("[%s] tenant: '%s' removed from registrar with success\n", time.Now().Format("02-01-2006 15:04:05"), tenantName)
 	return registrarResponse, nil
 }

@@ -230,7 +230,7 @@ func (s *Server) deleteTenantByName(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Tenant deleted successfully", "status": "success"})
 }
 
-// Endpoint: Create a new tenant (with name and public key, generating UUID for TenantID)
+// Endpoint: Create a new tenant (with name and public key, generating UUID for TenantId)
 func (s *Server) createTenant(c *gin.Context) {
 	var newTenantRequest *model.NewTenantRequest
 
@@ -339,7 +339,7 @@ func (s *Server) getTenantIdByName(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"tenantId": tenant.TenantID, "status": "success"})
+	c.JSON(http.StatusOK, gin.H{"message": tenant.TenantId, "status": "success"})
 }
 
 // Worker functions
@@ -454,9 +454,8 @@ func (s *Server) createWorker(c *gin.Context) {
 
 	// Send a successful response
 	c.JSON(http.StatusCreated, gin.H{
-		"message":  "Worker created successfully",
-		"workerId": newWorker.WorkerId,
-		"status":   "success",
+		"message": newWorker.WorkerId,
+		"status":  "success",
 	})
 }
 
@@ -517,7 +516,7 @@ func (s *Server) getWorkerIdByName(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"workerId": worker.WorkerId, "status": "success"})
+	c.JSON(http.StatusOK, gin.H{"message": worker.WorkerId, "status": "success"})
 }
 
 // remove a Worker from the database
