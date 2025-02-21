@@ -12,9 +12,9 @@ import (
 )
 
 type Client struct {
-	registrarHost  string
-	registrarPort  int
-	tlsCertificate *x509.Certificate
+	registrarHost         string
+	registrarPort         int
+	invokerTlsCertificate *x509.Certificate
 }
 
 // Exposed endpoints
@@ -92,7 +92,7 @@ func (c *Client) VerifyEKCertificate(EKCertcheckRequest model.VerifyTPMEKCertifi
 
 // Create a new worker in the registrar
 
-func (c *Client) CreateWorker(workerNode *model.WorkerNode) (*model.NewWorkerResponse, error) {
+func (c *Client) CreateWorker(workerNode *model.WorkerNode) (*model.RegistrarResponse, error) {
 	createWorkerURL := fmt.Sprintf("http://%s:%d/worker/create", c.registrarHost, c.registrarPort)
 
 	jsonData, err := json.Marshal(workerNode)
@@ -283,7 +283,7 @@ func (c *Client) CreateTenant(tenant *model.Tenant) (*model.RegistrarResponse, e
 	return registrarResponse, nil
 }
 
-func (c *Client) DeleteTenantByName(tenantName string) (*model.Tenant, error) {
+func (c *Client) DeleteTenantByName(tenantName string) (*model.RegistrarResponse, error) {
 	deleteTenantURL := fmt.Sprintf("http://%s:%d/tenant/deleteByName?name=%s", c.registrarHost, c.registrarPort, tenantName)
 
 	// Create a new HTTP request

@@ -25,6 +25,14 @@ type Server struct {
 	router         *gin.Engine
 }
 
+func (s *Server) SetHost(host string) {
+	s.registrarHost = host
+}
+
+func (s *Server) SetPort(port int) {
+	s.registrarPort = port
+}
+
 // TPMManufacturers TCG recognized TPM manufacturers
 // https://trustedcomputinggroup.org/resource/vendor-id-registry/
 func getKnownTPMManufacturers() []model.TPMVendor {

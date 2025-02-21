@@ -6,7 +6,7 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250220115402-d31689b300d6
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250220115402-d31689b300d6
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250221102821-6940cf47feb0
 )
 
 require (

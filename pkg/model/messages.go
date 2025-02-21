@@ -13,12 +13,6 @@ type WorkerResponse struct {
 	AIKPublicArea string `json:"AIKPublicArea"`
 }
 
-type NewWorkerResponse struct {
-	Message  string `json:"message"`
-	WorkerId string `json:"workerId"`
-	Status   string `json:"status"`
-}
-
 type WorkerChallenge struct {
 	AIKCredential      string `json:"AIKCredential"`
 	AIKEncryptedSecret string `json:"AIKEncryptedSecret"`

@@ -1,51 +1,16 @@
 package main
 
 import (
-	"database/sql"
-	"github.com/fatih/color"
+	"github.com/torsec/k8s-pod-attestation/pkg/registrar"
 	"log"
-	_ "modernc.org/sqlite"
 	"os"
-	"sync"
-)
-
-// Tenant struct represents a tenant in the system
-
-// VerifySignatureRequest represents the input data for signature verification
-type VerifySignatureRequest struct {
-	Name      string `json:"name"`
-	Message   string `json:"message"`
-	Signature string `json:"signature"`
-}
-
-type TPMCACertificate struct {
-	CertificateID  string `json:"certificateId,omitempty"`
-	CommonName     string `json:"commonName"`
-	PEMCertificate string `json:"PEMCertificate"`
-}
-
-type VerifyTPMEKCertificateRequest struct {
-	EndorsementKey string `json:"endorsementKey"`
-	EKCertificate  string `json:"EKCertificate"`
-}
-
-type TPMVendor struct {
-	VendorID      string `json:"vendorId,omitempty"`
-	Name          string `json:"vendorName"`
-	TCGIdentifier string `json:"TCGIdentifier"`
-}
-
-// In-memory synchronization and database reference
-var (
-	mtx sync.Mutex
-	db  *sql.DB
+	"strconv"
 )
 
 var (
-	red           *color.Color
-	green         *color.Color
-	yellow        *color.Color
-	registrarPORT string
+	registrarServer *registrar.Server
+	registrarHost   string
+	registrarPort   string
 )
 
 // getEnv retrieves the value of an environment variable or returns a default value if not set.
@@ -57,30 +22,22 @@ func getEnv(key, defaultValue string) string {
 	return value
 }
 
-// initializeColors sets up color variables for console output.
-func initializeColors() {
-	red = color.New(color.FgRed)
-	green = color.New(color.FgGreen)
-	yellow = color.New(color.FgYellow)
-}
-
 // loadEnvironmentVariables loads required environment variables and sets default values if necessary.
 func loadEnvironmentVariables() {
-	registrarPORT = getEnv("REGISTRAR_PORT", "8080")
+	registrarHost = getEnv("REGISTRAR_HOST", "localhost")
+	registrarPort = getEnv("REGISTRAR_PORT", "8080")
 }
 
 // Tenant functions
 // ---------------------------------------------------------------------------------------------------------------------------
 
 func main() {
-	initializeColors()
 	loadEnvironmentVariables()
-
-	// Initialize the database
-	if err := initializeDatabase(); err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+	registrarServer.SetHost(registrarHost)
+	registrarServer.SetPort(strconv.Atoi(registrarPort))
+	err := registrarServer.InitializeRegistrarDatabase()
+	if err != nil {
+		log.Fatalf("Failed to initialize registrar database: %s", err)
 	}
-
-	defer db.Close()
-
+	registrarServer.Start()
 }
