@@ -11,6 +11,7 @@ import (
 	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"log"
+	_ "modernc.org/sqlite"
 	"net/http"
 	"strconv"
 	"sync"

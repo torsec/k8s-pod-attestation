@@ -9,7 +9,7 @@ type Tenant struct {
 }
 
 type WorkerNode struct {
-	WorkerId string `json:"WorkerId"`
+	WorkerId string `json:"workerId"`
 	Name     string `json:"name"`
 	AIK      string `json:"AIK"`
 }
