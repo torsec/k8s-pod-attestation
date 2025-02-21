@@ -193,7 +193,7 @@ func (s *Server) tenantExistsByPublicKey(publicKey string) (bool, error) {
 func (s *Server) getTenantByName(name string) (*model.Tenant, error) {
 	var tenant *model.Tenant
 	query := "SELECT tenantId, name, publicKey FROM tenants WHERE name = ?"
-	err := s.db.QueryRow(query, name).Scan(tenant.TenantID, tenant.Name, tenant.PublicKey)
+	err := s.db.QueryRow(query, name).Scan(tenant.TenantId, tenant.Name, tenant.PublicKey)
 	if errors.Is(err, sql.ErrNoRows) {
 		return tenant, fmt.Errorf("tenant not found")
 	} else if err != nil {
@@ -205,7 +205,7 @@ func (s *Server) getTenantByName(name string) (*model.Tenant, error) {
 // Insert a new tenant into the database
 func (s *Server) insertTenant(tenant *model.Tenant) error {
 	query := "INSERT INTO tenants (tenantId, name, publicKey) VALUES (?, ?, ?)"
-	_, err := s.db.Exec(query, tenant.TenantID, tenant.Name, tenant.PublicKey)
+	_, err := s.db.Exec(query, tenant.TenantId, tenant.Name, tenant.PublicKey)
 	return err
 }
 
@@ -274,11 +274,11 @@ func (s *Server) createTenant(c *gin.Context) {
 	}
 
 	// Generate a new UUID for the tenant
-	tenantID := uuid.New().String()
+	tenantId := uuid.New().String()
 
 	// Create a new tenant object
 	newTenant := &model.Tenant{
-		TenantID:  tenantID,
+		TenantId:  tenantId,
 		Name:      newTenantRequest.Name,
 		PublicKey: newTenantRequest.PublicKey,
 	}
@@ -292,7 +292,7 @@ func (s *Server) createTenant(c *gin.Context) {
 	// Send a successful response
 	c.JSON(http.StatusCreated, gin.H{
 		"message":  "Tenant created successfully",
-		"tenantId": tenantID,
+		"tenantId": tenantId,
 		"status":   "success",
 	})
 }

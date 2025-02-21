@@ -218,7 +218,7 @@ func (c *Client) GetTenantIdByName(tenantName string) (*model.Tenant, error) {
 	return tenantResp, nil
 }
 
-// Verify the provided signature by contacting Server API
+// VerifyWorkerSignature verifies the provided signature by contacting Server API
 func (c *Client) VerifyWorkerSignature(verifySignatureRequest *model.VerifySignatureRequest) (*model.RegistrarResponse, error) {
 	registrarURL := fmt.Sprintf("http://%s:%d/worker/verify", c.registrarHost, c.registrarPort)
 
