@@ -1,9 +1,8 @@
 package main
 
 import (
-	"github.com/google/logger"
+	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	"github.com/torsec/k8s-pod-attestation/pkg/registrar"
-	"log"
 	"os"
 	"strconv"
 )
@@ -43,7 +42,7 @@ func main() {
 	registrarServer.SetPort(registrarPort)
 	err := registrarServer.InitializeRegistrarDatabase()
 	if err != nil {
-		log.Fatalf("Failed to initialize registrar database: %s", err)
+		logger.Fatal("Failed to initialize registrar database: %s", err)
 	}
 	registrarServer.Start()
 }
