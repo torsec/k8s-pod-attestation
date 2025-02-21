@@ -21,19 +21,23 @@ func Success(format string, args ...interface{}) {
 	fmt.Printf(green.Sprintf("[%s] %s\n", time.Now().Format(timeFormat), message))
 }
 
-func Error(message string) {
+func Error(format string, args ...interface{}) {
+	message := fmt.Sprintf(format, args...)
 	fmt.Printf(red.Sprintf("[%s] %s \n", time.Now().Format(timeFormat), message))
 }
 
-func Warning(message string) {
+func Warning(format string, args ...interface{}) {
+	message := fmt.Sprintf(format, args...)
 	fmt.Printf(yellow.Sprintf("[%s] %s \n", time.Now().Format(timeFormat), message))
 }
 
-func Info(message string) {
+func Info(format string, args ...interface{}) {
+	message := fmt.Sprintf(format, args...)
 	fmt.Printf(cyan.Sprintf("[%s] %s \n", time.Now().Format(timeFormat), message))
 }
 
-func Fatal(message string) {
+func Fatal(format string, args ...interface{}) {
+	message := fmt.Sprintf(format, args...)
 	fmt.Printf(red.Sprintf("[%s] %s \n", time.Now().Format(timeFormat), message))
 	os.Exit(1)
 }

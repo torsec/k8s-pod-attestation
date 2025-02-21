@@ -6,8 +6,8 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
 	github.com/torsec/k8s-pod-attestation v0.0.0-20250221142252-1ed01aef77ac
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250221134959-8bf990f328c9
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250221134959-8bf990f328c9
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250221142252-1ed01aef77ac
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250221142252-1ed01aef77ac
 	modernc.org/sqlite v1.35.0
 )
 
