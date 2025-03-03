@@ -3,7 +3,7 @@ module github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction
 go 1.23.4
 
 require (
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250303131809-ccd9febb9cbb
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250303134704-a187d53e839d
 	k8s.io/apimachinery v0.32.2
 	k8s.io/client-go v0.32.2
 )

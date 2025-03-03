@@ -20,10 +20,10 @@ type PodWatcher struct {
 	informerFactory   informers.SharedInformerFactory
 }
 
-func (pw *PodWatcher) Init(attestationEnabledNamespaces []string) {
+func (pw *PodWatcher) Init(attestationEnabledNamespaces []string, defaultResync int) {
 	pw.ClusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
 	pw.ClusterInteractor.ConfigureKubernetesClient()
-	pw.informerFactory = informers.NewSharedInformerFactory(pw.ClusterInteractor.ClientSet, time.Minute*5)
+	pw.informerFactory = informers.NewSharedInformerFactory(pw.ClusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
 }
 
 func (pw *PodWatcher) addPodHandling(obj interface{}) {
@@ -121,7 +121,7 @@ func (pw *PodWatcher) WatchPods() {
 
 	// Keep running until stopped
 	<-stopStructCh
-	logger.Info("stopping Pod watcher...")
+	logger.Info("stopping PodWatcher...")
 }
 
 func (pw *PodWatcher) updateAgentCRDWithPodStatus(nodeName, podName, tenantId, status string) {

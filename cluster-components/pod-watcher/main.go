@@ -38,6 +38,6 @@ func getEnv(key, defaultValue string) string {
 func main() {
 	loadEnvironmentVariables()
 	podWatcher = &pod_watcher.PodWatcher{}
-	podWatcher.Init(attestationEnabledNamespaces)
+	podWatcher.Init(attestationEnabledNamespaces, 3)
 	podWatcher.WatchPods()
 }
