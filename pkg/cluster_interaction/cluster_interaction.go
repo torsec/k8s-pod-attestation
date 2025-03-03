@@ -19,6 +19,16 @@ type ClusterInteraction struct {
 	AttestationEnabledNamespaces []string
 }
 
+// Pod status possible values
+const (
+	NewPodStatus            = "NEW"
+	TrustedPodStatus        = "TRUSTED"
+	UntrustedPodStatus      = "UNTRUSTED"
+	UnknownPodStatus        = "UNKNOWN"
+	DeletedPodStatus        = "DELETED"
+	PodAttestationNamespace = "attestation-system"
+)
+
 // ConfigureKubernetesClient initializes the Kubernetes client by retrieving the kubeconfig file from home directory of current user under /.kube/config
 func (c *ClusterInteraction) ConfigureKubernetesClient() {
 	var err error
