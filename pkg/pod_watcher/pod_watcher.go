@@ -20,8 +20,13 @@ type PodWatcher struct {
 	informerFactory   informers.SharedInformerFactory
 }
 
+func (pw *PodWatcher) Init(attestationEnabledNamespaces []string) {
+	pw.ClusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
+	pw.ClusterInteractor.ConfigureKubernetesClient()
+	pw.informerFactory = informers.NewSharedInformerFactory(pw.ClusterInteractor.ClientSet, time.Minute*5)
+}
 
-func (pw *PodWatcher) addPodHandling (obj interface{}) {
+func (pw *PodWatcher) addPodHandling(obj interface{}) {
 	pod := obj.(*corev1.Pod)
 	podNamespace := pod.GetNamespace()
 	nodeName := pod.Spec.NodeName
@@ -37,7 +42,7 @@ func (pw *PodWatcher) addPodHandling (obj interface{}) {
 
 	isNodeControlPlane, err := pw.ClusterInteractor.NodeIsControlPlane(nodeName)
 	if err != nil {
-		logger.Warning("error occurred while checking if node is control plane: %v; skipping attestation tracking for pod '%s'", err, podName)
+		logger.Error("error occurred while checking if node is control plane: %v; skipping attestation tracking for pod '%s'", err, podName)
 		// TODO: pod may need to be killed and rescheduled for security reason or retry x times before doing it
 		podStatus = clusterInteraction.UnknownPodStatus
 	}
@@ -52,7 +57,7 @@ func (pw *PodWatcher) addPodHandling (obj interface{}) {
 	pw.updateAgentCRDWithPodStatus(nodeName, podName, pod.Annotations["tenantId"], podStatus)
 }
 
-func (pw *PodWatcher) deletePodHandling (obj interface{}) {
+func (pw *PodWatcher) deletePodHandling(obj interface{}) {
 	pod := obj.(*corev1.Pod)
 	podNamespace := pod.GetNamespace()
 	nodeName := pod.Spec.NodeName
@@ -77,19 +82,17 @@ func (pw *PodWatcher) deletePodHandling (obj interface{}) {
 		return
 	}
 
-	logger.Success("pod '%s' deleted from node '%s'; ending pod attestation tracking", pod.Name, nodeName))
+	logger.Success("pod '%s' deleted from node '%s'; ending pod attestation tracking", pod.Name, nodeName)
 	podStatus = clusterInteraction.DeletedPodStatus
 	pw.updateAgentCRDWithPodStatus(nodeName, pod.Name, pod.Annotations["tenantId"], podStatus)
 }
 
-
 func (pw *PodWatcher) WatchPods() {
 	stopCh := setupSignalHandler()
-	pw.informerFactory = informers.NewSharedInformerFactory(pw.ClusterInteractor.ClientSet, time.Minute*5)
 	podInformer := pw.informerFactory.Core().V1().Pods().Informer()
 
 	podEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: pw.addPodHandling,
+		AddFunc:    pw.addPodHandling,
 		UpdateFunc: func(oldObj, newObj interface{}) {}, // Update is not relevant, we just care of pods addition and removal
 		DeleteFunc: pw.deletePodHandling,
 	}
@@ -97,7 +100,7 @@ func (pw *PodWatcher) WatchPods() {
 	// Add event handlers
 	_, err := podInformer.AddEventHandler(podEventHandler)
 	if err != nil {
-		logger.Fatal("Failed to create pod event handler: %v", err)
+		logger.Fatal("failed to create pod event handler: %v", err)
 	}
 
 	// Convert `chan os.Signal` to `<-chan struct{}`
@@ -112,25 +115,27 @@ func (pw *PodWatcher) WatchPods() {
 
 	// Wait for the informer to sync
 	if !cache.WaitForCacheSync(stopStructCh, podInformer.HasSynced) {
-		logger.Warning("Timed out waiting for caches to sync")
+		logger.Warning("timed out waiting for caches to sync")
 		return
 	}
 
 	// Keep running until stopped
 	<-stopStructCh
-	logger.Info("Stopping Pod watcher...")
+	logger.Info("stopping Pod watcher...")
 }
 
 func (pw *PodWatcher) updateAgentCRDWithPodStatus(nodeName, podName, tenantId, status string) {
+	agentCRDName := "agent-" + nodeName
 	// Get the current CRD instance
 	crdResource := pw.ClusterInteractor.DynamicClient.Resource(schema.GroupVersionResource{
-		Group:    "example.com",
-		Version:  "v1",
-		Resource: "agents",
+		Group:    clusterInteraction.AgentCRDGroup,
+		Version:  clusterInteraction.AgentCRDVersion,
+		Resource: clusterInteraction.AgentCRDResource,
 	}).Namespace(clusterInteraction.PodAttestationNamespace)
-	crdInstance, err := crdResource.Get(context.Background(), "agent-"+nodeName, v1.GetOptions{})
+
+	crdInstance, err := crdResource.Get(context.Background(), agentCRDName, v1.GetOptions{})
 	if err != nil {
-		logger.Warning("Error getting Agent CRD instance: %v", err)
+		logger.Warning("error getting Agent CRD instance: %v", err)
 		return
 	}
 
@@ -143,7 +148,6 @@ func (pw *PodWatcher) updateAgentCRDWithPodStatus(nodeName, podName, tenantId, s
 
 	// Update the pod status in the CRD
 	newPodStatus := make([]interface{}, 0)
-
 	for _, ps := range spec["podStatus"].([]interface{}) {
 		pod := ps.(map[string]interface{})
 		if pod["podName"].(string) != podName {
@@ -170,11 +174,11 @@ func (pw *PodWatcher) updateAgentCRDWithPodStatus(nodeName, podName, tenantId, s
 	// Update the CRD instance
 	_, err = crdResource.Update(context.Background(), crdInstance, v1.UpdateOptions{})
 	if err != nil {
-		logger.Error("Error updating Agent CRD instance: %v\n", err))
+		logger.Error("error updating Agent CRD '%s': %v", agentCRDName, err)
 		return
 	}
 
-	logger.Success("Agent CRD 'agent-%s' updated; involved Pod: '%s'", nodeName, podName)
+	logger.Success("Agent CRD '%s' updated; involved pod: '%s'", agentCRDName, podName)
 }
 
 // setupSignalHandler sets up a signal handler for graceful termination.

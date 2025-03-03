@@ -76,6 +76,8 @@ github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsT
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250303131809-ccd9febb9cbb h1:BExsEwPqIiCbC4k320yKBcTlDeWn+PgmqTEQIXskJjY=
 github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250303131809-ccd9febb9cbb/go.mod h1:IkNVefplRmvdb7E+WSfQr/4V5gajBbqlESl9pxReYEc=
+github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250303134704-a187d53e839d h1:91VWqf7eeH10+/Ck25z/qu175sHGWWxbzE0wojFOUvQ=
+github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250303134704-a187d53e839d/go.mod h1:IkNVefplRmvdb7E+WSfQr/4V5gajBbqlESl9pxReYEc=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250303131809-ccd9febb9cbb h1:Sz8r4eQqeeu/TVQ3xZqBPECbljiaKiCuK0ju5uEsWzE=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250303131809-ccd9febb9cbb/go.mod h1:pP/DpVLMzgLxrc+4AYwjlUolcrIY19P12+RPWCaz/pQ=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=

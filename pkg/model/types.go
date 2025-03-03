@@ -37,3 +37,13 @@ type TPMVendor struct {
 	Name          string `json:"vendorName"`
 	TCGIdentifier string `json:"TCGIdentifier"`
 }
+
+/*
+type PodStatus struct {
+	PodName   string `json:"podName"`
+	TenantId  string `json:"tenantId"`
+	Status    string `json:"status"`
+	Reason    string `json:"reason"`
+	LastCheck string `json:"lastCheck"`
+}
+*/

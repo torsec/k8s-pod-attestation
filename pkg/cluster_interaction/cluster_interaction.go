@@ -29,6 +29,13 @@ const (
 	PodAttestationNamespace = "attestation-system"
 )
 
+// Agent CRD parameters
+const (
+	AgentCRDGroup    = "example.com"
+	AgentCRDVersion  = "v1"
+	AgentCRDResource = "agents"
+)
+
 // ConfigureKubernetesClient initializes the Kubernetes client by retrieving the kubeconfig file from home directory of current user under /.kube/config
 func (c *ClusterInteraction) ConfigureKubernetesClient() {
 	var err error
