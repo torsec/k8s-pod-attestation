@@ -78,3 +78,53 @@ func (c *ClusterInteraction) IsNamespaceEnabledForAttestation(podNamespace strin
 	}
 	return false
 }
+
+func (c *ClusterInteraction) DeleteNode(nodeName string) (bool, error) {
+	// Delete the node
+	err := c.ClientSet.CoreV1().Nodes().Delete(context.TODO(), nodeName, v1.DeleteOptions{})
+	if err != nil {
+		logger.Error("error deleting node '%s': %v", nodeName, err)
+		return false, fmt.Errorf("error deleting node '%s': %v", nodeName, err)
+	}
+	return true, nil
+}
+
+func (c *ClusterInteraction) DeletePod(podName string) (bool, error) {
+	// Get all pods
+	pods, err := c.ClientSet.CoreV1().Pods("").List(context.TODO(), v1.ListOptions{
+		FieldSelector: fmt.Sprintf("metadata.name=%s", podName),
+	})
+	if err != nil {
+		return false, fmt.Errorf("error deleting pod '%s': %v", podName, err)
+	}
+
+	// Delete each pod on the node
+	for _, pod := range pods.Items {
+		err := c.ClientSet.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, v1.DeleteOptions{})
+		if err != nil {
+			return false, fmt.Errorf("error deleting pod '%s': %v", pod.Name, err)
+		}
+	}
+
+	return true, nil
+}
+
+func (c *ClusterInteraction) DeleteAllPodsFromNode(nodeName string) (bool, error) {
+	// Get all pods on the specified node
+	pods, err := c.ClientSet.CoreV1().Pods("").List(context.TODO(), v1.ListOptions{
+		FieldSelector: fmt.Sprintf("spec.nodeName=%s", nodeName),
+	})
+	if err != nil {
+		return false, fmt.Errorf("error deleting pods from node '%s': %v", nodeName, err)
+	}
+
+	// Delete each pod on the node
+	for _, pod := range pods.Items {
+		err := c.ClientSet.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, v1.DeleteOptions{})
+		if err != nil {
+			return false, fmt.Errorf("error deleting pod '%s' from node '%s': %v", pod.Name, nodeName, err)
+		}
+		logger.Success("Deleted pod '%s' from node '%s'", pod.Name, nodeName)
+	}
+	return true, nil
+}
