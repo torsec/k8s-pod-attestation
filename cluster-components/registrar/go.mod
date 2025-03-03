@@ -3,8 +3,8 @@ module main
 go 1.23.4
 
 require (
-	github.com/torsec/k8s-pod-attestation v0.0.0-20250221142252-1ed01aef77ac
-	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250221142252-1ed01aef77ac
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250221151028-0a529019ca3d
+	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250221151028-0a529019ca3d
 )
 
 require (
@@ -12,6 +12,7 @@ require (
 	github.com/bytedance/sonic/loader v0.2.3 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/fatih/color v1.18.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/gin-contrib/sse v1.0.0 // indirect
 	github.com/gin-gonic/gin v1.10.0 // indirect
@@ -25,14 +26,16 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250221142252-1ed01aef77ac // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250221142252-1ed01aef77ac // indirect
+	github.com/torsec/k8s-pod-attestation v0.0.0-20250221150223-2648ced8d69f // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250221151028-0a529019ca3d // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250221151028-0a529019ca3d // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	golang.org/x/arch v0.14.0 // indirect

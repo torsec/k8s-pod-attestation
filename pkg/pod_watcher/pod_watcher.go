@@ -1,48 +1,25 @@
-package main
+package pod_watcher
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/torsec/k8s-pod-attestation/pkg/k8s_cluster_interaction"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var attestationNamespaces string
-
-// loadEnvironmentVariables loads required environment variables and sets default values if necessary.
-func loadEnvironmentVariables() {
-	attestationNamespaces = getEnv("ATTESTATION_NAMESPACES", "[\"default\"]")
-	// setting namespaces allowed for attestation: only pods deployed  be attested
-	err := json.Unmarshal([]byte(attestationNamespaces), &attestationEnabledNamespaces)
-	if err != nil {
-		log.Fatalf("Failed to parse 'ATTESTATION_NAMESPACES' content: %v", err)
-	}
+type PodWatcher struct {
+	ClusterInteractor *k8s_cluster_interaction.ClusterInteraction
 }
 
-// getEnv retrieves the value of an environment variable or returns a default value if not set.
-func getEnv(key, defaultValue string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		if key == "ATTESTATION_NAMESPACES" {
-			logger.Info("[%s] '%s' environment variable missing: setting default value: ['default']", key)
-		}
-		return defaultValue
-	}
-	return value
-}
 
-func watchPods() {
+func (pw *PodWatcher) WatchPods() {
 	stopCh := setupSignalHandler()
 	// Create a SharedInformerFactory for Pods
 	informerFactory := informers.NewSharedInformerFactory(clientset, time.Minute*5)
@@ -167,11 +144,4 @@ func setupSignalHandler() chan os.Signal {
 	stopCh := make(chan os.Signal, 1)
 	signal.Notify(stopCh, syscall.SIGINT, syscall.SIGTERM)
 	return stopCh
-}
-
-func main() {
-	loadEnvironmentVariables()
-
-	// Watch for Pod events
-	watchPods()
 }

@@ -633,10 +633,10 @@ func (s *Server) Start() {
 	s.router.DELETE("/worker/deleteByName", s.deleteWorkerByName)             // DELETE worker by Name
 
 	// Start the server
-	logger.Info("Server is running on port: %d", s.registrarPort)
+	logger.Info("server is running on port: %d", s.registrarPort)
 	err := s.router.Run(":" + strconv.Itoa(s.registrarPort))
 	if err != nil {
-		return
+		logger.Fatal("failed to start registrar: %v", err)
 	}
 }
 

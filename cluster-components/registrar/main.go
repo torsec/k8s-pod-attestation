@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	registrarServer registrar.Server
+	registrarServer *registrar.Server
 	registrarHost   string
 	registrarPort   int
 )
@@ -32,12 +32,9 @@ func loadEnvironmentVariables() {
 	}
 }
 
-// Tenant functions
-// ---------------------------------------------------------------------------------------------------------------------------
-
 func main() {
 	loadEnvironmentVariables()
-	registrarServer = registrar.Server{}
+	registrarServer = &registrar.Server{}
 	registrarServer.SetHost(registrarHost)
 	registrarServer.SetPort(registrarPort)
 	err := registrarServer.InitializeRegistrarDatabase()
