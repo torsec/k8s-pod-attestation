@@ -110,7 +110,7 @@ func ValidateWorkerQuote(workerQuote *model.InputQuote, nonce []byte, AIK *rsa.P
 	}
 
 	// Verify the signature
-	if cryptoUtils.VerifyTPMSignature(AIK, quoteBytes, sig.RSA.Signature) != nil {
+	if cryptoUtils.VerifySignature(AIK, quoteBytes, sig.RSA.Signature) != nil {
 		return "", "", fmt.Errorf("quote signature verification failed")
 	}
 

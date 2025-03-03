@@ -3,8 +3,8 @@ module main
 go 1.23.4
 
 require (
-	github.com/fatih/color v1.18.0
 	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250221151028-0a529019ca3d
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250303131809-ccd9febb9cbb
 	k8s.io/api v0.31.2
 	k8s.io/apimachinery v0.31.2
 	k8s.io/client-go v0.31.2
@@ -13,6 +13,7 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
+	github.com/fatih/color v1.18.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect

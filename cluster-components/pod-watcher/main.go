@@ -35,7 +35,7 @@ func getEnv(key, defaultValue string) string {
 	value := os.Getenv(key)
 	if value == "" {
 		if key == "ATTESTATION_NAMESPACES" {
-			logger.Info("[%s] '%s' environment variable missing: setting default value: ['default']", key)
+			logger.Info("'%s' environment variable missing: setting default value: ['default']", key)
 		}
 		return defaultValue
 	}
