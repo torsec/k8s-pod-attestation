@@ -1,4 +1,4 @@
-module github.com/torsec/k8s-pod-attestation/pkg/k8s_cluster_interaction
+module github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction
 
 go 1.23.4
 

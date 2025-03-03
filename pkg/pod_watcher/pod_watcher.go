@@ -2,7 +2,7 @@ package pod_watcher
 
 import (
 	"fmt"
-	"github.com/torsec/k8s-pod-attestation/pkg/k8s_cluster_interaction"
+	"github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"

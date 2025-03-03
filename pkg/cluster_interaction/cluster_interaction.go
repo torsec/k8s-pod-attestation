@@ -1,4 +1,4 @@
-package k8s_cluster_interaction
+package cluster_interaction
 
 import (
 	"context"
