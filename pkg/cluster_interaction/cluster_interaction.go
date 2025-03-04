@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -42,6 +44,12 @@ const (
 	APIVersion       = AgentCRDGroup + "/" + AgentCRDVersion
 	Kind             = "AttestationRequest"
 )
+
+const (
+	AgentServicePort int32 = 9090
+)
+
+var agentNodePortAllocation int32 = 31000
 
 // ConfigureKubernetesClient initializes the Kubernetes client by retrieving the kubeconfig file from home directory of current user under /.kube/config
 func (c *ClusterInteraction) ConfigureKubernetesClient() {
@@ -190,7 +198,7 @@ func (c *ClusterInteraction) IssueAttestationRequestCRD(podName, podUID, tenantI
 	return true, nil
 }
 
-func (c *ClusterInteraction) CheckAgentCRD(agentCRDName, podName, tenantId string) error {
+func (c *ClusterInteraction) CheckAgentCRD(agentCRDName, podName, tenantId string) (bool, error) {
 	// Define the GVR (GroupVersionResource) for the CRD you want to watch
 	gvr := schema.GroupVersionResource{
 		Group:    AgentCRDGroup,
@@ -201,7 +209,7 @@ func (c *ClusterInteraction) CheckAgentCRD(agentCRDName, podName, tenantId strin
 	// Use the dynamic client to get the CRD by name
 	crd, err := c.DynamicClient.Resource(gvr).Namespace(PodAttestationNamespace).Get(context.TODO(), agentCRDName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to retrieve Agent CRD: %v", err)
+		return false, fmt.Errorf("failed to retrieve Agent CRD: %v", err)
 	}
 
 	// Example: Access a specific field in the spec (assuming CRD has a "spec" field)
@@ -210,15 +218,15 @@ func (c *ClusterInteraction) CheckAgentCRD(agentCRDName, podName, tenantId strin
 			pod := ps.(map[string]interface{})
 			// check if Pod belongs to calling Tenant
 			if pod["podName"].(string) == podName && pod["tenantId"].(string) == tenantId {
-				return nil
+				return true, nil
 			}
 		}
 	} else if err != nil {
-		return fmt.Errorf("error retrieving 'podStatus'")
+		return false, fmt.Errorf("error retrieving 'podStatus'")
 	} else {
-		return fmt.Errorf("'podStatus' field not found")
+		return false, fmt.Errorf("'podStatus' field not found")
 	}
-	return fmt.Errorf("failed to retrieve requested pod: %s in the Agent CRD: %s", podName, agentCRDName)
+	return false, fmt.Errorf("failed to retrieve requested pod: %s in the Agent CRD: %s", podName, agentCRDName)
 }
 
 func (c *ClusterInteraction) GetAttestationInformation(podName string) (string, string, string, error) {
@@ -265,4 +273,139 @@ func (c *ClusterInteraction) GetAttestationInformation(podName string) (string, 
 	}
 
 	return nodeName, agentIP, string(podUID), nil
+}
+
+func (c *ClusterInteraction) GetWorkerInternalIP(worker *v1.Node) (string, error) {
+	// Loop through the addresses of the node to find the InternalIP (within the cluster)
+	var workerIP string
+	for _, address := range worker.Status.Addresses {
+		if address.Type == v1.NodeInternalIP {
+			workerIP = address.Address
+			break
+		}
+	}
+	if workerIP == "" {
+		return "", fmt.Errorf("no internal IP found for node '%s'", worker.GetName())
+	}
+	return workerIP, nil
+}
+
+func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, TPMPath, IMAMountPath, IMAMeasurementLogPath, agentImage string) (bool, string, int, error) {
+	agentReplicas := int32(1)
+	privileged := true
+	charDeviceType := v1.HostPathCharDev
+	pathFileType := v1.HostPathFile
+
+	agentHost, err := c.GetWorkerInternalIP(newWorker)
+	if err != nil {
+		return false, "", -1, fmt.Errorf("failed to get node '%s' internal IP address: %v", newWorker.GetName(), err)
+	}
+
+	agentPort := agentNodePortAllocation
+
+	// Define the Deployment
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("agent-%s-deployment", newWorker.GetName()),
+			Namespace: PodAttestationNamespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &agentReplicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "agent",
+				},
+			},
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "agent",
+					},
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  fmt.Sprintf("agent-%s", newWorker.GetName()),
+							Image: agentImage, //"franczar/k8s-attestation-agent:latest"
+							Env: []v1.EnvVar{
+								{Name: "AGENT_PORT", Value: "8080"},
+								{Name: "TPM_PATH", Value: TPMPath},
+							},
+							Ports: []v1.ContainerPort{
+								{ContainerPort: 8080},
+							},
+							VolumeMounts: []v1.VolumeMount{
+								{Name: "tpm-device", MountPath: TPMPath},
+								{Name: "ima-measurements", MountPath: IMAMountPath, ReadOnly: true},
+							},
+							SecurityContext: &v1.SecurityContext{
+								Privileged: &privileged,
+							},
+						},
+					},
+					Volumes: []v1.Volume{
+						{
+							Name: "tpm-device",
+							VolumeSource: v1.VolumeSource{
+								HostPath: &v1.HostPathVolumeSource{
+									Path: TPMPath,
+									Type: &charDeviceType,
+								},
+							},
+						},
+						{
+							Name: "ima-measurements",
+							VolumeSource: v1.VolumeSource{
+								HostPath: &v1.HostPathVolumeSource{
+									Path: IMAMeasurementLogPath,
+									Type: &pathFileType,
+								},
+							},
+						},
+					}, // Ensure pod is deployed on the new worker node
+					NodeSelector: map[string]string{
+						"kubernetes.io/hostname": newWorker.GetName(),
+					},
+				},
+			},
+		},
+	}
+
+	// Define the Service
+	service := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("agent-%s-service", newWorker.GetName()),
+			Namespace: "attestation-system",
+		},
+		Spec: v1.ServiceSpec{
+			Selector: map[string]string{
+				"app": "agent",
+			},
+			Ports: []v1.ServicePort{
+				{
+					Protocol:   v1.ProtocolTCP,
+					Port:       AgentServicePort,
+					TargetPort: intstr.FromInt32(8080),
+					NodePort:   agentPort,
+				},
+			},
+			Type: v1.ServiceTypeNodePort,
+		},
+	}
+
+	// Deploy the Deployment
+	_, err = c.ClientSet.AppsV1().Deployments(PodAttestationNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
+	if err != nil {
+		return false, "", -1, fmt.Errorf("error creating agent deployment: %v", err)
+	}
+
+	// Deploy the Service
+	_, err = c.ClientSet.CoreV1().Services(PodAttestationNamespace).Create(context.TODO(), service, metav1.CreateOptions{})
+	if err != nil {
+		// TODO delete deployment
+		return false, "", -1, fmt.Errorf("error creating agent service: %v", err)
+	}
+
+	agentNodePortAllocation += 1
+	return true, agentHost, int(agentPort), nil
 }

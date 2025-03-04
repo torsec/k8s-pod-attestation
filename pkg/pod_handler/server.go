@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
+	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"github.com/torsec/k8s-pod-attestation/pkg/registrar"
-	"log"
 	"net/http"
 	"strconv"
 )
@@ -24,18 +24,19 @@ type Server struct {
 	podHandlerPort    int
 	tlsCertificate    *x509.Certificate
 	registrarClient   *registrar.Client
+	attestationSecret []byte
+	// automatically initialized
 	clusterInteractor *cluster_interaction.ClusterInteraction
 	router            *gin.Engine
-	attestationSecret []byte
-
 }
 
-func (s *Server) Init(registrarHost string, registrarPort int, tlsCertificate *x509.Certificate, registrarClient *registrar.Client, attestationSecret []byte) {
-	s.podHandlerHost = registrarHost
-	s.podHandlerPort = registrarPort
+func (s *Server) Init(podHandlerHost string, podHandlerPort int, tlsCertificate *x509.Certificate, registrarClient *registrar.Client, attestationSecret []byte) {
+	s.podHandlerHost = podHandlerHost
+	s.podHandlerPort = podHandlerPort
 	s.tlsCertificate = tlsCertificate
 	s.registrarClient = registrarClient
 	s.attestationSecret = attestationSecret
+	s.clusterInteractor.ConfigureKubernetesClient()
 }
 
 func (s *Server) SetHost(host string) {
@@ -72,13 +73,12 @@ func (s *Server) securePodDeployment(c *gin.Context) {
 	}
 
 	if err = s.deployPod(podDeploymentRequest.Manifest, podDeploymentRequest.TenantName); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": Error, "message": fmt.Sprintf("Failed to deploy pod: %v", err)})
-			return
-		}
+		c.JSON(http.StatusInternalServerError, gin.H{"status": Error, "message": fmt.Sprintf("Failed to deploy pod: %v", err)})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{"status": Success, "message": "Pod successfully deployed"})
 }
-
 
 // request pod deployment
 func (s *Server) deployPod(podManifest, tenantName string) error {
@@ -98,7 +98,7 @@ func (s *Server) deployPod(podManifest, tenantName string) error {
 	if err != nil {
 		return fmt.Errorf("error creating pod: %v", err)
 	}
-	logger.Success("pod '%s' created successfully in namespace '%s': deployed on Worker node '%s'", deployedPod.GetObjectMeta().GetName(), deployedPod.GetNamespace(), deployedPod.Spec.NodeName))
+	logger.Success("pod '%s' created successfully in namespace '%s': deployed on Worker node '%s'", deployedPod.GetObjectMeta().GetName(), deployedPod.GetNamespace(), deployedPod.Spec.NodeName)
 	return nil
 }
 
@@ -144,24 +144,17 @@ func (s *Server) requestPodAttestation(c *gin.Context) {
 	agentCRDName := fmt.Sprintf("agent-%s", workerDeploying)
 
 	// check if Pod is signed into the target Agent CRD and if it is actually owned by the calling Tenant
-	err = s.clusterInteractor.CheckAgentCRD(agentCRDName, podAttestationRequest.PodName, podAttestationRequest.TenantID)
+	err = s.clusterInteractor.CheckAgentCRD(agentCRDName, podAttestationRequest.PodName, tenantId)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"status": Error, "message": err.Error()})
 		return
 	}
 
 	integrityMessage := fmt.Sprintf("%s::%s::%s::%s::%s", podAttestationRequest.PodName, podUID, tenantId, agentCRDName, agentIP)
-	hmacValue, err := cryptoUtils.ComputeHMAC([]byte(integrityMessage), s.attestationSecret)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"status":  Error,
-			"message": "HMAC computation failed",
-		})
-		return
-	}
+	hmacValue := cryptoUtils.ComputeHMAC([]byte(integrityMessage), s.attestationSecret)
 
 	// issue an Attestation Request for target Pod and Agent, it will be intercepted by the Verifier
-	err = s.clusterInteractor.IssueAttestationRequestCRD(podAttestationRequest.PodName, podUID, tenantId, agentCRDName, agentIP, base64.StdEncoding.EncodeToString(hmacValue))
+	_, err = s.clusterInteractor.IssueAttestationRequestCRD(podAttestationRequest.PodName, podUID, tenantId, agentCRDName, agentIP, base64.StdEncoding.EncodeToString(hmacValue))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"status": Error, "message": err.Error()})
 		return
