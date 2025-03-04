@@ -402,7 +402,7 @@ func checkAgentCRD(agentCRDName, podName, tenantId string) error {
 		for _, ps := range podStatus {
 			pod := ps.(map[string]interface{})
 			// check if Pod belongs to calling Tenant
-			if pod["podName"].(string) == podName && pod["tenantID"].(string) == tenantId {
+			if pod["podName"].(string) == podName && pod["tenantId"].(string) == tenantId {
 				return nil
 			}
 		}

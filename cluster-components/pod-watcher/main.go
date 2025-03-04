@@ -5,19 +5,28 @@ import (
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	"github.com/torsec/k8s-pod-attestation/pkg/pod_watcher"
 	"os"
+	"strconv"
 )
 
 var (
 	attestationEnabledNamespaces []string
 	attestationNamespaces        string
+	defaultResync                int
 	podWatcher                   *pod_watcher.PodWatcher
 )
 
 // loadEnvironmentVariables loads required environment variables and sets default values if necessary.
 func loadEnvironmentVariables() {
+	var err error
 	attestationNamespaces = getEnv("ATTESTATION_NAMESPACES", "[\"default\"]")
-	// setting namespaces allowed for attestation: only pods deployed  be attested
-	err := json.Unmarshal([]byte(attestationNamespaces), &attestationEnabledNamespaces)
+	defaultResyncEnv := getEnv("DEFAULT_RESYNC", "3")
+
+	defaultResync, err = strconv.Atoi(defaultResyncEnv)
+	if err != nil {
+		logger.Fatal("failed to parse DEFAULT_RESYNC: %v", err)
+	}
+	// setting namespaces allowed for attestation: only pods deployed be attested
+	err = json.Unmarshal([]byte(attestationNamespaces), &attestationEnabledNamespaces)
 	if err != nil {
 		logger.Fatal("Failed to parse 'ATTESTATION_NAMESPACES' content: %v", err)
 	}
@@ -38,6 +47,6 @@ func getEnv(key, defaultValue string) string {
 func main() {
 	loadEnvironmentVariables()
 	podWatcher = &pod_watcher.PodWatcher{}
-	podWatcher.Init(attestationEnabledNamespaces, 3)
+	podWatcher.Init(attestationEnabledNamespaces, defaultResync)
 	podWatcher.WatchPods()
 }

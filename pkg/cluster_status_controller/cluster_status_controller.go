@@ -15,13 +15,13 @@ import (
 )
 
 type ClusterStatusController struct {
-	ClusterInteraction *clusterInteraction.ClusterInteraction
-	informerFactory dynamicinformer.DynamicSharedInformerFactory
+	clusterInteractor *clusterInteraction.ClusterInteraction
+	informerFactory   dynamicinformer.DynamicSharedInformerFactory
 }
 
 func (csc *ClusterStatusController) Init(defaultResync int) {
-	csc.ClusterInteraction.ConfigureKubernetesClient()
-	csc.informerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(csc.ClusterInteraction.DynamicClient, time.Minute*time.Duration(defaultResync), clusterInteraction.PodAttestationNamespace, nil)
+	csc.clusterInteractor.ConfigureKubernetesClient()
+	csc.informerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(csc.clusterInteractor.DynamicClient, time.Minute*time.Duration(defaultResync), clusterInteraction.PodAttestationNamespace, nil)
 }
 
 func (csc *ClusterStatusController) addAgentCRDHandling(obj interface{}) {
@@ -34,7 +34,7 @@ func (csc *ClusterStatusController) updateAgentCRDHandling(oldObj, newObj interf
 }
 
 func (csc *ClusterStatusController) deleteAgentCRDHandling(obj interface{}) {
-	logger.Info("Agent CRD Deleted: %s", formatAgentCRD(obj)))
+	logger.Info("Agent CRD Deleted: %s", formatAgentCRD(obj))
 }
 
 func extractNodeName(agentName string) (string, error) {
@@ -66,7 +66,7 @@ func (csc *ClusterStatusController) WatchAgentCRDs() {
 
 	// Add event handlers
 	_, err := agentInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: csc.addAgentCRDHandling,
+		AddFunc:    csc.addAgentCRDHandling,
 		UpdateFunc: csc.updateAgentCRDHandling,
 		DeleteFunc: csc.deleteAgentCRDHandling,
 	})
@@ -105,12 +105,14 @@ func (csc *ClusterStatusController) checkAgentStatus(obj interface{}) {
 			logger.Error("invalid 'agentName' format: '%s'", spec["agentName"])
 			return
 		}
-		_, err := csc.ClusterInteraction.DeleteAllPodsFromNode(nodeName)
+
+		_, err = csc.clusterInteractor.DeleteAllPodsFromNode(nodeName)
 		if err != nil {
 			logger.Error("failed to delete pods from node: %v", err)
 			return
 		}
-		_, err := csc.ClusterInteraction.DeleteNode(nodeName)
+
+		_, err = csc.clusterInteractor.DeleteNode(nodeName)
 		if err != nil {
 			logger.Error("failed to delete node: %v", err)
 			return
@@ -120,7 +122,7 @@ func (csc *ClusterStatusController) checkAgentStatus(obj interface{}) {
 
 	podStatusInterface, exists := spec["podStatus"]
 	if !exists {
-		fmt.Printf("missing 'podStatus' field in Agent CRD")
+		logger.Error("missing 'podStatus' field in Agent CRD")
 		return
 	}
 
@@ -145,7 +147,7 @@ func (csc *ClusterStatusController) checkAgentStatus(obj interface{}) {
 
 		if status == clusterInteraction.UntrustedPodStatus {
 			logger.Warning("detected untrusted pod: '%s'", podName)
-			_, err := csc.ClusterInteraction.DeletePod(podName)
+			_, err := csc.clusterInteractor.DeletePod(podName)
 			if err != nil {
 				logger.Error("error deleting pod '%s': %v", podName, err)
 			}
@@ -163,7 +165,7 @@ func formatAgentCRD(obj interface{}) map[string]interface{} {
 
 	spec, specExists := agentCRD["spec"].(map[string]interface{})
 	if !specExists {
-		logger.Error("missing 'spec' field in Agent CRD"))
+		logger.Error("missing 'spec' field in Agent CRD")
 		return nil
 	}
 	return spec

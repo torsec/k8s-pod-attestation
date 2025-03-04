@@ -53,3 +53,15 @@ type RegistrarResponse struct {
 	Message string `json:"message"`
 	Status  string `json:"status"`
 }
+
+type PodDeploymentRequest struct {
+	TenantName string `json:"tenantName"`
+	Manifest   string `json:"manifest"`
+	Signature  string `json:"signature"`
+}
+
+type PodAttestationRequest struct {
+	TenantName string `json:"tenantName"`
+	PodName    string `json:"podName"`
+	Signature  string `json:"signature"`
+}

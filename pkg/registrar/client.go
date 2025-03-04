@@ -16,6 +16,12 @@ type Client struct {
 	invokerTlsCertificate *x509.Certificate
 }
 
+func (c *Client) Init(registrarHost string, registrarPort int, invokerTlsCertificate *x509.Certificate) {
+	c.registrarHost = registrarHost
+	c.registrarPort = registrarPort
+	c.invokerTlsCertificate = invokerTlsCertificate
+}
+
 // Exposed endpoints
 
 // VerifyTenantSignature verifies the provided signature by contacting Server API
@@ -188,14 +194,12 @@ func (c *Client) GetWorkerIdByName(nodeName string) (*model.RegistrarResponse, e
 }
 
 // Get Tenant Info from Server
-func (c *Client) GetTenantIdByName(tenantName string) (*model.Tenant, error) {
+func (c *Client) GetTenantIdByName(tenantName string) (*model.RegistrarResponse, error) {
 	registrarURL := fmt.Sprintf("http://%s:%d/tenant/getIdByName?name=%s", c.registrarHost, c.registrarPort, tenantName)
 	resp, err := http.Get(registrarURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve Tenant info: %v", err.Error())
 	}
-
-	var tenantResp *model.Tenant
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -209,10 +213,11 @@ func (c *Client) GetTenantIdByName(tenantName string) (*model.Tenant, error) {
 		}
 	}(resp.Body)
 
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(tenantResp); err != nil {
+	var registrarResponse *model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode get tenant response: %v", err.Error())
 	}
-	return tenantResp, nil
+	return registrarResponse, nil
 }
 
 // VerifyWorkerSignature verifies the provided signature by contacting Server API

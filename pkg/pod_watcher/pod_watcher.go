@@ -16,14 +16,14 @@ import (
 )
 
 type PodWatcher struct {
-	ClusterInteractor *clusterInteraction.ClusterInteraction
+	clusterInteractor *clusterInteraction.ClusterInteraction
 	informerFactory   informers.SharedInformerFactory
 }
 
 func (pw *PodWatcher) Init(attestationEnabledNamespaces []string, defaultResync int) {
-	pw.ClusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
-	pw.ClusterInteractor.ConfigureKubernetesClient()
-	pw.informerFactory = informers.NewSharedInformerFactory(pw.ClusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
+	pw.clusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
+	pw.clusterInteractor.ConfigureKubernetesClient()
+	pw.informerFactory = informers.NewSharedInformerFactory(pw.clusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
 }
 
 func (pw *PodWatcher) addPodHandling(obj interface{}) {
@@ -34,13 +34,13 @@ func (pw *PodWatcher) addPodHandling(obj interface{}) {
 
 	var podStatus string
 
-	isNamespaceEnabled := pw.ClusterInteractor.IsNamespaceEnabledForAttestation(podNamespace)
+	isNamespaceEnabled := pw.clusterInteractor.IsNamespaceEnabledForAttestation(podNamespace)
 	if !isNamespaceEnabled {
 		logger.Info("namespace '%s' is not enabled for pod attestation; skipping attestation tracking for pod '%s'", podNamespace, podName)
 		return
 	}
 
-	isNodeControlPlane, err := pw.ClusterInteractor.NodeIsControlPlane(nodeName)
+	isNodeControlPlane, err := pw.clusterInteractor.NodeIsControlPlane(nodeName)
 	if err != nil {
 		logger.Error("error occurred while checking if node is control plane: %v; skipping attestation tracking for pod '%s'", err, podName)
 		// TODO: pod may need to be killed and rescheduled for security reason or retry x times before doing it
@@ -64,13 +64,13 @@ func (pw *PodWatcher) deletePodHandling(obj interface{}) {
 
 	var podStatus string
 
-	isNamespaceEnabled := pw.ClusterInteractor.IsNamespaceEnabledForAttestation(podNamespace)
+	isNamespaceEnabled := pw.clusterInteractor.IsNamespaceEnabledForAttestation(podNamespace)
 	if !isNamespaceEnabled {
 		logger.Info("namespace '%s' is not enabled for pod attestation; skipping ending of pod attestation tracking", podNamespace)
 		return
 	}
 
-	isNodeControlPlane, err := pw.ClusterInteractor.NodeIsControlPlane(nodeName)
+	isNodeControlPlane, err := pw.clusterInteractor.NodeIsControlPlane(nodeName)
 	if err != nil {
 		logger.Error("error occurred while checking if node is control plane: %v; skipping ending of pod attestation tracking", err)
 		// TODO: pod may need to be killed and rescheduled for security reason or retry x times before doing it
@@ -127,7 +127,7 @@ func (pw *PodWatcher) WatchPods() {
 func (pw *PodWatcher) updateAgentCRDWithPodStatus(nodeName, podName, tenantId, status string) {
 	agentCRDName := "agent-" + nodeName
 	// Get the current CRD instance
-	crdResource := pw.ClusterInteractor.DynamicClient.Resource(schema.GroupVersionResource{
+	crdResource := pw.clusterInteractor.DynamicClient.Resource(schema.GroupVersionResource{
 		Group:    clusterInteraction.AgentCRDGroup,
 		Version:  clusterInteraction.AgentCRDVersion,
 		Resource: clusterInteraction.AgentCRDResource,

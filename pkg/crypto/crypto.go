@@ -15,7 +15,6 @@ import (
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 )
 
-// Helper function to verify HMAC
 func VerifyHMAC(message, key, providedHMAC []byte) error {
 	h := hmac.New(sha256.New, key)
 	h.Write(message)
@@ -26,6 +25,12 @@ func VerifyHMAC(message, key, providedHMAC []byte) error {
 	}
 
 	return nil
+}
+
+func ComputeHMAC(message, key []byte) []byte {
+	h := hmac.New(sha256.New, key)
+	h.Write(message)
+	return h.Sum(nil)
 }
 
 func DecodePublicKeyFromPEM(publicKeyPEM string) (*rsa.PublicKey, error) {
