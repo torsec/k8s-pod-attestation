@@ -66,13 +66,6 @@ var (
 
 const ephemeralKeySize = 32
 
-// initializeColors sets up color variables for console output.
-func initializeColors() {
-	red = color.New(color.FgRed)
-	green = color.New(color.FgGreen)
-	yellow = color.New(color.FgYellow)
-}
-
 // loadEnvironmentVariables loads required environment variables and sets default values if necessary.
 func loadEnvironmentVariables() {
 	registrarHOST = getEnv("REGISTRAR_HOST", "localhost")

@@ -35,8 +35,7 @@ func loadEnvironmentVariables() {
 func main() {
 	loadEnvironmentVariables()
 	registrarServer = &registrar.Server{}
-	registrarServer.SetHost(registrarHost)
-	registrarServer.SetPort(registrarPort)
+	registrarServer.Init(registrarHost, registrarPort, nil)
 	err := registrarServer.InitializeRegistrarDatabase()
 	if err != nil {
 		logger.Fatal("Failed to initialize registrar database: %s", err)

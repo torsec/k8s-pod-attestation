@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
+	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"github.com/torsec/k8s-pod-attestation/pkg/registrar"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
@@ -18,17 +19,24 @@ type WorkerHandler struct {
 	clusterInteractor *cluster_interaction.ClusterInteraction
 	informerFactory   informers.SharedInformerFactory
 	registrarClient   *registrar.Client
+	agentConfig       *model.AgentConfig
 }
 
-func (wh *WorkerHandler) Init(attestationEnabledNamespaces []string, defaultResync int) {
+func (wh *WorkerHandler) Init(attestationEnabledNamespaces []string, defaultResync int, registrarClient *registrar.Client, agentConfig *model.AgentConfig) {
 	wh.clusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
 	wh.clusterInteractor.ConfigureKubernetesClient()
 	wh.informerFactory = informers.NewSharedInformerFactory(wh.clusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
+	wh.registrarClient = registrarClient
+	wh.agentConfig = agentConfig
 }
 
 func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 	node := obj.(*corev1.Node)
-	_, isControlPlane := node.Labels["node-role.kubernetes.io/control-plane"]
+
+	isControlPlane, err := wh.clusterInteractor.NodeIsControlPlane("", node)
+	if err != nil {
+		logger.Error("Failed to determine if node '%s' is control-plane: %v", node.Name, err)
+	}
 
 	if isControlPlane {
 		logger.Info("node '%s' is control-plane; skipping registration", node.Name)
@@ -37,6 +45,7 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 
 	workerResponse, err := wh.registrarClient.GetWorkerIdByName(node.GetName())
 	if err != nil {
+		logger.Error("Failed to determine if node '%s' is registered: %v", node.Name, err)
 		return
 	}
 
@@ -49,8 +58,10 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 
 	isAgentDeployed, agentHost, agentPort, err := wh.clusterInteractor.DeployAgent(node)
 	if err != nil {
-		logger.Error()
+		logger.Error("Failed to start Agent on node '%s': %v", node.Name, err)
 	}
+
+	logger.Info("successfully deployed agent on node '%s'; service port: %d", node.Name, agentPort)
 
 	if !isAgentDeployed || !createAgentCRDInstance(node.Name) || !workerRegistration(node, agentHOST, agentPORT) {
 		err := deleteNodeFromCluster(node.Name)

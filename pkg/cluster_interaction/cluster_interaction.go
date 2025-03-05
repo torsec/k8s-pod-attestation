@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/util/homedir"
 	"path/filepath"
 	"sigs.k8s.io/yaml"
+	"strconv"
 	"time"
 )
 
@@ -49,7 +50,11 @@ const (
 	AgentServicePort int32 = 9090
 )
 
-var agentNodePortAllocation int32 = 31000
+const (
+	ControlPlaneLabel = "node-role.kubernetes.io/control-plane"
+)
+
+//var agentNodePortAllocation int32 = 31000
 
 // ConfigureKubernetesClient initializes the Kubernetes client by retrieving the kubeconfig file from home directory of current user under /.kube/config
 func (c *ClusterInteraction) ConfigureKubernetesClient() {
@@ -92,15 +97,17 @@ func (c *ClusterInteraction) CreateTenantPodFromManifest(podManifest []byte, ten
 	return createdPod, nil
 }
 
-// NodeIsControlPlane check if node being considered is Control Plane
-func (c *ClusterInteraction) NodeIsControlPlane(nodeName string) (bool, error) {
-	// Get the node object to check for control plane label
-	node, err := c.ClientSet.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
-	if err != nil {
-		return false, fmt.Errorf("failed to get node: %v", err)
+// NodeIsControlPlane check if node being considered is Control Plane; if node is already available just check for the control plane label presence, otherwise fetch the node
+// with provided name
+func (c *ClusterInteraction) NodeIsControlPlane(nodeName string, node *v1.Node) (bool, error) {
+	var err error
+	if node == nil {
+		node, err = c.ClientSet.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
+		if err != nil {
+			return false, fmt.Errorf("failed to get node: %v", err)
+		}
 	}
-	// Check if the node is a control plane node
-	_, exists := node.Labels["node-role.kubernetes.io/control-plane"]
+	_, exists := node.Labels[ControlPlaneLabel]
 	return exists, nil
 }
 
@@ -124,9 +131,10 @@ func (c *ClusterInteraction) DeleteNode(nodeName string) (bool, error) {
 }
 
 func (c *ClusterInteraction) DeletePod(podName string) (bool, error) {
+	podSelector := fmt.Sprintf("metadata.name=%s", podName)
 	// Get all pods
 	pods, err := c.ClientSet.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("metadata.name=%s", podName),
+		FieldSelector: podSelector,
 	})
 	if err != nil {
 		return false, fmt.Errorf("error deleting pod '%s': %v", podName, err)
@@ -170,13 +178,15 @@ func (c *ClusterInteraction) IssueAttestationRequestCRD(podName, podUID, tenantI
 		Resource: AgentCRDResource,
 	}
 
+	attestationRequestName := fmt.Sprintf("attestation-request-%s", podName)
+
 	// Create an unstructured object to represent the AttestationRequest
 	attestationRequest := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": APIVersion,
 			"kind":       Kind,
 			"metadata": map[string]interface{}{
-				"name": fmt.Sprintf("attestation-request-%s", podName), // Unique name for the custom resource
+				"name": attestationRequestName, // Unique name for the custom resource
 			},
 			"spec": map[string]interface{}{
 				"podName":   podName,
@@ -290,23 +300,26 @@ func (c *ClusterInteraction) GetWorkerInternalIP(worker *v1.Node) (string, error
 	return workerIP, nil
 }
 
-func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, TPMPath, IMAMountPath, IMAMeasurementLogPath, agentImage string) (bool, string, int, error) {
+func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, TPMPath, IMAMountPath, IMAMeasurementLogPath, agentImage string, agentPort int32, agentNodePortAllocation *int32) (bool, string, int, error) {
 	agentReplicas := int32(1)
 	privileged := true
 	charDeviceType := v1.HostPathCharDev
 	pathFileType := v1.HostPathFile
+	agentDeploymentName := fmt.Sprintf("agent-%s-deployment", newWorker.GetName())
+	agentContainerName := fmt.Sprintf("agent-%s", newWorker.GetName())
+	agentServiceName := fmt.Sprintf("agent-%s-service", newWorker.GetName())
 
 	agentHost, err := c.GetWorkerInternalIP(newWorker)
 	if err != nil {
 		return false, "", -1, fmt.Errorf("failed to get node '%s' internal IP address: %v", newWorker.GetName(), err)
 	}
 
-	agentPort := agentNodePortAllocation
+	agentNodePort := *agentNodePortAllocation
 
 	// Define the Deployment
-	deployment := &appsv1.Deployment{
+	agentDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("agent-%s-deployment", newWorker.GetName()),
+			Name:      agentDeploymentName,
 			Namespace: PodAttestationNamespace,
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -325,14 +338,14 @@ func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, TPMPath, IMAMountPa
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:  fmt.Sprintf("agent-%s", newWorker.GetName()),
+							Name:  agentContainerName,
 							Image: agentImage, //"franczar/k8s-attestation-agent:latest"
 							Env: []v1.EnvVar{
-								{Name: "AGENT_PORT", Value: "8080"},
+								{Name: "AGENT_PORT", Value: strconv.Itoa(int(agentPort))},
 								{Name: "TPM_PATH", Value: TPMPath},
 							},
 							Ports: []v1.ContainerPort{
-								{ContainerPort: 8080},
+								{ContainerPort: agentPort},
 							},
 							VolumeMounts: []v1.VolumeMount{
 								{Name: "tpm-device", MountPath: TPMPath},
@@ -372,10 +385,10 @@ func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, TPMPath, IMAMountPa
 	}
 
 	// Define the Service
-	service := &v1.Service{
+	agentService := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("agent-%s-service", newWorker.GetName()),
-			Namespace: "attestation-system",
+			Name:      agentServiceName,
+			Namespace: PodAttestationNamespace,
 		},
 		Spec: v1.ServiceSpec{
 			Selector: map[string]string{
@@ -385,8 +398,8 @@ func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, TPMPath, IMAMountPa
 				{
 					Protocol:   v1.ProtocolTCP,
 					Port:       AgentServicePort,
-					TargetPort: intstr.FromInt32(8080),
-					NodePort:   agentPort,
+					TargetPort: intstr.FromInt32(AgentServicePort),
+					NodePort:   agentNodePort,
 				},
 			},
 			Type: v1.ServiceTypeNodePort,
@@ -394,18 +407,21 @@ func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, TPMPath, IMAMountPa
 	}
 
 	// Deploy the Deployment
-	_, err = c.ClientSet.AppsV1().Deployments(PodAttestationNamespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
+	_, err = c.ClientSet.AppsV1().Deployments(PodAttestationNamespace).Create(context.TODO(), agentDeployment, metav1.CreateOptions{})
 	if err != nil {
-		return false, "", -1, fmt.Errorf("error creating agent deployment: %v", err)
+		return false, "", -1, fmt.Errorf("error creating agent deployment '%s': %v", agentDeployment.Name, err)
 	}
 
 	// Deploy the Service
-	_, err = c.ClientSet.CoreV1().Services(PodAttestationNamespace).Create(context.TODO(), service, metav1.CreateOptions{})
+	_, err = c.ClientSet.CoreV1().Services(PodAttestationNamespace).Create(context.TODO(), agentService, metav1.CreateOptions{})
 	if err != nil {
-		// TODO delete deployment
-		return false, "", -1, fmt.Errorf("error creating agent service: %v", err)
+		delErr := c.ClientSet.AppsV1().Deployments(PodAttestationNamespace).Delete(context.TODO(), agentDeployment.Name, metav1.DeleteOptions{})
+		if delErr != nil {
+			return false, "", -1, fmt.Errorf("error creating agent service '%s': %v; error deleting agent deployment '%s': %v", agentService.Name, err, agentDeployment.Name, delErr)
+		}
+		return false, "", -1, fmt.Errorf("error creating agent service '%s': %v", agentService.Name, err)
 	}
 
-	agentNodePortAllocation += 1
-	return true, agentHost, int(agentPort), nil
+	*agentNodePortAllocation += 1
+	return true, agentHost, int(agentNodePort), nil
 }
