@@ -33,8 +33,8 @@ func ComputeHMAC(message, key []byte) []byte {
 	return h.Sum(nil)
 }
 
-func DecodePublicKeyFromPEM(publicKeyPEM string) (*rsa.PublicKey, error) {
-	block, _ := pem.Decode([]byte(publicKeyPEM))
+func DecodePublicKeyFromPEM(publicKeyPEM []byte) (*rsa.PublicKey, error) {
+	block, _ := pem.Decode(publicKeyPEM)
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block containing public key")
 	}
@@ -79,16 +79,16 @@ func GenerateEphemeralKey(size int) ([]byte, error) {
 }
 
 // Helper function to encode the public key to PEM format (for printing)
-func EncodePublicKeyToPEM(pubKey crypto.PublicKey) string {
+func EncodePublicKeyToPEM(pubKey crypto.PublicKey) []byte {
 	pubASN1, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
-		return ""
+		return nil
 	}
 	pubPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC KEY", // Use "PUBLIC KEY" for X.509 encoded keys
+		Type:  "PUBLIC KEY",
 		Bytes: pubASN1,
 	})
-	return string(pubPEM)
+	return pubPEM
 }
 
 // generateNonce creates a random nonce of specified byte length
@@ -112,8 +112,8 @@ func VerifyTPMSignature(rsaPubKey *rsa.PublicKey, message []byte, signature tpmu
 }
 
 // LoadCertificateFromPEM loads a certificate from a PEM string
-func LoadCertificateFromPEM(pemCert string) (*x509.Certificate, error) {
-	block, _ := pem.Decode([]byte(pemCert))
+func LoadCertificateFromPEM(pemCert []byte) (*x509.Certificate, error) {
+	block, _ := pem.Decode(pemCert)
 	if block == nil || block.Type != "CERTIFICATE" {
 		return nil, fmt.Errorf("failed to decode PEM block containing the certificate")
 	}

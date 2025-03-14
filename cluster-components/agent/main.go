@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-tpm-tools/client"
 	"github.com/google/go-tpm-tools/simulator"
@@ -59,9 +58,6 @@ type WorkerChallenge struct {
 }
 
 var (
-	red                   *color.Color
-	green                 *color.Color
-	yellow                *color.Color
 	agentPORT             string
 	workerId              string
 	TPMPath               string
@@ -121,13 +117,6 @@ func getEnv(key, defaultValue string) string {
 		return defaultValue
 	}
 	return value
-}
-
-// initializeColors sets up color variables for console output.
-func initializeColors() {
-	red = color.New(color.FgRed)
-	green = color.New(color.FgGreen)
-	yellow = color.New(color.FgYellow)
 }
 
 // Mock function to get EK (Endorsement Key)
