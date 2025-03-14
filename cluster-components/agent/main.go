@@ -13,16 +13,12 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-tpm-tools/client"
-	"github.com/google/go-tpm-tools/simulator"
 	tpm2legacy "github.com/google/go-tpm/legacy/tpm2"
-	"github.com/google/go-tpm/tpmutil"
 	"github.com/google/uuid"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"slices"
-	"sync"
 )
 
 type RegistrationAcknowledge struct {
@@ -77,32 +73,6 @@ pQIDAQAB
 -----END PUBLIC KEY-----`
 )
 
-var (
-	rwc       io.ReadWriteCloser
-	AIKHandle tpmutil.Handle
-	EKHandle  tpmutil.Handle
-	TPMmtx    sync.Mutex
-)
-
-func openTPM() {
-	var err error
-
-	if TPMPath == "simulator" {
-		rwc, err = simulator.GetWithFixedSeedInsecure(1073741825)
-		if err != nil {
-			fmt.Printf(red.Sprintf("can't open TPM: %v\n", err))
-			return
-		}
-	} else {
-		rwc, err = tpmutil.OpenTPM(TPMPath)
-		if err != nil {
-			log.Fatalf("can't open TPM: %v\n", err)
-			return
-		}
-	}
-	return
-}
-
 // loadEnvironmentVariables loads required environment variables and sets default values if necessary.
 func loadEnvironmentVariables() {
 	agentPORT = getEnv("AGENT_PORT", "8080")
@@ -117,69 +87,6 @@ func getEnv(key, defaultValue string) string {
 		return defaultValue
 	}
 	return value
-}
-
-// Mock function to get EK (Endorsement Key)
-func getWorkerEKandCertificate() (crypto.PublicKey, string) {
-	TPMmtx.Lock()
-	defer TPMmtx.Unlock()
-
-	EK, err := client.EndorsementKeyRSA(rwc)
-	if err != nil {
-		log.Fatalf("ERROR: could not get EndorsementKeyRSA: %v", err)
-	}
-
-	EKHandle = EK.Handle()
-
-	defer EK.Close()
-	var pemEKCert []byte
-
-	EKCert := EK.Cert()
-	if EKCert != nil {
-		pemEKCert = pem.EncodeToMemory(&pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: EKCert.Raw,
-		})
-	}
-
-	if pemEKCert == nil {
-		pemEKCert = []byte("EK Certificate not provided")
-	}
-
-	pemPublicEK := encodePublicKeyToPEM(EK.PublicKey())
-
-	return pemPublicEK, string(pemEKCert)
-}
-
-// Function to create a new AIK (Attestation Identity Key) for the Agent
-func createWorkerAIK() (string, string) {
-	TPMmtx.Lock()
-	defer TPMmtx.Unlock()
-
-	AIK, err := client.AttestationKeyRSA(rwc)
-	if err != nil {
-		log.Fatalf("ERROR: could not get AttestationKeyRSA: %v", err)
-	}
-	defer AIK.Close()
-
-	// used to later retrieve newly created AIK inside the TPM
-	AIKHandle = AIK.Handle()
-
-	AIKNameData, err := AIK.Name().Encode()
-	if err != nil {
-		log.Fatalf("failed to encode AIK Name data")
-	}
-
-	AIKPublicArea, err := AIK.PublicArea().Encode()
-	if err != nil {
-		log.Fatalf("failed to encode AIK public area")
-	}
-
-	encodedNameData := base64.StdEncoding.EncodeToString(AIKNameData)
-	encodedPublicArea := base64.StdEncoding.EncodeToString(AIKPublicArea)
-
-	// Return AIK material
-	return encodedNameData, encodedPublicArea
 }
 
 // Helper function to encode the public key to PEM format (for printing)
@@ -424,80 +331,6 @@ func getWorkerIMAMeasurementLog() (string, error) {
 	base64Encoded := base64.StdEncoding.EncodeToString(fileContent)
 
 	return base64Encoded, nil
-}
-
-// Custom function that checks if PCRstoQuote contains any element from bootReservedPCRs
-// and returns the boolean and the list of matching PCRs
-func containsAndReturnPCR(PCRstoQuote []int, bootReservedPCRs []int) (bool, []int) {
-	var foundPCRs []int
-	for _, pcr := range PCRstoQuote {
-		if slices.Contains(bootReservedPCRs, pcr) {
-			foundPCRs = append(foundPCRs, pcr)
-		}
-	}
-	if len(foundPCRs) == 0 {
-		return false, nil // No matching PCRs found
-	}
-	return true, foundPCRs
-}
-
-func quoteGeneralPurposePCRs(nonce []byte, PCRsToQuote []int) (string, error) {
-	TPMmtx.Lock()
-	defer TPMmtx.Unlock()
-
-	bootReservedPCRs := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-	// Custom function to return both found status and the PCR value
-	PCRsContainsBootReserved, foundPCR := containsAndReturnPCR(PCRsToQuote, bootReservedPCRs)
-	if PCRsContainsBootReserved {
-		return "", fmt.Errorf("Cannot compute quote on provided PCR set %v: boot reserved PCRs where included %v", foundPCR, bootReservedPCRs)
-	}
-
-	generalPurposePCRs := tpm2legacy.PCRSelection{
-		Hash: tpm2legacy.AlgSHA256,
-		PCRs: PCRsToQuote,
-	}
-
-	AIK, err := client.NewCachedKey(rwc, tpm2legacy.HandleOwner, client.AKTemplateRSA(), AIKHandle)
-	if err != nil {
-		return "", fmt.Errorf("Error while retrieving AIK: %v", err)
-	}
-
-	quote, err := AIK.Quote(generalPurposePCRs, nonce)
-	if err != nil {
-		return "", fmt.Errorf("failed to create quote over PCRs %v: %v", PCRsToQuote, err)
-	}
-	quoteJSON, err := json.Marshal(quote)
-	if err != nil {
-		return "", fmt.Errorf("Failed to parse quote result as json: %v", err)
-	}
-	return string(quoteJSON), nil
-}
-
-func quoteBootAggregate(nonce []byte) (string, error) {
-	TPMmtx.Lock()
-	defer TPMmtx.Unlock()
-
-	bootReservedPCRs := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-
-	bootPCRs := tpm2legacy.PCRSelection{
-		Hash: tpm2legacy.AlgSHA256,
-		PCRs: bootReservedPCRs,
-	}
-
-	AIK, err := client.NewCachedKey(rwc, tpm2legacy.HandleOwner, client.AKTemplateRSA(), AIKHandle)
-	if err != nil {
-		return "", fmt.Errorf("Error while retrieving AIK: %v", err)
-	}
-
-	quote, err := AIK.Quote(bootPCRs, nonce)
-	if err != nil {
-		return "", fmt.Errorf("failed to create quote over PCRs 0-9: %v", err)
-	}
-	quoteJSON, err := json.Marshal(quote)
-	if err != nil {
-		return "", fmt.Errorf("Failed to parse quote result as json: %v", err)
-	}
-	return string(quoteJSON), nil
 }
 
 func activateAIKCredential(AIKCredential, AIKEncryptedSecret string) ([]byte, error) {

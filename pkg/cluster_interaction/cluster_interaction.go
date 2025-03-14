@@ -45,6 +45,7 @@ const (
 	AgentCRDGroup    = "example.com"
 	AgentCRDVersion  = "v1"
 	AgentCRDResource = "agents"
+	AgentCRDKind     = "Agent"
 	APIVersion       = AgentCRDGroup + "/" + AgentCRDVersion
 	Kind             = "AttestationRequest"
 )
@@ -449,7 +450,7 @@ func (c *ClusterInteraction) CreateAgentCRDInstance(nodeName string) (bool, erro
 		}
 
 		podName := pod.GetName()
-		tenantID := pod.Annotations["tenantId"]
+		tenantId := pod.Annotations["tenantId"]
 
 		isWorkload := pod.GetNamespace() != PodAttestationNamespace && pod.GetNamespace() != KubeSystemNamespace
 
@@ -460,7 +461,7 @@ func (c *ClusterInteraction) CreateAgentCRDInstance(nodeName string) (bool, erro
 		// Add each pod status to the array
 		podStatus = append(podStatus, map[string]interface{}{
 			"podName":   podName,
-			"tenantId":  tenantID,
+			"tenantId":  tenantId,
 			"status":    NewPodStatus,
 			"reason":    "Agent just created",
 			"lastCheck": time.Now().Format(time.RFC3339),
@@ -473,7 +474,7 @@ func (c *ClusterInteraction) CreateAgentCRDInstance(nodeName string) (bool, erro
 	agent := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": APIVersion,
-			"kind":       "Agent",
+			"kind":       AgentCRDKind,
 			"metadata": map[string]interface{}{
 				"name":      agentName,
 				"namespace": PodAttestationNamespace,
@@ -499,6 +500,5 @@ func (c *ClusterInteraction) CreateAgentCRDInstance(nodeName string) (bool, erro
 	if err != nil {
 		return false, fmt.Errorf("error creating Agent CRD instance '%s': %v", agentName, err)
 	}
-
 	return true, nil
 }
