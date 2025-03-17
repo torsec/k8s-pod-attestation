@@ -1,5 +1,8 @@
 package model
 
+const Success = "success"
+const Error = "error"
+
 type NewTenantRequest struct {
 	Name      string `json:"name"`
 	PublicKey string `json:"publicKey"`

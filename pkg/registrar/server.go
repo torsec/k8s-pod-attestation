@@ -17,9 +17,6 @@ import (
 	"sync"
 )
 
-const Success = "success"
-const Error = "error"
-
 type Server struct {
 	registrarHost  string
 	registrarPort  int
@@ -117,61 +114,61 @@ func (s *Server) insertCertificate(tpmCertificate *model.TPMCACertificate) error
 func (s *Server) verifyWorkerEKCertificate(c *gin.Context) {
 	var req model.VerifyTPMEKCertificateRequest
 	if err := c.BindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": Error})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": model.Error})
 		return
 	}
 
 	tpmEKCertificate, err := cryptoUtils.LoadCertificateFromPEM(req.EKCertificate)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "EK Certificate is not valid PEM", "status": Error})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "EK Certificate is not valid PEM", "status": model.Error})
 		return
 	}
 
 	decodedEK, err := cryptoUtils.DecodePublicKeyFromPEM(req.EndorsementKey)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "EK is not valid PEM", "status": Error})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "EK is not valid PEM", "status": model.Error})
 		return
 	}
 
 	// Verify that the public key in the certificate matches the provided public key
 	if !decodedEK.Equal(tpmEKCertificate.PublicKey) {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "EK does not match public key in provided EK Certificate", "status": Error})
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "EK does not match public key in provided EK Certificate", "status": model.Error})
 		return
 	}
 
 	// Get intermediate CA's certificate
 	intermediateCA, err := s.getCertificateByCommonName(tpmEKCertificate.Issuer.CommonName)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"message": "Intermediate CA not found", "status": Error})
+		c.JSON(http.StatusNotFound, gin.H{"message": "Intermediate CA not found", "status": model.Error})
 		return
 	}
 
 	intermediateCACert, err := cryptoUtils.LoadCertificateFromPEM(intermediateCA.PEMCertificate)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Intermediate CA Certificate is not valid PEM", "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Intermediate CA Certificate is not valid PEM", "status": model.Error})
 		return
 	}
 
 	// Get intermediate CA's certificate
 	rootCA, err := s.getCertificateByCommonName(intermediateCACert.Issuer.CommonName)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"message": "Root CA not found", "status": Error})
+		c.JSON(http.StatusNotFound, gin.H{"message": "Root CA not found", "status": model.Error})
 		return
 	}
 
 	rootCACert, err := cryptoUtils.LoadCertificateFromPEM(rootCA.PEMCertificate)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Root CA Certificate is not valid PEM", "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Root CA Certificate is not valid PEM", "status": model.Error})
 		return
 	}
 
 	err = cryptoUtils.VerifyEKCertificateChain(tpmEKCertificate, intermediateCACert, rootCACert, getKnownTPMManufacturers())
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "Certificate verification failed", "status": Error})
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Certificate verification failed", "status": model.Error})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "TPM EK Certificate verification successful", "status": Success})
+	c.JSON(http.StatusOK, gin.H{"message": "TPM EK Certificate verification successful", "status": model.Success})
 	return
 }
 
@@ -230,7 +227,7 @@ func (s *Server) deleteTenant(workerName string) error {
 func (s *Server) deleteTenantByName(c *gin.Context) {
 	tenantName := c.Query("name")
 	if tenantName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "tenant name is required", "status": Error})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "tenant name is required", "status": model.Error})
 		return
 	}
 
@@ -241,11 +238,11 @@ func (s *Server) deleteTenantByName(c *gin.Context) {
 	// Call a function to delete the worker from your data store or Kubernetes
 	err := s.deleteTenant(tenantName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err, "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err, "status": model.Error})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Tenant deleted successfully", "status": Success})
+	c.JSON(http.StatusOK, gin.H{"message": "Tenant deleted successfully", "status": model.Success})
 }
 
 // Endpoint: Create a new tenant (with name and public key, generating UUID for TenantId)
@@ -253,7 +250,7 @@ func (s *Server) createTenant(c *gin.Context) {
 	var newTenantRequest *model.NewTenantRequest
 
 	if err := c.BindJSON(newTenantRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": Error})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": model.Error})
 		return
 	}
 
@@ -264,22 +261,22 @@ func (s *Server) createTenant(c *gin.Context) {
 	// Check if tenant with the same name already exists
 	nameExists, err := s.tenantExistsByName(newTenantRequest.Name)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to check tenant by name", "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to check tenant by name", "status": model.Error})
 		return
 	}
 	if nameExists {
-		c.JSON(http.StatusConflict, gin.H{"message": "Tenant with the same name already exists", "status": Error})
+		c.JSON(http.StatusConflict, gin.H{"message": "Tenant with the same name already exists", "status": model.Error})
 		return
 	}
 
 	// Check if the public key already exists
 	pubKeyExists, err := s.tenantExistsByPublicKey(newTenantRequest.PublicKey)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to check tenant by public key", "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to check tenant by public key", "status": model.Error})
 		return
 	}
 	if pubKeyExists {
-		c.JSON(http.StatusConflict, gin.H{"message": "Public key already exists", "status": Error})
+		c.JSON(http.StatusConflict, gin.H{"message": "Public key already exists", "status": model.Error})
 		return
 	}
 
@@ -295,7 +292,7 @@ func (s *Server) createTenant(c *gin.Context) {
 
 	// Insert the new tenant into the database
 	if err := s.insertTenant(newTenant); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to create tenant", "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to create tenant", "status": model.Error})
 		return
 	}
 
@@ -303,7 +300,7 @@ func (s *Server) createTenant(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"message":  "Tenant created successfully",
 		"tenantId": tenantId,
-		"status":   Success,
+		"status":   model.Success,
 	})
 }
 
@@ -311,53 +308,53 @@ func (s *Server) createTenant(c *gin.Context) {
 func (s *Server) verifyTenantSignature(c *gin.Context) {
 	var verifySignatureRequest *model.VerifySignatureRequest
 	if err := c.BindJSON(verifySignatureRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": Error})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": model.Error})
 		return
 	}
 
 	// Get tenant public key from the database
 	tenant, err := s.getTenantByName(verifySignatureRequest.Name)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"message": "Tenant not found", "status": Error})
+		c.JSON(http.StatusNotFound, gin.H{"message": "Tenant not found", "status": model.Error})
 		return
 	}
 
 	tenantPublicKey, err := cryptoUtils.DecodePublicKeyFromPEM(tenant.PublicKey)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to decode public key", "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to decode public key", "status": model.Error})
 		return
 	}
 
 	tenantSignature, err := base64.StdEncoding.DecodeString(verifySignatureRequest.Signature)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to decode signature", "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to decode signature", "status": model.Error})
 		return
 	}
 
 	// Verify signature
 	if err := cryptoUtils.VerifySignature(tenantPublicKey, []byte(verifySignatureRequest.Message), tenantSignature); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "Signature verification failed", "status": Error})
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Signature verification failed", "status": model.Error})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Signature verification successful", "status": Success})
+	c.JSON(http.StatusOK, gin.H{"message": "Signature verification successful", "status": model.Success})
 }
 
 // Endpoint: Get tenant by name (using GET method)
 func (s *Server) getTenantIdByName(c *gin.Context) {
 	name := c.Query("name")
 	if name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Name parameter is required", "status": Error})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Name parameter is required", "status": model.Error})
 		return
 	}
 
 	tenant, err := s.getTenantByName(name)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"message": err, "status": Error})
+		c.JSON(http.StatusNotFound, gin.H{"message": err, "status": model.Error})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": tenant.TenantId, "status": Success})
+	c.JSON(http.StatusOK, gin.H{"message": tenant.TenantId, "status": model.Success})
 }
 
 // Worker functions
@@ -421,7 +418,7 @@ func (s *Server) createWorker(c *gin.Context) {
 	var newWorker *model.WorkerNode
 
 	if err := c.BindJSON(newWorker); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": Error})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": model.Error})
 		return
 	}
 
@@ -432,48 +429,48 @@ func (s *Server) createWorker(c *gin.Context) {
 	// Check if worker with the same name already exists
 	nameExists, err := s.workerExistsByName(newWorker.Name)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to check worker by name", "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to check worker by name", "status": model.Error})
 		return
 	}
 
 	if nameExists {
-		c.JSON(http.StatusConflict, gin.H{"message": "Worker with the same name already exists", "status": Error})
+		c.JSON(http.StatusConflict, gin.H{"message": "Worker with the same name already exists", "status": model.Error})
 		return
 	}
 
 	// Check if worker with the same Id already exists
 	idExists, err := s.workerExistsById(newWorker.WorkerId)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to check worker by id", "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to check worker by id", "status": model.Error})
 		return
 	}
 
 	if idExists {
-		c.JSON(http.StatusConflict, gin.H{"message": "Worker with the same UUID already exists", "status": Error})
+		c.JSON(http.StatusConflict, gin.H{"message": "Worker with the same UUID already exists", "status": model.Error})
 		return
 	}
 
 	// Check if the AIK already exists
 	AIKExists, err := s.workerExistsByAIK(newWorker.AIK)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to check worker by AIK", "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to check worker by AIK", "status": model.Error})
 		return
 	}
 	if AIKExists {
-		c.JSON(http.StatusConflict, gin.H{"message": "AIK already exists", "status": Error})
+		c.JSON(http.StatusConflict, gin.H{"message": "AIK already exists", "status": model.Error})
 		return
 	}
 
 	// Insert the new Worker into the database
 	if err := s.insertWorker(newWorker); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to create worker", "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to create worker", "status": model.Error})
 		return
 	}
 
 	// Send a successful response
 	c.JSON(http.StatusCreated, gin.H{
 		"message": newWorker.WorkerId,
-		"status":  Success,
+		"status":  model.Success,
 	})
 }
 
@@ -481,42 +478,42 @@ func (s *Server) createWorker(c *gin.Context) {
 func (s *Server) verifyWorkerSignature(c *gin.Context) {
 	var verifySignatureRequest *model.VerifySignatureRequest
 	if err := c.BindJSON(verifySignatureRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": Error})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": model.Error})
 		return
 	}
 
 	// Get tenant public key from the database
 	worker, err := s.getWorkerByName(verifySignatureRequest.Name)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"message": "Worker not found", "status": Error})
+		c.JSON(http.StatusNotFound, gin.H{"message": "Worker not found", "status": model.Error})
 		return
 	}
 
 	decodedMessage, err := base64.StdEncoding.DecodeString(verifySignatureRequest.Message)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Failed to decode message from base64", "status": Error})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Failed to decode message from base64", "status": model.Error})
 		return
 	}
 
 	workerPublicKey, err := cryptoUtils.DecodePublicKeyFromPEM(worker.AIK)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to decode public key", "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to decode public key", "status": model.Error})
 		return
 	}
 
 	workerSignature, err := base64.StdEncoding.DecodeString(verifySignatureRequest.Signature)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to decode signature", "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to decode signature", "status": model.Error})
 		return
 	}
 
 	// Verify signature
 	if err := cryptoUtils.VerifySignature(workerPublicKey, decodedMessage, workerSignature); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "Signature verification failed", "status": Error})
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Signature verification failed", "status": model.Error})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Signature verification successful", "status": Success})
+	c.JSON(http.StatusOK, gin.H{"message": "Signature verification successful", "status": model.Success})
 	return
 }
 
@@ -524,17 +521,17 @@ func (s *Server) verifyWorkerSignature(c *gin.Context) {
 func (s *Server) getWorkerIdByName(c *gin.Context) {
 	name := c.Query("name")
 	if name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Name parameter is required", "status": Error})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Name parameter is required", "status": model.Error})
 		return
 	}
 
 	worker, err := s.getWorkerByName(name)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"message": err.Error(), "status": Error})
+		c.JSON(http.StatusNotFound, gin.H{"message": err.Error(), "status": model.Error})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": worker.WorkerId, "status": Success})
+	c.JSON(http.StatusOK, gin.H{"message": worker.WorkerId, "status": model.Success})
 }
 
 // remove a Worker from the database
@@ -548,7 +545,7 @@ func (s *Server) deleteWorker(workerName string) error {
 func (s *Server) deleteWorkerByName(c *gin.Context) {
 	workerName := c.Query("name")
 	if workerName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "worker name is required", "status": Error})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "worker name is required", "status": model.Error})
 		return
 	}
 
@@ -559,11 +556,11 @@ func (s *Server) deleteWorkerByName(c *gin.Context) {
 	// Call a function to delete the worker from your data store or Kubernetes
 	err := s.deleteWorker(workerName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "status": Error})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "status": model.Error})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Worker deleted successfully", "status": Success})
+	c.JSON(http.StatusOK, gin.H{"message": "Worker deleted successfully", "status": model.Success})
 }
 
 // Tenant functions

@@ -1,31 +1,17 @@
 package main
 
 import (
-	"crypto"
-	"crypto/hmac"
-	"crypto/rsa"
-	"crypto/sha256"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/google/go-tpm-tools/client"
-	tpm2legacy "github.com/google/go-tpm/legacy/tpm2"
 	"github.com/google/uuid"
 	"io"
 	"log"
 	"net/http"
 	"os"
 )
-
-type RegistrationAcknowledge struct {
-	Message           string `json:"message"`
-	Status            string `json:"status"`
-	VerifierPublicKey string `json:"verifierPublicKey"`
-}
 
 type AttestationRequest struct {
 	Nonce     string `json:"nonce"`
@@ -89,19 +75,6 @@ func getEnv(key, defaultValue string) string {
 	return value
 }
 
-// Helper function to encode the public key to PEM format (for printing)
-func encodePublicKeyToPEM(pubKey crypto.PublicKey) string {
-	pubASN1, err := x509.MarshalPKIXPublicKey(pubKey)
-	if err != nil {
-		return ""
-	}
-	pubPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC KEY", // Use "PUBLIC KEY" for X.509 encoded keys
-		Bytes: pubASN1,
-	})
-	return string(pubPEM)
-}
-
 func getWorkerIdentifyingData(c *gin.Context) {
 	workerId = uuid.New().String()
 
@@ -109,83 +82,6 @@ func getWorkerIdentifyingData(c *gin.Context) {
 	workerAIKNameData, workerAIKPublicArea := createWorkerAIK()
 
 	c.JSON(http.StatusOK, gin.H{"UUID": workerId, "EK": workerEK, "EKCert": EKCert, "AIKNameData": workerAIKNameData, "AIKPublicArea": workerAIKPublicArea})
-}
-
-// Utility function: Verify a signature using provided public key
-func decodePublicKeyFromPEM(publicKeyPEM string) (*rsa.PublicKey, error) {
-	block, _ := pem.Decode([]byte(publicKeyPEM))
-	if block == nil {
-		return nil, fmt.Errorf("failed to decode PEM block containing public key")
-	}
-
-	var rsaPubKey *rsa.PublicKey
-	var err error
-
-	switch block.Type {
-	case "RSA PUBLIC KEY":
-		rsaPubKey, err = x509.ParsePKCS1PublicKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse PKCS1 public key: %v", err)
-		}
-	case "PUBLIC KEY":
-		parsedKey, err := x509.ParsePKIXPublicKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse PKIX public key: %v", err)
-		}
-		var ok bool
-		rsaPubKey, ok = parsedKey.(*rsa.PublicKey)
-		if !ok {
-			return nil, fmt.Errorf("not an RSA public key")
-		}
-	default:
-		return nil, fmt.Errorf("unsupported public key type: %s", block.Type)
-	}
-
-	return rsaPubKey, nil
-}
-
-// Utility function: Verify a signature using provided public key
-func verifySignature(publicKeyPEM string, message string, signature string) error {
-	rsaPubKey, err := decodePublicKeyFromPEM(publicKeyPEM)
-
-	hashed := sha256.Sum256([]byte(message))
-	sigBytes, err := base64.StdEncoding.DecodeString(signature)
-	if err != nil {
-		return err
-	}
-
-	err = rsa.VerifyPKCS1v15(rsaPubKey, crypto.SHA256, hashed[:], sigBytes)
-	return err
-}
-
-// Utility function: Sign a message using the provided private key
-func signWithAIK(message []byte) (string, error) {
-	TPMmtx.Lock()
-	defer TPMmtx.Unlock()
-
-	if AIKHandle.HandleValue() == 0 {
-		return "", fmt.Errorf("AIK is not already created")
-	}
-
-	AIK, err := client.NewCachedKey(rwc, tpm2legacy.HandleOwner, client.AKTemplateRSA(), AIKHandle)
-	if err != nil {
-		return "", fmt.Errorf("Failed to retrieve AIK from TPM")
-	}
-
-	defer AIK.Close()
-
-	AIKSignedData, err := AIK.SignData(message)
-	if err != nil {
-		return "", fmt.Errorf("Failed to sign with AIK: %v", err)
-	}
-	return base64.StdEncoding.EncodeToString(AIKSignedData), nil
-}
-
-// Helper function to compute HMAC using the ephemeral key
-func computeHMAC(message, key []byte) ([]byte, error) {
-	h := hmac.New(sha256.New, key)
-	h.Write(message)
-	return h.Sum(nil), nil
 }
 
 func podAttestation(c *gin.Context) {
@@ -293,26 +189,6 @@ func podAttestation(c *gin.Context) {
 	return
 }
 
-// Function to compute the SHA256 digest of the Evidence structure
-func computeEvidenceDigest(evidence Evidence) ([]byte, error) {
-	// Serialize Evidence struct to JSON
-	evidenceJSON, err := json.Marshal(evidence)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize evidence: %v", err)
-	}
-
-	// Compute SHA256 hash
-	hash := sha256.New()
-	_, err = hash.Write(evidenceJSON)
-	if err != nil {
-		return nil, fmt.Errorf("failed to compute hash: %v", err)
-	}
-
-	// Get the final hash as a hex-encoded string
-	digest := hash.Sum(nil)
-	return digest, nil
-}
-
 func getWorkerIMAMeasurementLog() (string, error) {
 	// Open the file
 	IMAMeasurementLog, err := os.Open(IMAMeasurementLogPath)
@@ -331,54 +207,6 @@ func getWorkerIMAMeasurementLog() (string, error) {
 	base64Encoded := base64.StdEncoding.EncodeToString(fileContent)
 
 	return base64Encoded, nil
-}
-
-func activateAIKCredential(AIKCredential, AIKEncryptedSecret string) ([]byte, error) {
-	TPMmtx.Lock()
-	defer TPMmtx.Unlock()
-	decodedCredential, err := base64.StdEncoding.DecodeString(AIKCredential)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to decode AIK Credential")
-	}
-	decodedSecret, err := base64.StdEncoding.DecodeString(AIKEncryptedSecret)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to decode AIK encrypted Secret")
-	}
-
-	// Initiate a session for PolicySecret, specific for endorsement
-	session, _, err := tpm2legacy.StartAuthSession(
-		rwc,
-		tpm2legacy.HandleNull,
-		tpm2legacy.HandleNull,
-		make([]byte, 16),
-		nil,
-		tpm2legacy.SessionPolicy,
-		tpm2legacy.AlgNull,
-		tpm2legacy.AlgSHA256,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("creating auth session failed: %v", err)
-	}
-
-	// Set PolicySecret on the endorsement handle, enabling EK use
-	auth := tpm2legacy.AuthCommand{Session: tpm2legacy.HandlePasswordSession, Attributes: tpm2legacy.AttrContinueSession}
-	if _, _, err := tpm2legacy.PolicySecret(rwc, tpm2legacy.HandleEndorsement, auth, session, nil, nil, nil, 0); err != nil {
-		return nil, fmt.Errorf("policy secret failed: %v", err)
-	}
-
-	// Create authorization commands, linking session and password auth
-	auths := []tpm2legacy.AuthCommand{
-		{Session: tpm2legacy.HandlePasswordSession, Attributes: tpm2legacy.AttrContinueSession},
-		{Session: session, Attributes: tpm2legacy.AttrContinueSession},
-	}
-
-	// Attempt to activate the credential
-	challengeSecret, err := tpm2legacy.ActivateCredentialUsingAuth(rwc, auths, AIKHandle, EKHandle, decodedCredential[2:], decodedSecret[2:])
-	if err != nil {
-		return nil, fmt.Errorf("AIK activate_credential failed: %v", err)
-	}
-
-	return challengeSecret, nil
 }
 
 func challengeWorkerEK(c *gin.Context) {
@@ -461,14 +289,6 @@ func main() {
 	initializeColors()
 	loadEnvironmentVariables()
 	openTPM()
-
-	defer func() {
-		err := rwc.Close()
-		if err != nil {
-			fmt.Printf(red.Sprintf("can't close TPM: %v\n", err))
-			return
-		}
-	}()
 
 	// Initialize Gin router
 	r := gin.Default()

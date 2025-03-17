@@ -4,9 +4,11 @@ go 1.23.4
 
 require (
 	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250305110220-0ea230f82ab9
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250305110220-0ea230f82ab9
 	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250305110220-0ea230f82ab9
 	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250305110220-0ea230f82ab9
 	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250305110220-0ea230f82ab9
+	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250314164923-01873a414d17
 	k8s.io/api v0.32.2
 	k8s.io/client-go v0.32.2
 )
@@ -36,8 +38,13 @@ require (
 	github.com/google/gnostic-models v0.6.9 // indirect
 	github.com/google/go-attestation v0.5.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/go-configfs-tsm v0.3.3-0.20240919001351-b4b5b84fdcbc // indirect
+	github.com/google/go-sev-guest v0.13.0 // indirect
+	github.com/google/go-tdx-guest v0.3.2-0.20241009005452-097ee70d0843 // indirect
 	github.com/google/go-tpm v0.9.3 // indirect
+	github.com/google/go-tpm-tools v0.4.5 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/google/logger v1.1.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -54,10 +61,10 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250305110220-0ea230f82ab9 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.15.0 // indirect
 	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/exp v0.0.0-20250228200357-dead58393ab7 // indirect

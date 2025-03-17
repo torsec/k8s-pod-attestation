@@ -22,14 +22,14 @@ type TPM struct {
 	tpmPath   string
 	aikHandle tpmutil.Handle
 	ekHandle  tpmutil.Handle
-	tpmMtx    sync.Mutex
+	mtx       sync.Mutex
 }
 
 func (tpm *TPM) Init(tpmPath string) {
 	tpm.tpmPath = tpmPath
 }
 
-func (tpm *TPM) openTPM() {
+func (tpm *TPM) OpenTPM() {
 	var err error
 	if tpm.tpmPath == "" {
 		logger.Fatal("Unable to open TPM: no device path provided")
@@ -48,16 +48,16 @@ func (tpm *TPM) openTPM() {
 	}
 }
 
-func (tpm *TPM) closeTPM() {
+func (tpm *TPM) CloseTPM() {
 	err := tpm.rwc.Close()
 	if err != nil {
 		logger.Fatal("Unable to close TPM: %v", err)
 	}
 }
 
-func (tpm *TPM) getWorkerEKCertificate() ([]byte, error) {
-	tpm.tpmMtx.Lock()
-	defer tpm.tpmMtx.Unlock()
+func (tpm *TPM) GetWorkerEKCertificate() ([]byte, error) {
+	tpm.mtx.Lock()
+	defer tpm.mtx.Unlock()
 
 	EK, err := client.EndorsementKeyRSA(tpm.rwc)
 	if err != nil {
@@ -82,9 +82,9 @@ func (tpm *TPM) getWorkerEKCertificate() ([]byte, error) {
 
 // getWorkerEKandCertificate is used to get TPM EK public key and certificate.
 // It returns both the EK and the certificate to be compliant with simulator TPMs not provided with a certificate
-func (tpm *TPM) getWorkerEKandCertificate() ([]byte, []byte, error) {
-	tpm.tpmMtx.Lock()
-	defer tpm.tpmMtx.Unlock()
+func (tpm *TPM) GetWorkerEKandCertificate() ([]byte, []byte, error) {
+	tpm.mtx.Lock()
+	defer tpm.mtx.Unlock()
 
 	EK, err := client.EndorsementKeyRSA(tpm.rwc)
 	if err != nil {
@@ -113,9 +113,9 @@ func (tpm *TPM) getWorkerEKandCertificate() ([]byte, []byte, error) {
 }
 
 // Function to create a new AIK (Attestation Identity Key) for the Agent
-func (tpm *TPM) createWorkerAIK() ([]byte, []byte, error) {
-	tpm.tpmMtx.Lock()
-	defer tpm.tpmMtx.Unlock()
+func (tpm *TPM) CreateWorkerAIK() ([]byte, []byte, error) {
+	tpm.mtx.Lock()
+	defer tpm.mtx.Unlock()
 
 	AIK, err := client.AttestationKeyRSA(tpm.rwc)
 	if err != nil {
@@ -154,9 +154,9 @@ func containsAndReturnPCR(pcrsToQuote []int) (bool, []int) {
 	return true, foundPCRs
 }
 
-func (tpm *TPM) quoteGeneralPurposePCRs(nonce []byte, pcrsToQuote []int) ([]byte, error) {
-	tpm.tpmMtx.Lock()
-	defer tpm.tpmMtx.Unlock()
+func (tpm *TPM) QuoteGeneralPurposePCRs(nonce []byte, pcrsToQuote []int) ([]byte, error) {
+	tpm.mtx.Lock()
+	defer tpm.mtx.Unlock()
 	// Custom function to return both found status and the PCR value
 	pcrsContainsBootReserved, foundPCR := containsAndReturnPCR(pcrsToQuote)
 	if pcrsContainsBootReserved {
@@ -184,9 +184,9 @@ func (tpm *TPM) quoteGeneralPurposePCRs(nonce []byte, pcrsToQuote []int) ([]byte
 	return quoteJSON, nil
 }
 
-func (tpm *TPM) quoteBootAggregate(nonce []byte) ([]byte, error) {
-	tpm.tpmMtx.Lock()
-	defer tpm.tpmMtx.Unlock()
+func (tpm *TPM) QuoteBootPCRs(nonce []byte) ([]byte, error) {
+	tpm.mtx.Lock()
+	defer tpm.mtx.Unlock()
 
 	bootPCRs := tpm2legacy.PCRSelection{
 		Hash: tpm2legacy.AlgSHA256,
@@ -209,20 +209,9 @@ func (tpm *TPM) quoteBootAggregate(nonce []byte) ([]byte, error) {
 	return quoteJSON, nil
 }
 
-func (tpm *TPM) activateAIKCredential(aikCredential, aikEncryptedSecret []byte) ([]byte, error) {
-	tpm.tpmMtx.Lock()
-	defer tpm.tpmMtx.Unlock()
-	/*
-		decodedCredential, err := base64.StdEncoding.DecodeString(AIKCredential)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to decode AIK Credential")
-		}
-		decodedSecret, err := base64.StdEncoding.DecodeString(AIKEncryptedSecret)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to decode AIK encrypted Secret")
-		}
-	*/
-
+func (tpm *TPM) ActivateAIKCredential(aikCredential, aikEncryptedSecret []byte) ([]byte, error) {
+	tpm.mtx.Lock()
+	defer tpm.mtx.Unlock()
 	session, _, err := tpm2legacy.StartAuthSession(
 		tpm.rwc,
 		tpm2legacy.HandleNull,
@@ -254,4 +243,26 @@ func (tpm *TPM) activateAIKCredential(aikCredential, aikEncryptedSecret []byte) 
 		return nil, fmt.Errorf("AIK activate_credential failed: %v", err)
 	}
 	return challengeSecret, nil
+}
+
+func (tpm *TPM) SignWithAIK(message []byte) ([]byte, error) {
+	tpm.mtx.Lock()
+	defer tpm.mtx.Unlock()
+
+	if tpm.aikHandle.HandleValue() == 0 {
+		return nil, fmt.Errorf("AIK is not already created")
+	}
+
+	AIK, err := client.NewCachedKey(tpm.rwc, tpm2legacy.HandleOwner, client.AKTemplateRSA(), tpm.aikHandle)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve AIK from TPM")
+	}
+
+	defer AIK.Close()
+
+	aikSigned, err := AIK.SignData(message)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign with AIK: %v", err)
+	}
+	return aikSigned, nil
 }
