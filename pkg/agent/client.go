@@ -82,7 +82,6 @@ func (c *Client) WorkerRegistrationChallenge(workerChallenge *model.WorkerChalle
 	}
 
 	return challengeResponse, nil
-
 }
 
 func (c *Client) WorkerRegistrationAcknowledge(acknowledge model.RegistrationAcknowledge) (*model.RegistrationAcknowledge, error) {

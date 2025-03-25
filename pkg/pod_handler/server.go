@@ -14,6 +14,9 @@ import (
 	"strconv"
 )
 
+const DeployPodUrl = "/pod/deploy"
+const AttestPodUrl = "/pod/attest"
+
 type Server struct {
 	podHandlerHost    string
 	podHandlerPort    int
@@ -63,7 +66,7 @@ func (s *Server) securePodDeployment(c *gin.Context) {
 		return
 	}
 
-	if signatureVerificationResponse.Status != registrar.Success {
+	if signatureVerificationResponse.Status != model.Success {
 		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Invalid signature over provided Pod Manifest"})
 	}
 
@@ -139,7 +142,7 @@ func (s *Server) requestPodAttestation(c *gin.Context) {
 	agentCRDName := fmt.Sprintf("agent-%s", workerDeploying)
 
 	// check if Pod is signed into the target Agent CRD and if it is actually owned by the calling Tenant
-	err = s.clusterInteractor.CheckAgentCRD(agentCRDName, podAttestationRequest.PodName, tenantId)
+	_, err = s.clusterInteractor.CheckAgentCRD(agentCRDName, podAttestationRequest.PodName, tenantId)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": err.Error()})
 		return
@@ -161,8 +164,8 @@ func (s *Server) requestPodAttestation(c *gin.Context) {
 
 func (s *Server) Start() {
 	s.router = gin.Default()
-	s.router.POST("/pod/deploy", s.securePodDeployment)
-	s.router.POST("/pod/attest", s.requestPodAttestation)
+	s.router.POST(DeployPodUrl, s.securePodDeployment)
+	s.router.POST(AttestPodUrl, s.requestPodAttestation)
 
 	logger.Info("server is running on port: %d", s.podHandlerPort)
 	err := s.router.Run(":" + strconv.Itoa(s.podHandlerPort))
