@@ -86,6 +86,6 @@ type Evidence struct {
 }
 
 type AttestationResponse struct {
-	Evidence  Evidence `json:"evidence"`
-	Signature string   `json:"signature,omitempty"`
+	Evidence  string `json:"evidence"`
+	Signature string `json:"signature,omitempty"`
 }

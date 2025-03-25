@@ -20,10 +20,9 @@ import (
 )
 
 type Server struct {
-	agentHost      string
-	agentPort      int
-	tlsCertificate *x509.Certificate
-
+	agentHost             string
+	agentPort             int
+	tlsCertificate        *x509.Certificate
 	workerId              string
 	imaMeasurementLogPath string
 	verifierPublicKey     *rsa.PublicKey
@@ -31,6 +30,13 @@ type Server struct {
 
 	router *gin.Engine
 }
+
+const (
+	GetWorkerIdentifyingDataUrl = "/agent/worker/registration/identify"
+	ChallengeWorkerUrl          = "/agent/worker/registration/challenge"
+	AcknowledgeRegistrationUrl  = "/agent/worker/registration/acknowledge"
+	PodAttestationUrl           = "/agent/pod/attest"
+)
 
 func (s *Server) Init(agentHost string, agentPort int, tlsCertificate *x509.Certificate, imaMeasurementLog string, tpm *tpm.TPM) {
 	s.agentHost = agentHost
@@ -185,7 +191,7 @@ func (s *Server) podAttestation(c *gin.Context) {
 	receivedAttestationRequest := model.AttestationRequest{
 		Nonce:    attestationRequest.Nonce,
 		PodName:  attestationRequest.PodName,
-		PodUID:   attestationRequest.PodUID,
+		PodUid:   attestationRequest.PodUid,
 		TenantId: attestationRequest.TenantId,
 	}
 
@@ -235,6 +241,8 @@ func (s *Server) podAttestation(c *gin.Context) {
 		return
 	}
 
+	encodedQuote := base64.StdEncoding.EncodeToString(workerQuote)
+
 	measurementLog, err := s.getWorkerMeasurementLog()
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
@@ -247,13 +255,23 @@ func (s *Server) podAttestation(c *gin.Context) {
 	// TODO standardize
 	evidence := &model.Evidence{
 		PodName:        attestationRequest.PodName,
-		PodUid:         attestationRequest.PodUID,
+		PodUID:         attestationRequest.PodUid,
 		TenantId:       attestationRequest.TenantId,
-		Quote:          workerQuote,
+		Quote:          encodedQuote,
 		MeasurementLog: measurementLog,
 	}
 
-	evidenceDigest, err := computeEvidenceDigest(evidence)
+	// Serialize Evidence struct to JSON
+	evidenceRaw, err := json.Marshal(evidence)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Failed to marshal Evidence",
+			"status":  model.Error,
+		})
+		return
+	}
+
+	evidenceDigest, err := cryptoUtils.Digest(evidenceRaw)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Failed to compute Evidence digest",
@@ -262,7 +280,7 @@ func (s *Server) podAttestation(c *gin.Context) {
 		return
 	}
 
-	signedEvidence, err := signWithAIK(evidenceDigest)
+	signedEvidence, err := s.tpm.SignWithAIK(evidenceDigest)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Failed to sign Evidence",
@@ -271,7 +289,7 @@ func (s *Server) podAttestation(c *gin.Context) {
 		return
 	}
 
-	attestationResponse := AttestationResponse{
+	attestationResponse := &model.AttestationResponse{
 		Evidence:  evidence,
 		Signature: signedEvidence,
 	}
@@ -312,11 +330,11 @@ func (s *Server) Start() {
 	s.router = gin.Default()
 
 	// Define routes for the Tenant API
-	s.router.GET("/agent/worker/registration/identify", s.getWorkerIdentifyingData) // GET worker identifying data (newly generated UUID, AIK, EK)
-	s.router.POST("/agent/worker/registration/challenge", s.challengeWorker)        // POST challenge worker for Registration
-	s.router.POST("/agent/worker/registration/acknowledge", s.acknowledgeRegistration)
+	s.router.GET(GetWorkerIdentifyingDataUrl, s.getWorkerIdentifyingData) // GET worker identifying data (newly generated UUID, AIK, EK)
+	s.router.POST(ChallengeWorkerUrl, s.challengeWorker)                  // POST challenge worker for Registration
+	s.router.POST(AcknowledgeRegistrationUrl, s.acknowledgeRegistration)
 
-	s.router.POST("/agent/pod/attest", s.podAttestation) // POST attestation against one Pod running upon Worker of this agent
+	s.router.POST(PodAttestationUrl, s.podAttestation) // POST attestation against one Pod running upon Worker of this agent
 
 	// Start the server
 	logger.Info("server is running on port: %d", s.agentPort)

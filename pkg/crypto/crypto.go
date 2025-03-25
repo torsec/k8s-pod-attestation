@@ -65,12 +65,6 @@ func DecodePublicKeyFromPEM(publicKeyPEM []byte) (*rsa.PublicKey, error) {
 }
 
 func Digest(evidence Evidence) ([]byte, error) {
-	// Serialize Evidence struct to JSON
-	evidenceJSON, err := json.Marshal(evidence)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize evidence: %v", err)
-	}
-
 	// Compute SHA256 hash
 	hash := sha256.New()
 	_, err = hash.Write(evidenceJSON)
