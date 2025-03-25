@@ -64,6 +64,25 @@ func DecodePublicKeyFromPEM(publicKeyPEM []byte) (*rsa.PublicKey, error) {
 	return rsaPubKey, nil
 }
 
+func Digest(evidence Evidence) ([]byte, error) {
+	// Serialize Evidence struct to JSON
+	evidenceJSON, err := json.Marshal(evidence)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize evidence: %v", err)
+	}
+
+	// Compute SHA256 hash
+	hash := sha256.New()
+	_, err = hash.Write(evidenceJSON)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute hash: %v", err)
+	}
+
+	// Get the final hash as a hex-encoded string
+	digest := hash.Sum(nil)
+	return digest, nil
+}
+
 // Generate a cryptographically secure random symmetric key of the specified size in bytes
 func GenerateEphemeralKey(size int) ([]byte, error) {
 	if size <= 0 {

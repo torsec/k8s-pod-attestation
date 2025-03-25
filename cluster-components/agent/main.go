@@ -6,38 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"io"
 	"log"
 	"net/http"
 	"os"
 )
-
-type AttestationRequest struct {
-	Nonce     string `json:"nonce"`
-	PodName   string `json:"podName"`
-	PodUID    string `json:"podUID"`
-	TenantId  string `json:"tenantId"`
-	Signature string `json:"signature,omitempty"`
-}
-
-type Evidence struct {
-	PodName     string `json:"podName"`
-	PodUID      string `json:"podUID"`
-	TenantId    string `json:"tenantId"`
-	WorkerQuote string `json:"workerQuote"`
-	WorkerIMA   string `json:"workerIMA"`
-}
-
-type AttestationResponse struct {
-	Evidence  Evidence `json:"evidence"`
-	Signature string   `json:"signature,omitempty"`
-}
-
-type WorkerChallenge struct {
-	AIKCredential      string `json:"AIKCredential"`
-	AIKEncryptedSecret string `json:"AIKEncryptedSecret"`
-}
 
 var (
 	agentPORT             string
@@ -73,15 +46,6 @@ func getEnv(key, defaultValue string) string {
 		return defaultValue
 	}
 	return value
-}
-
-func getWorkerIdentifyingData(c *gin.Context) {
-	workerId = uuid.New().String()
-
-	workerEK, EKCert := getWorkerEKandCertificate()
-	workerAIKNameData, workerAIKPublicArea := createWorkerAIK()
-
-	c.JSON(http.StatusOK, gin.H{"UUID": workerId, "EK": workerEK, "EKCert": EKCert, "AIKNameData": workerAIKNameData, "AIKPublicArea": workerAIKPublicArea})
 }
 
 func podAttestation(c *gin.Context) {
@@ -161,7 +125,7 @@ func podAttestation(c *gin.Context) {
 	evidenceDigest, err := computeEvidenceDigest(evidence)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed to compute Evidence digest: " + err.Error(),
+			"message": "Failed to compute Evidence digest",
 			"status":  "error",
 		})
 		return
@@ -207,82 +171,6 @@ func getWorkerIMAMeasurementLog() (string, error) {
 	base64Encoded := base64.StdEncoding.EncodeToString(fileContent)
 
 	return base64Encoded, nil
-}
-
-func challengeWorkerEK(c *gin.Context) {
-	var workerChallenge WorkerChallenge
-	// Bind the JSON request body to the struct
-	if err := c.BindJSON(&workerChallenge); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid request payload",
-			"status":  "error",
-		})
-		return
-	}
-
-	challengeSecret, err := activateAIKCredential(workerChallenge.AIKCredential, workerChallenge.AIKEncryptedSecret)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Agent failed to perform Credential Activation",
-			"status":  "error",
-		})
-		return
-	}
-	ephemeralKey := challengeSecret
-	quoteNonce := challengeSecret[:8]
-
-	bootQuoteJSON, err := quoteBootAggregate(quoteNonce)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error while computing Boot Aggregate quote",
-			"status":  "error",
-		})
-		return
-	}
-
-	// Compute HMAC on the worker UUID using the ephemeral key
-	hmacValue, err := computeHMAC([]byte(workerId), ephemeralKey)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "HMAC computation failed",
-			"status":  "error",
-		})
-		return
-	}
-
-	// Respond with success, including the HMAC of the UUID
-	c.JSON(http.StatusOK, gin.H{
-		"message":         "WorkerChallenge decrypted and verified successfully",
-		"status":          "success",
-		"HMAC":            base64.StdEncoding.EncodeToString(hmacValue),
-		"workerBootQuote": bootQuoteJSON,
-	})
-	return
-}
-
-func acknowledgeRegistration(c *gin.Context) {
-	var acknowledge RegistrationAcknowledge
-	// Bind the JSON request body to the struct
-	if err := c.BindJSON(&acknowledge); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid request payload",
-			"status":  "error",
-		})
-		return
-	}
-
-	if acknowledge.Status == "success" {
-		verifierPublicKey = acknowledge.VerifierPublicKey
-		c.JSON(http.StatusCreated, gin.H{
-			"message": "Agent acknowledged success of registration and obtained Verifier Public Key",
-			"status":  "success",
-		})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Agent acknowledged failure of registration",
-		"status":  "error",
-	})
 }
 
 func main() {

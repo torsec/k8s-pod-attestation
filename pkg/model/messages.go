@@ -68,3 +68,24 @@ type PodAttestationRequest struct {
 	PodName    string `json:"podName"`
 	Signature  string `json:"signature"`
 }
+
+type AttestationRequest struct {
+	Nonce     string `json:"nonce"`
+	PodName   string `json:"podName"`
+	PodUid    string `json:"podUid"`
+	TenantId  string `json:"tenantId"`
+	Signature string `json:"signature,omitempty"`
+}
+
+type Evidence struct {
+	PodName        string `json:"podName"`
+	PodUID         string `json:"podUID"`
+	TenantId       string `json:"tenantId"`
+	Quote          string `json:"quote"`
+	MeasurementLog string `json:"measurementLog"`
+}
+
+type AttestationResponse struct {
+	Evidence  Evidence `json:"evidence"`
+	Signature string   `json:"signature,omitempty"`
+}
