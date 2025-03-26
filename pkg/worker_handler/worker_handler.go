@@ -1,9 +1,11 @@
 package worker_handler
 
 import (
+	"crypto/rsa"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"github.com/torsec/k8s-pod-attestation/pkg/agent"
 	"github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
 	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
@@ -24,6 +26,7 @@ type WorkerHandler struct {
 	informerFactory   informers.SharedInformerFactory
 	registrarClient   *registrar.Client
 	agentConfig       *model.AgentConfig
+	agentClient       *agent.Client
 }
 
 func (wh *WorkerHandler) Init(attestationEnabledNamespaces []string, defaultResync int, registrarClient *registrar.Client, agentConfig *model.AgentConfig) {
@@ -32,6 +35,10 @@ func (wh *WorkerHandler) Init(attestationEnabledNamespaces []string, defaultResy
 	wh.informerFactory = informers.NewSharedInformerFactory(wh.clusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
 	wh.registrarClient = registrarClient
 	wh.agentConfig = agentConfig
+}
+
+func (wh *WorkerHandler) SetAgentClient(agentClient *agent.Client) {
+	wh.agentClient = agentClient
 }
 
 func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
@@ -53,25 +60,33 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 		return
 	}
 
-	if workerResponse.Status == registrar.Success {
+	if workerResponse.Status == model.Success {
 		logger.Info("node '%s' already registered; skipping registration", node.GetName())
 		return
 	}
 
 	logger.Info("new worker node '%s' joined the cluster: starting registration", node.GetName())
 
-	_, agentHost, agentPort, err := wh.clusterInteractor.DeployAgent(node, wh.agentConfig)
+	_, agentDeploymentName, agentHost, agentPort, err := wh.clusterInteractor.DeployAgent(node, wh.agentConfig)
 	if err != nil {
-		logger.Error("Failed to start Agent on node '%s': %v", node.Name, err)
+		logger.Error("Failed to start Agent on node '%s': %v; deleting node from cluster", node.GetName(), err)
+		_, err := wh.clusterInteractor.DeleteNode(node.GetName())
+		if err != nil {
+			logger.Fatal("Failed to delete node '%s': %v", node.GetName(), err)
+		}
+		return
 	}
 
-	logger.Info("successfully deployed agent on node '%s'; service port: %d", node.Name, agentPort)
+	wh.agentClient = &agent.Client{}
+	wh.agentClient.Init(agentHost, agentPort, nil)
 
-	isNewWorkerRegistered := wh.workerRegistration(node)
+	logger.Info("successfully deployed agent on node '%s'; service port: %d", node.GetName(), agentPort)
 
-	isAgentCreated, err := wh.clusterInteractor.CreateAgentCRDInstance()
+	isNewWorkerRegistered := wh.workerRegistration(node, agentDeploymentName)
+
+	isAgentCreated, err := wh.clusterInteractor.CreateAgentCRDInstance(node.GetName())
 	if err != nil {
-		logger.Error("Failed to create agent CRD instance on node '%s': %v", node.GetName(), err)
+		logger.Error("Failed to create agent CRD instance on node '%s': %v; deleting node from cluster", node.GetName(), err)
 	}
 
 	if !createAgentCRDInstance(node.GetName()) || !workerRegistration(node, agentHost, agentPort) {
@@ -83,46 +98,58 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 }
 
 // workerRegistration registers the worker node by calling the identification API
-func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentHOST, agentPORT string) bool {
+func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploymentName string) bool {
 	agentIdentifyURL := fmt.Sprintf("http://%s:%s/agent/worker/registration/identify", agentHOST, agentPORT)
 	agentChallengeNodeURL := fmt.Sprintf("http://%s:%s/agent/worker/registration/challenge", agentHOST, agentPORT)
 	agentAcknowledgeURL := fmt.Sprintf("http://%s:%s/agent/worker/registration/acknowledge", agentHOST, agentPORT)
 	registrarWorkerCreationURL := fmt.Sprintf("http://%s:%s/worker/create", registrarHOST, registrarPORT)
 
-	err := waitForAgent(5*time.Second, 1*time.Minute, agentHOST, agentPORT)
+	err := wh.clusterInteractor.WaitForPodRunning(cluster_interaction.PodAttestationNamespace, agentDeploymentName, 1*time.Minute)
 	if err != nil {
-		fmt.Printf(red.Sprintf("[%s] Error while contacting Agent: %v\n", time.Now().Format("02-01-2006 15:04:05"), err.Error()))
+		logger.Error("Error while contacting Agent: %v", err)
 		return false
 	}
 
 	// Call Agent to identify worker data
-	workerData, err := getWorkerRegistrationData(agentIdentifyURL)
+	workerData, err := wh.agentClient.GetWorkerIdentifyingData()
 	if err != nil {
-		fmt.Printf(red.Sprintf("[%s] Failed to start Worker registration: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
+		logger.Error("Failed to start get worker credentials and identification data: %v", err)
 		return false
 	}
 
 	// TEST: this allows the agent in 'simulator' mode to be compliant with the framework
-	if workerData.EKCert != "EK Certificate not provided" {
-		EKCertCheckRequest := model.VerifyTPMEKCertificateRequest{
-			EndorsementKey: workerData.EK,
-			EKCertificate:  workerData.EKCert,
-		}
-		err = registrar.VerifyEKCertificate(EKCertCheckRequest)
-		if err != nil {
-			fmt.Printf(red.Sprintf("[%s] Failed to verify EK Certificate: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
-			return false
-		}
+	ekCertCheckRequest := model.VerifyTPMEKCertificateRequest{
+		EKCertificate: workerData.EKCert,
 	}
 
-	// Decode EK and AIK
-	EK, err := cryptoUtils.DecodePublicKeyFromPEM(workerData.EK)
+	ekVerificationResponse, err := wh.registrarClient.VerifyEKCertificate(ekCertCheckRequest)
 	if err != nil {
-		fmt.Printf(red.Sprintf("[%s] Failed to parse EK from PEM: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
+		logger.Error("Failed to verify EK Certificate: %v", err)
+		return false
+	}
+	if ekVerificationResponse.Status != model.Success {
+		logger.Error("Invalid EK Certificate: %v", err)
 		return false
 	}
 
-	AIKPublicKey, err := tpm_attestation.ValidateAIKPublicData(workerData.AIKNameData, workerData.AIKPublicArea)
+	ekCert, err := cryptoUtils.LoadCertificateFromPEM(workerData.EKCert)
+	if err != nil {
+		logger.Error("Failed to load EK Certificate: %v", err)
+		return
+	}
+	ek := ekCert.PublicKey.(*rsa.PublicKey)
+
+	decodedNameData, err := base64.StdEncoding.DecodeString(workerData.AIKNameData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode AIK Name data")
+	}
+
+	decodedPublicArea, err := base64.StdEncoding.DecodeString(workerData.AIKPublicArea)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode AIK Public Area data")
+	}
+
+	AIKPublicKey, err := tpm_attestation.ValidateAIKPublicData(decodedNameData, decodedPublicArea)
 	if err != nil {
 		fmt.Printf(red.Sprintf("[%s] Failed to validate received Worker AIK: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
 		return false

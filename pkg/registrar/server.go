@@ -118,26 +118,14 @@ func (s *Server) verifyWorkerEKCertificate(c *gin.Context) {
 		return
 	}
 
-	tpmEKCertificate, err := cryptoUtils.LoadCertificateFromPEM(req.EKCertificate)
+	tpmEkCertificate, err := cryptoUtils.LoadCertificateFromPEM(req.EKCertificate)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "EK Certificate is not valid PEM", "status": model.Error})
 		return
 	}
 
-	decodedEK, err := cryptoUtils.DecodePublicKeyFromPEM(req.EndorsementKey)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "EK is not valid PEM", "status": model.Error})
-		return
-	}
-
-	// Verify that the public key in the certificate matches the provided public key
-	if !decodedEK.Equal(tpmEKCertificate.PublicKey) {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "EK does not match public key in provided EK Certificate", "status": model.Error})
-		return
-	}
-
 	// Get intermediate CA's certificate
-	intermediateCA, err := s.getCertificateByCommonName(tpmEKCertificate.Issuer.CommonName)
+	intermediateCA, err := s.getCertificateByCommonName(tpmEkCertificate.Issuer.CommonName)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"message": "Intermediate CA not found", "status": model.Error})
 		return
@@ -162,7 +150,7 @@ func (s *Server) verifyWorkerEKCertificate(c *gin.Context) {
 		return
 	}
 
-	err = cryptoUtils.VerifyEKCertificateChain(tpmEKCertificate, intermediateCACert, rootCACert, getKnownTPMManufacturers())
+	err = cryptoUtils.VerifyEKCertificateChain(tpmEkCertificate, intermediateCACert, rootCACert, getKnownTPMManufacturers())
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Certificate verification failed", "status": model.Error})
 		return

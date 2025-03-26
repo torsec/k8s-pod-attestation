@@ -10,7 +10,6 @@ type NewTenantRequest struct {
 
 type WorkerResponse struct {
 	UUID          string `json:"UUID"`
-	EK            string `json:"EK"`
 	EKCert        string `json:"EKCert"`
 	AIKNameData   string `json:"AIKNameData"`
 	AIKPublicArea string `json:"AIKPublicArea"`
@@ -41,8 +40,7 @@ type WorkerWhitelistCheckRequest struct {
 }
 
 type VerifyTPMEKCertificateRequest struct {
-	EndorsementKey string `json:"endorsementKey"`
-	EKCertificate  string `json:"EKCertificate"`
+	EKCertificate []byte `json:"EKCertificate"`
 }
 
 // VerifySignatureRequest represents the input data for signature verification
@@ -91,6 +89,6 @@ type Evidence struct {
 }
 
 type AttestationResponse struct {
-	Evidence  string `json:"evidence"`
-	Signature string `json:"signature,omitempty"`
+	Evidence  Evidence `json:"evidence"`
+	Signature string   `json:"signature,omitempty"`
 }

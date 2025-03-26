@@ -291,7 +291,7 @@ func (s *Server) podAttestation(c *gin.Context) {
 
 	attestationResponse := &model.AttestationResponse{
 		Evidence:  evidence,
-		Signature: signedEvidence,
+		Signature: base64.StdEncoding.EncodeToString(signedEvidence),
 	}
 
 	c.JSON(http.StatusOK, gin.H{

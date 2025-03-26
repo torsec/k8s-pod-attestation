@@ -304,7 +304,7 @@ func (c *ClusterInteraction) GetWorkerInternalIP(worker *v1.Node) (string, error
 	return workerIP, nil
 }
 
-func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, agentConfig *model.AgentConfig) (bool, string, int, error) {
+func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, agentConfig *model.AgentConfig) (bool, string, string, int, error) {
 	agentReplicas := int32(1)
 	privileged := true
 	charDeviceType := v1.HostPathCharDev
@@ -315,7 +315,7 @@ func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, agentConfig *model.
 
 	agentHost, err := c.GetWorkerInternalIP(newWorker)
 	if err != nil {
-		return false, "", -1, fmt.Errorf("failed to get node '%s' internal IP address: %v", newWorker.GetName(), err)
+		return false, "", "", -1, fmt.Errorf("failed to get node '%s' internal IP address: %v", newWorker.GetName(), err)
 	}
 
 	agentNodePort := agentConfig.AgentNodePortAllocation
@@ -411,23 +411,50 @@ func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, agentConfig *model.
 	}
 
 	// Deploy the Deployment
-	_, err = c.ClientSet.AppsV1().Deployments(PodAttestationNamespace).Create(context.TODO(), agentDeployment, metav1.CreateOptions{})
+	agentDeployment, err = c.ClientSet.AppsV1().Deployments(PodAttestationNamespace).Create(context.TODO(), agentDeployment, metav1.CreateOptions{})
 	if err != nil {
-		return false, "", -1, fmt.Errorf("error creating agent deployment '%s': %v", agentDeployment.Name, err)
+		return false, "", "", -1, fmt.Errorf("error creating agent deployment '%s': %v", agentDeploymentName, err)
 	}
 
 	// Deploy the Service
 	_, err = c.ClientSet.CoreV1().Services(PodAttestationNamespace).Create(context.TODO(), agentService, metav1.CreateOptions{})
 	if err != nil {
-		delErr := c.ClientSet.AppsV1().Deployments(PodAttestationNamespace).Delete(context.TODO(), agentDeployment.Name, metav1.DeleteOptions{})
+		delErr := c.ClientSet.AppsV1().Deployments(PodAttestationNamespace).Delete(context.TODO(), agentDeployment.GetName(), metav1.DeleteOptions{})
 		if delErr != nil {
-			return false, "", -1, fmt.Errorf("error creating agent service '%s': %v; error deleting agent deployment '%s': %v", agentService.Name, err, agentDeployment.Name, delErr)
+			return false, "", "", -1, fmt.Errorf("error creating agent service '%s': %v; error deleting agent deployment '%s': %v", agentService.Name, err, agentDeployment.Name, delErr)
 		}
-		return false, "", -1, fmt.Errorf("error creating agent service '%s': %v", agentService.Name, err)
+		return false, "", "", -1, fmt.Errorf("error creating agent service '%s': %v", agentService.GetName(), err)
 	}
 
 	agentConfig.AgentNodePortAllocation += 1
-	return true, agentHost, int(agentNodePort), nil
+	return true, agentDeployment.GetName(), agentHost, int(agentNodePort), nil
+}
+
+// WaitForPodRunning waits for the given pod to reach the "Running" state
+func (c *ClusterInteraction) WaitForPodRunning(namespace, podName string, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	podNameSelector := fmt.Sprintf("metadata.name=%s", podName)
+	watcher, err := c.ClientSet.CoreV1().Pods(namespace).Watch(ctx, metav1.ListOptions{
+		FieldSelector: podNameSelector,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to watch pod '%s': %v", podName, err)
+	}
+	defer watcher.Stop()
+
+	for event := range watcher.ResultChan() {
+		pod, ok := event.Object.(*v1.Pod)
+		if !ok {
+			return fmt.Errorf("unexpected type while watching pod")
+		}
+
+		if pod.Status.Phase == v1.PodRunning {
+			return nil
+		}
+	}
+	return fmt.Errorf("timed out waiting for pod '%s' to be running", podName)
 }
 
 func (c *ClusterInteraction) CreateAgentCRDInstance(nodeName string) (bool, error) {

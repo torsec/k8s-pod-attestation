@@ -43,7 +43,6 @@ func (pw *PodWatcher) addPodHandling(obj interface{}) {
 	isNodeControlPlane, err := pw.clusterInteractor.NodeIsControlPlane(nodeName)
 	if err != nil {
 		logger.Error("error occurred while checking if node is control plane: %v; skipping attestation tracking for pod '%s'", err, podName)
-		// TODO: pod may need to be killed and rescheduled for security reason or retry x times before doing it
 		podStatus = clusterInteraction.UnknownPodStatus
 	}
 

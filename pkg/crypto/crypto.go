@@ -64,14 +64,13 @@ func DecodePublicKeyFromPEM(publicKeyPEM []byte) (*rsa.PublicKey, error) {
 	return rsaPubKey, nil
 }
 
-func Digest(evidence Evidence) ([]byte, error) {
+func Hash(message []byte) ([]byte, error) {
 	// Compute SHA256 hash
 	hash := sha256.New()
-	_, err = hash.Write(evidenceJSON)
+	_, err := hash.Write(message)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute hash: %v", err)
 	}
-
 	// Get the final hash as a hex-encoded string
 	digest := hash.Sum(nil)
 	return digest, nil
