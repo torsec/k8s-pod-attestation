@@ -16,7 +16,7 @@ type WorkerNode struct {
 type InputQuote struct {
 	Quote  string `json:"quote"`
 	RawSig string `json:"raw_sig"`
-	PCRs   PCRSet `json:"pcrs"`
+	PCRset PCRSet `json:"pcrs"`
 }
 
 // PCRSet represents the PCR values and the hash algorithm used

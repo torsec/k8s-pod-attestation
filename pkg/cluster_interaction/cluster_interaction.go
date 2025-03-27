@@ -38,6 +38,13 @@ const (
 	PodAttestationNamespace = "attestation-system"
 )
 
+// Define the GroupVersionResource for the Agent CRD
+var agentGVR = schema.GroupVersionResource{
+	Group:    AgentCRDGroup, // Group name defined in your CRD
+	Version:  AgentCRDVersion,
+	Resource: AgentCRDResource, // Plural form of the CRD resource name
+}
+
 const KubeSystemNamespace = "kube-system"
 
 // Agent CRD parameters
@@ -99,6 +106,19 @@ func (c *ClusterInteraction) CreateTenantPodFromManifest(podManifest []byte, ten
 		return nil, fmt.Errorf("failed to create Pod: %v", err)
 	}
 	return createdPod, nil
+}
+
+func (c *ClusterInteraction) DeleteAgentCRDInstance(nodeName string) error {
+	// Construct the name of the Agent CRD based on the node name
+	agentCRDName := fmt.Sprintf("agent-%s", nodeName)
+
+	// Delete the Agent CRD instance in the "kube-system" namespace
+	err := c.DynamicClient.Resource(agentGVR).Namespace(PodAttestationNamespace).Delete(context.TODO(), agentCRDName, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("error deleting Agent CRD instance: %v\n", err)
+
+	}
+	return nil
 }
 
 // NodeIsControlPlane check if node being considered is Control Plane; if node is already available just check for the control plane label presence, otherwise fetch the node
@@ -176,12 +196,6 @@ func (c *ClusterInteraction) DeleteAllPodsFromNode(nodeName string) (bool, error
 }
 
 func (c *ClusterInteraction) IssueAttestationRequestCRD(podName, podUID, tenantId, agentName, agentIP, hmac string) (bool, error) {
-	gvr := schema.GroupVersionResource{
-		Group:    AgentCRDGroup,
-		Version:  AgentCRDVersion,
-		Resource: AgentCRDResource,
-	}
-
 	attestationRequestName := fmt.Sprintf("attestation-request-%s", podName)
 
 	// Create an unstructured object to represent the AttestationRequest
@@ -205,7 +219,7 @@ func (c *ClusterInteraction) IssueAttestationRequestCRD(podName, podUID, tenantI
 	}
 
 	// Create the AttestationRequest CR in the attestation namespace
-	_, err := c.DynamicClient.Resource(gvr).Namespace(PodAttestationNamespace).Create(context.TODO(), attestationRequest, metav1.CreateOptions{})
+	_, err := c.DynamicClient.Resource(agentGVR).Namespace(PodAttestationNamespace).Create(context.TODO(), attestationRequest, metav1.CreateOptions{})
 	if err != nil {
 		return false, fmt.Errorf("failed to create attestation request: %v", err)
 	}
@@ -213,15 +227,8 @@ func (c *ClusterInteraction) IssueAttestationRequestCRD(podName, podUID, tenantI
 }
 
 func (c *ClusterInteraction) CheckAgentCRD(agentCRDName, podName, tenantId string) (bool, error) {
-	// Define the GVR (GroupVersionResource) for the CRD you want to watch
-	gvr := schema.GroupVersionResource{
-		Group:    AgentCRDGroup,
-		Version:  AgentCRDVersion,
-		Resource: AgentCRDResource,
-	}
-
 	// Use the dynamic client to get the CRD by name
-	crd, err := c.DynamicClient.Resource(gvr).Namespace(PodAttestationNamespace).Get(context.TODO(), agentCRDName, metav1.GetOptions{})
+	crd, err := c.DynamicClient.Resource(agentGVR).Namespace(PodAttestationNamespace).Get(context.TODO(), agentCRDName, metav1.GetOptions{})
 	if err != nil {
 		return false, fmt.Errorf("failed to retrieve Agent CRD: %v", err)
 	}
@@ -302,6 +309,24 @@ func (c *ClusterInteraction) GetWorkerInternalIP(worker *v1.Node) (string, error
 		return "", fmt.Errorf("no internal IP found for node '%s'", worker.GetName())
 	}
 	return workerIP, nil
+}
+
+func (c *ClusterInteraction) DeleteAgent(workerName string) error {
+	deploymentName := fmt.Sprintf("agent-%s-deployment", workerName)
+	serviceName := fmt.Sprintf("agent-%s-service", workerName)
+
+	// Delete the Service
+	err := c.ClientSet.CoreV1().Services(PodAttestationNamespace).Delete(context.TODO(), serviceName, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete Agent service '%s': %v", serviceName, err)
+	}
+
+	// Delete the Deployment
+	err = c.ClientSet.AppsV1().Deployments(PodAttestationNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete Agent deplooyment '%s': %v", deploymentName, err)
+	}
+	return nil
 }
 
 func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, agentConfig *model.AgentConfig) (bool, string, string, int, error) {
@@ -514,16 +539,8 @@ func (c *ClusterInteraction) CreateAgentCRDInstance(nodeName string) (bool, erro
 			},
 		},
 	}
-
-	// Define the resource to create
-	gvr := schema.GroupVersionResource{
-		Group:    AgentCRDGroup,
-		Version:  AgentCRDVersion,
-		Resource: AgentCRDResource,
-	}
-
 	// Create the Agent CRD instance in the kube-system namespace
-	_, err = c.DynamicClient.Resource(gvr).Namespace(PodAttestationNamespace).Create(context.TODO(), agent, metav1.CreateOptions{})
+	_, err = c.DynamicClient.Resource(agentGVR).Namespace(PodAttestationNamespace).Create(context.TODO(), agent, metav1.CreateOptions{})
 	if err != nil {
 		return false, fmt.Errorf("error creating Agent CRD instance '%s': %v", agentName, err)
 	}

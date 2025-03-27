@@ -84,7 +84,7 @@ func (c *Client) WorkerRegistrationChallenge(workerChallenge *model.WorkerChalle
 	return challengeResponse, nil
 }
 
-func (c *Client) WorkerRegistrationAcknowledge(acknowledge model.RegistrationAcknowledge) (*model.RegistrationAcknowledge, error) {
+func (c *Client) WorkerRegistrationAcknowledge(acknowledge *model.RegistrationAcknowledge) (*model.WorkerRegistrationConfirm, error) {
 	completeUrl := fmt.Sprintf("http://%s:%d%s", c.agentHost, c.agentPort, AcknowledgeRegistrationUrl)
 
 	// Marshal the attestation request to JSON
@@ -112,11 +112,11 @@ func (c *Client) WorkerRegistrationAcknowledge(acknowledge model.RegistrationAck
 		}
 	}(resp.Body)
 
-	var registrationAcknowledge *model.RegistrationAcknowledge
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrationAcknowledge); err != nil {
+	var registrationConfirm *model.WorkerRegistrationConfirm
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrationConfirm); err != nil {
 		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
 	}
-	return registrationAcknowledge, nil
+	return registrationConfirm, nil
 }
 
 func (c *Client) PodAttestation(attestationRequest *model.AttestationRequest) (*model.AttestationResponse, error) {

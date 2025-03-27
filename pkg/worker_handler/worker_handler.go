@@ -3,8 +3,7 @@ package worker_handler
 import (
 	"crypto/rsa"
 	"encoding/base64"
-	"encoding/hex"
-	"fmt"
+	"encoding/json"
 	"github.com/torsec/k8s-pod-attestation/pkg/agent"
 	"github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
 	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
@@ -23,6 +22,18 @@ import (
 
 const ephemeralKeySize = 16
 
+var (
+	verifierPublicKey = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuoi/38EDObItiLd1Q8Cy
+XsPaHjOreYqVJYEO4NfCZR2H01LXrdj/LcpyrB1rKBc4UWI8lroSdhjMJxC62372
+WvDk9cD5k+iyPwdM+EggpiRfEmHWF3zob8junyWHW6JInf0+AGhbKgBfMXo9PvAn
+r5CVeqp2BrstdZtrWVRuQAKip9c7hl+mHODkE5yb0InHyRe5WWr5P7wtXtAPM6SO
+8dVk/QWXdsB9rsb+Ejy4LHSIUpHUOZO8LvGD1rVLO82H4EUXKBFeiOEJjly4HOkv
+mFe/c/Cma1pM+702X6ULf0/BIMJkWzD3INdLtk8FE8rIxrrMSnDtmWw9BgGdsDgk
+pQIDAQAB
+-----END PUBLIC KEY-----`
+)
+
 type WorkerHandler struct {
 	clusterInteractor *cluster_interaction.ClusterInteraction
 	informerFactory   informers.SharedInformerFactory
@@ -32,16 +43,40 @@ type WorkerHandler struct {
 	whitelistClient   *whitelist.Client
 }
 
-func (wh *WorkerHandler) Init(attestationEnabledNamespaces []string, defaultResync int, registrarClient *registrar.Client, agentConfig *model.AgentConfig) {
+func (wh *WorkerHandler) Init(attestationEnabledNamespaces []string, defaultResync int, registrarClient *registrar.Client, agentConfig *model.AgentConfig, whitelistClient *whitelist.Client) {
 	wh.clusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
 	wh.clusterInteractor.ConfigureKubernetesClient()
 	wh.informerFactory = informers.NewSharedInformerFactory(wh.clusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
 	wh.registrarClient = registrarClient
 	wh.agentConfig = agentConfig
+	wh.agentClient = whitelistClient
 }
 
 func (wh *WorkerHandler) SetAgentClient(agentClient *agent.Client) {
 	wh.agentClient = agentClient
+}
+
+func (wh *WorkerHandler) deleteNodeHandling(obj interface{}) {
+	node := obj.(*corev1.Node)
+
+	isControlPlane, err := wh.clusterInteractor.NodeIsControlPlane("", node)
+	if err != nil {
+		logger.Error("Failed to determine if node '%s' is control-plane: %v", node.GetName(), err)
+	}
+
+	if isControlPlane {
+		logger.Info("node '%s' is control-plane; skipping registration", node.GetName())
+		return
+	}
+
+	logger.Info("Worker node '%s' removed from the cluster; removing Agent and Agent CRD", node.GetName())
+
+	err = wh.clusterInteractor.DeleteAgent(node.GetName())
+	if err != nil {
+		logger.Error("Failed to delete Agent from node '%s': %v", node.GetName(), err)
+		return
+	}
+	logger.Success("Successfully deleted Agent from node '%s'", node.GetName())
 }
 
 func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
@@ -87,15 +122,20 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 
 	isNewWorkerRegistered := wh.workerRegistration(node, agentDeploymentName)
 
-	isAgentCreated, err := wh.clusterInteractor.CreateAgentCRDInstance(node.GetName())
-	if err != nil {
-		logger.Error("Failed to create agent CRD instance on node '%s': %v; deleting node from cluster", node.GetName(), err)
+	if !isNewWorkerRegistered {
+		logger.Error("Failed to register node '%s'; deleting node from cluster", node.GetName(), agentPort)
+		_, err := wh.clusterInteractor.DeleteNode(node.GetName())
+		if err != nil {
+			logger.Fatal("Failed to delete node '%s': %v", node.GetName(), err)
+		}
 	}
 
-	if !createAgentCRDInstance(node.GetName()) || !workerRegistration(node, agentHost, agentPort) {
-		err := deleteNodeFromCluster(node.GetName())
+	isAgentCreated, err := wh.clusterInteractor.CreateAgentCRDInstance(node.GetName())
+	if err != nil || !isAgentCreated {
+		logger.Error("Failed to create agent CRD instance on node '%s': %v; deleting node from cluster", node.GetName(), err)
+		_, err := wh.clusterInteractor.DeleteNode(node.GetName())
 		if err != nil {
-			fmt.Printf(red.Sprintf("[%s] Failed to delete Worker Node '%s' from the cluster: %v\n", time.Now().Format("02-01-2006 15:04:05"), node.GetName(), err))
+			logger.Fatal("Failed to delete node '%s': %v", node.GetName(), err)
 		}
 	}
 }
@@ -152,8 +192,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	}
 
 	// Some TPMs cannot process secrets > 32 bytes, so first 8 bytes of the ephemeral key are used as nonce of quote computation
-	quoteNonce := hex.EncodeToString(ephemeralKey[:8])
-
+	quoteNonce := ephemeralKey[:8]
 	// TODO kdf instead of raw ephemeral key piece
 
 	encodedCredentialBlob, encodedEncryptedSecret, err := tpm_attestation.GenerateCredentialActivation(workerCredentials.AIKNameData, ek, ephemeralKey)
@@ -163,13 +202,13 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	}
 
 	// Prepare challenge payload for sending
-	workerChallenge := model.WorkerChallenge{
+	workerChallenge := &model.WorkerChallenge{
 		AIKCredential:      encodedCredentialBlob,
 		AIKEncryptedSecret: encodedEncryptedSecret,
 	}
 
 	// Send challenge request to the agent
-	challengeResponse, err := sendChallengeRequest(workerChallenge)
+	challengeResponse, err := wh.agentClient.WorkerRegistrationChallenge(workerChallenge)
 	if err != nil {
 		logger.Error("Failed to send challenge request: %v", err)
 		return false
@@ -188,7 +227,21 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 
-	bootAggregate, hashAlg, err := validateWorkerQuote(challengeResponse.WorkerBootQuote, quoteNonce, AIKPublicKey)
+	quoteJson, err := base64.StdEncoding.DecodeString(challengeResponse.WorkerBootQuote)
+	if err != nil {
+		logger.Error("Failed to decode quote: %v", err)
+		return false
+	}
+
+	// Parse inputQuote JSON
+	var inputQuote *model.InputQuote
+	err = json.Unmarshal(quoteJson, &inputQuote)
+	if err != nil {
+		logger.Error("Failed to unmarshal quote for validation: %v", err)
+		return false
+	}
+
+	bootAggregate, hashAlg, err := tpm_attestation.ValidateWorkerQuote(inputQuote, quoteNonce, AIKPublicKey)
 	if err != nil {
 		logger.Error("Failed to validate Worker Quote: %v", err)
 		return false
@@ -233,9 +286,14 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		registrationAcknowledge.VerifierPublicKey = verifierPublicKey
 	}
 
-	err = workerRegistrationAcknowledge(agentAcknowledgeURL, registrationAcknowledge)
+	registrationConfirm, err := wh.agentClient.WorkerRegistrationAcknowledge(registrationAcknowledge)
 	if err != nil {
 		logger.Error("Failed to acknowledge Worker Node about registration result: %v", err)
+		return false
+	}
+
+	if registrationConfirm.Status != model.Success {
+		logger.Error("Worker Node registration confirmation failed: %v", registrationConfirm)
 		return false
 	}
 
@@ -245,7 +303,6 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 
 func (wh *WorkerHandler) WatchNodes() {
 	stopCh := setupSignalHandler()
-	// Create an informer factory
 	nodeInformer := wh.informerFactory.Core().V1().Nodes().Informer()
 
 	nodeEventHandler := cache.ResourceEventHandlerFuncs{
@@ -255,22 +312,10 @@ func (wh *WorkerHandler) WatchNodes() {
 	}
 
 	// Add event handlers for Node events
-	_, err := nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			node, ok := obj.(*corev1.Node)
-			if !ok {
-				return
-			}
-			handleNodeAdd(node)
-		},
-		DeleteFunc: func(obj interface{}) {
-			node, ok := obj.(*corev1.Node)
-			if !ok {
-				return
-			}
-			handleNodeDelete(node)
-		},
-	})
+	_, err := nodeInformer.AddEventHandler(nodeEventHandler)
+	if err != nil {
+		logger.Fatal("failed to create node event handler: %v", err)
+	}
 
 	// Convert `chan os.Signal` to `<-chan struct{}`
 	stopStructCh := make(chan struct{})
@@ -284,12 +329,14 @@ func (wh *WorkerHandler) WatchNodes() {
 
 	// Wait for the informer to sync
 	if !cache.WaitForCacheSync(stopStructCh, nodeInformer.HasSynced) {
-		fmt.Println("Timed out waiting for caches to sync")
+		logger.Warning("Timed out waiting for caches to sync")
 		return
 	}
 
 	// Keep running until stopped
 	<-stopStructCh
+	logger.Info("stopping NodeWatcher...")
+
 }
 
 // setupSignalHandler sets up a signal handler for graceful termination.
