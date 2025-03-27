@@ -91,7 +91,7 @@ func (s *Server) checkWorkerWhitelist(c *gin.Context) {
 
 	// Query MongoDB for the document matching the requested OS name
 	var osWhitelist model.OsWhitelist
-	err := s.workerWhitelist.FindOne(context.TODO(), bson.M{"osName": checkRequest.OSName}).Decode(osWhitelist)
+	err := s.workerWhitelist.FindOne(context.TODO(), bson.M{"osName": checkRequest.OsName}).Decode(osWhitelist)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "OS whitelist not found"})
@@ -131,7 +131,7 @@ func (s *Server) appendToWorkerWhitelist(c *gin.Context) {
 
 	// Check if the OSName already exists in the WorkerWhitelist
 	var existingOsWhitelist *model.OsWhitelist
-	err := workerWhitelist.FindOne(context.TODO(), bson.M{"osName": newOsWhitelist.OSName}).Decode(existingOsWhitelist)
+	err := s.workerWhitelist.FindOne(context.TODO(), bson.M{"osName": newOsWhitelist.OSName}).Decode(existingOsWhitelist)
 	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query Worker whitelist"})
 		return
@@ -161,7 +161,7 @@ func (s *Server) deleteFromWorkerWhitelist(c *gin.Context) {
 		return
 	}
 	// Attempt to delete the document with the matching OSName
-	result, err := workerWhitelist.DeleteOne(context.TODO(), bson.M{"osName": osName})
+	result, err := s.workerWhitelist.DeleteOne(context.TODO(), bson.M{"osName": osName})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to delete the worker whitelist record"})
 		return
@@ -443,7 +443,7 @@ func (s *Server) appendToContainerRuntimeWhitelist(c *gin.Context) {
 
 	// Check if the Container Runtime already exists in the Container Runtime whitelist
 	var existingContainerRuntimeWhitelist *model.ContainerRuntimeWhitelist
-	err := containerRuntimeWhitelist.FindOne(context.TODO(), bson.M{"containerRuntimeName": newContainerRuntimeWhitelist.ContainerRuntimeName}).Decode(existingContainerRuntimeWhitelist)
+	err := s.containerRuntimeWhitelist.FindOne(context.TODO(), bson.M{"containerRuntimeName": newContainerRuntimeWhitelist.ContainerRuntimeName}).Decode(existingContainerRuntimeWhitelist)
 	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query Container Runtime whitelist"})
 		return
@@ -455,7 +455,7 @@ func (s *Server) appendToContainerRuntimeWhitelist(c *gin.Context) {
 	}
 
 	// Insert the new OS whitelist
-	_, err = containerRuntimeWhitelist.InsertOne(context.TODO(), newContainerRuntimeWhitelist)
+	_, err = s.containerRuntimeWhitelist.InsertOne(context.TODO(), newContainerRuntimeWhitelist)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to append new valid Container Runtime list to Container Runtime whitelist"})
 		return

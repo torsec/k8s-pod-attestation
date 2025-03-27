@@ -101,3 +101,14 @@ type AppendFilesToImageRequest struct {
 	ImageName string           `json:"imageName"`
 	NewFiles  PodFileWhitelist `json:"newFiles"`
 }
+
+type ContainerRuntimeCheckRequest struct {
+	ContainerRuntimeName         string     `json:"containerRuntimeName"`
+	ContainerRuntimeDependencies []IMAEntry `json:"containerRuntimeDependencies"`
+	HashAlg                      string     `json:"hashAlg"` // Include the hash algorithm in the request
+}
+
+type WhitelistResponse struct {
+	Message string `json:"message"`
+	Status  string `json:"status"`
+}

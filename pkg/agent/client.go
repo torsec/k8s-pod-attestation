@@ -48,10 +48,9 @@ func (c *Client) WorkerRegistrationCredentials() (*model.WorkerCredentialsRespon
 	return credentialsResponse, nil
 }
 
-func (c *Client) WorkerRegistrationChallenge(workerChallenge *model.WorkerChallenge) (*model.WorkerChallengeResponse, error) {
+func (c *Client) WorkerRegistrationChallenge(workerWhitelistCheckRequest *model.WorkerWhitelistCheckRequest) (*model.WorkerChallengeResponse, error) {
 	completeUrl := fmt.Sprintf("http://%s:%d%s", c.agentHost, c.agentPort, WorkerRegistrationChallengeUrl)
-	// Marshal the challenge struct into JSON
-	jsonData, err := json.Marshal(workerChallenge)
+	jsonData, err := json.Marshal(workerWhitelistCheckRequest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal challenge payload: %v", err)
 	}
