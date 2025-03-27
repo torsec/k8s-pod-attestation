@@ -253,7 +253,7 @@ func (s *Server) podAttestation(c *gin.Context) {
 	}
 
 	// TODO standardize
-	evidence := &model.Evidence{
+	evidence := model.Evidence{
 		PodName:        attestationRequest.PodName,
 		PodUID:         attestationRequest.PodUid,
 		TenantId:       attestationRequest.TenantId,
@@ -271,7 +271,7 @@ func (s *Server) podAttestation(c *gin.Context) {
 		return
 	}
 
-	evidenceDigest, err := cryptoUtils.Digest(evidenceRaw)
+	evidenceDigest, err := cryptoUtils.Hash(evidenceRaw)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Failed to compute Evidence digest",

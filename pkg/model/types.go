@@ -46,6 +46,14 @@ type AgentConfig struct {
 	AgentNodePortAllocation int32  `json:"agentNodePortAllocation"`
 }
 
+type Evidence struct {
+	PodName        string `json:"podName"`
+	Poduid         string `json:"podUID"`
+	TenantId       string `json:"tenantId"`
+	Quote          string `json:"quote"`
+	MeasurementLog string `json:"measurementLog"`
+}
+
 /*
 type PodStatus struct {
 	PodName   string `json:"podName"`

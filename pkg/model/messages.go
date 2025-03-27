@@ -8,7 +8,7 @@ type NewTenantRequest struct {
 	PublicKey string `json:"publicKey"`
 }
 
-type WorkerResponse struct {
+type WorkerCredentialsResponse struct {
 	UUID          string `json:"UUID"`
 	EKCert        string `json:"EKCert"`
 	AIKNameData   string `json:"AIKNameData"`
@@ -40,7 +40,7 @@ type WorkerWhitelistCheckRequest struct {
 }
 
 type VerifyTPMEKCertificateRequest struct {
-	EKCertificate []byte `json:"EKCertificate"`
+	EKCertificate string `json:"EKCertificate"`
 }
 
 // VerifySignatureRequest represents the input data for signature verification
@@ -78,14 +78,6 @@ type AttestationRequest struct {
 	PodUid    string `json:"podUid"`
 	TenantId  string `json:"tenantId"`
 	Signature string `json:"signature,omitempty"`
-}
-
-type Evidence struct {
-	PodName        string `json:"podName"`
-	PodUID         string `json:"podUID"`
-	TenantId       string `json:"tenantId"`
-	Quote          string `json:"quote"`
-	MeasurementLog string `json:"measurementLog"`
 }
 
 type AttestationResponse struct {

@@ -22,7 +22,7 @@ func (c *Client) Init(agentHost string, agentPort int, invokerTlsCertificate *x5
 	c.invokerTlsCertificate = invokerTlsCertificate
 }
 
-func (c *Client) WorkerRegistrationCredentials() (*model.WorkerResponse, error) {
+func (c *Client) WorkerRegistrationCredentials() (*model.WorkerCredentialsResponse, error) {
 	completeUrl := fmt.Sprintf("http://%s:%d%s", c.agentHost, c.agentPort, GetWorkerRegistrationCredentialsUrl)
 	resp, err := http.Get(completeUrl)
 	if err != nil {
@@ -41,11 +41,11 @@ func (c *Client) WorkerRegistrationCredentials() (*model.WorkerResponse, error) 
 		}
 	}(resp.Body)
 
-	var workerResponse *model.WorkerResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(workerResponse); err != nil {
+	var credentialsResponse *model.WorkerCredentialsResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(credentialsResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
 	}
-	return workerResponse, nil
+	return credentialsResponse, nil
 }
 
 func (c *Client) WorkerRegistrationChallenge(workerChallenge *model.WorkerChallenge) (*model.WorkerChallengeResponse, error) {

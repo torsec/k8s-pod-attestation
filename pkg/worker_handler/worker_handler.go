@@ -109,7 +109,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	}
 
 	// Call Agent to identify worker data
-	workerData, err := wh.agentClient.WorkerRegistrationCredentials()
+	workerCredentials, err := wh.agentClient.WorkerRegistrationCredentials()
 	if err != nil {
 		logger.Error("Failed to start get worker credentials and identification data: %v", err)
 		return false
@@ -117,7 +117,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 
 	// TEST: this allows the agent in 'simulator' mode to be compliant with the framework
 	ekCertCheckRequest := model.VerifyTPMEKCertificateRequest{
-		EKCertificate: workerData.EKCert,
+		EKCertificate: workerCredentials.EKCert,
 	}
 
 	ekVerificationResponse, err := wh.registrarClient.VerifyEKCertificate(ekCertCheckRequest)
@@ -130,7 +130,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 
-	ekCert, err := cryptoUtils.LoadCertificateFromPEM(workerData.EKCert)
+	ekCert, err := cryptoUtils.LoadCertificateFromPEM(workerCredentials.EKCert)
 	if err != nil {
 		logger.Error("Failed to load EK Certificate: %v", err)
 		return false
@@ -138,7 +138,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 
 	ek := ekCert.PublicKey.(*rsa.PublicKey)
 
-	AIKPublicKey, err := tpm_attestation.ValidateAIKPublicData(workerData.AIKNameData, workerData.AIKPublicArea)
+	AIKPublicKey, err := tpm_attestation.ValidateAIKPublicData(workerCredentials.AIKNameData, workerCredentials.AIKPublicArea)
 	if err != nil {
 		logger.Error("Failed to validate received Worker AIK: %v", err)
 		return false
@@ -156,7 +156,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 
 	// TODO kdf instead of raw ephemeral key piece
 
-	encodedCredentialBlob, encodedEncryptedSecret, err := tpm_attestation.GenerateCredentialActivation(workerData.AIKNameData, ek, ephemeralKey)
+	encodedCredentialBlob, encodedEncryptedSecret, err := tpm_attestation.GenerateCredentialActivation(workerCredentials.AIKNameData, ek, ephemeralKey)
 	if err != nil {
 		logger.Error("Failed to generate AIK credential activation challenge: %v", err)
 		return false
@@ -169,7 +169,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	}
 
 	// Send challenge request to the agent
-	challengeResponse, err := sendChallengeRequest(agentChallengeNodeURL, workerChallenge)
+	challengeResponse, err := sendChallengeRequest(workerChallenge)
 	if err != nil {
 		logger.Error("Failed to send challenge request: %v", err)
 		return false
@@ -182,7 +182,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	}
 
 	// Verify the HMAC response from the agent
-	err = cryptoUtils.VerifyHMAC([]byte(workerData.UUID), ephemeralKey, decodedHMAC)
+	err = cryptoUtils.VerifyHMAC([]byte(workerCredentials.UUID), ephemeralKey, decodedHMAC)
 	if err != nil {
 		logger.Error("Failed to verify HMAC: %v", err)
 		return false
@@ -213,7 +213,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	}
 
 	workerNode := &model.WorkerNode{
-		WorkerId: workerData.UUID,
+		WorkerId: workerCredentials.UUID,
 		Name:     newWorker.GetName(),
 		AIK:      string(AIKPublicKeyPEM),
 	}
@@ -239,7 +239,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 
-	logger.Success("Successfully registered Worker Node '%s': %s", newWorker.GetName(), workerData.UUID)
+	logger.Success("Successfully registered Worker Node '%s': %s", newWorker.GetName(), workerCredentials.UUID)
 	return true
 }
 
