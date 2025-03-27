@@ -54,6 +54,39 @@ type Evidence struct {
 	MeasurementLog string `json:"measurementLog"`
 }
 
+type PodFileWhitelist struct {
+	FilePath     string              `json:"filePath" bson:"filePath"`
+	ValidDigests map[string][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
+}
+
+type ImageWhitelist struct {
+	ImageName   string             `json:"imageName" bson:"imageName"`
+	ImageDigest string             `json:"imageDigest" bson:"imageDigest"`
+	ValidFiles  []PodFileWhitelist `json:"validFiles" json:"validFiles"`
+}
+
+type IMAEntry struct {
+	FilePath string `json:"filePath"`
+	FileHash string `json:"fileHash"`
+}
+
+// OsWhitelist represents the structure of our stored document in MongoDB.
+// It categorizes valid digests by hash algorithm.
+type OsWhitelist struct {
+	OSName       string              `json:"osName" bson:"osName"`
+	ValidDigests map[string][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
+}
+
+type ContainerDependencyWhitelist struct {
+	FilePath     string              `json:"filePath" bson:"filePath"`
+	ValidDigests map[string][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
+}
+
+type ContainerRuntimeWhitelist struct {
+	ContainerRuntimeName string                         `json:"containerRuntimeName" bson:"containerRuntimeName"`
+	ValidFiles           []ContainerDependencyWhitelist `json:"validFiles" json:"validFiles"`
+}
+
 /*
 type PodStatus struct {
 	PodName   string `json:"podName"`

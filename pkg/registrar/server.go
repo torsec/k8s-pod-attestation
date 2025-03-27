@@ -118,7 +118,7 @@ func (s *Server) verifyWorkerEKCertificate(c *gin.Context) {
 		return
 	}
 
-	tpmEkCertificate, err := cryptoUtils.LoadCertificateFromPEM(req.EKCertificate)
+	tpmEkCertificate, err := cryptoUtils.LoadCertificateFromPEM([]byte(req.EKCertificate))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "EK Certificate is not valid PEM", "status": model.Error})
 		return
@@ -131,7 +131,7 @@ func (s *Server) verifyWorkerEKCertificate(c *gin.Context) {
 		return
 	}
 
-	intermediateCACert, err := cryptoUtils.LoadCertificateFromPEM(intermediateCA.PEMCertificate)
+	intermediateCACert, err := cryptoUtils.LoadCertificateFromPEM([]byte(intermediateCA.PEMCertificate))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Intermediate CA Certificate is not valid PEM", "status": model.Error})
 		return
@@ -144,7 +144,7 @@ func (s *Server) verifyWorkerEKCertificate(c *gin.Context) {
 		return
 	}
 
-	rootCACert, err := cryptoUtils.LoadCertificateFromPEM(rootCA.PEMCertificate)
+	rootCACert, err := cryptoUtils.LoadCertificateFromPEM([]byte(rootCA.PEMCertificate))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Root CA Certificate is not valid PEM", "status": model.Error})
 		return
@@ -307,7 +307,7 @@ func (s *Server) verifyTenantSignature(c *gin.Context) {
 		return
 	}
 
-	tenantPublicKey, err := cryptoUtils.DecodePublicKeyFromPEM(tenant.PublicKey)
+	tenantPublicKey, err := cryptoUtils.DecodePublicKeyFromPEM([]byte(tenant.PublicKey))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to decode public key", "status": model.Error})
 		return
@@ -483,7 +483,7 @@ func (s *Server) verifyWorkerSignature(c *gin.Context) {
 		return
 	}
 
-	workerPublicKey, err := cryptoUtils.DecodePublicKeyFromPEM(worker.AIK)
+	workerPublicKey, err := cryptoUtils.DecodePublicKeyFromPEM([]byte(worker.AIK))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to decode public key", "status": model.Error})
 		return

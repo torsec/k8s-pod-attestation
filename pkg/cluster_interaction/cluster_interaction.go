@@ -7,6 +7,8 @@ import (
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextensionsv1clientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -25,6 +27,7 @@ import (
 type ClusterInteraction struct {
 	ClientSet                    *kubernetes.Clientset
 	DynamicClient                dynamic.Interface
+	ApiExtensionsClient          *apiextensionsv1clientset.Clientset
 	AttestationEnabledNamespaces []string
 }
 
@@ -42,19 +45,22 @@ const (
 var agentGVR = schema.GroupVersionResource{
 	Group:    AgentCRDGroup, // Group name defined in your CRD
 	Version:  AgentCRDVersion,
-	Resource: AgentCRDResource, // Plural form of the CRD resource name
+	Resource: AgentCRDResourcePlural, // Plural form of the CRD resource name
 }
 
 const KubeSystemNamespace = "kube-system"
 
 // Agent CRD parameters
 const (
-	AgentCRDGroup    = "example.com"
-	AgentCRDVersion  = "v1"
-	AgentCRDResource = "agents"
-	AgentCRDKind     = "Agent"
-	APIVersion       = AgentCRDGroup + "/" + AgentCRDVersion
-	Kind             = "AttestationRequest"
+	AgentCRDName             = "agents.example.com"
+	AgentCRDGroup            = "example.com"
+	AgentCRDVersion          = "v1"
+	AgentCRDResourcePlural   = "agents"
+	AgentCRDListKind         = "AgentList"
+	AgentCRDResourceSingular = "agent"
+	AgentCRDKind             = "Agent"
+	APIVersion               = AgentCRDGroup + "/" + AgentCRDVersion
+	Kind                     = "AttestationRequest"
 )
 
 const (
@@ -64,8 +70,6 @@ const (
 const (
 	ControlPlaneLabel = "node-role.kubernetes.io/control-plane"
 )
-
-//var agentNodePortAllocation int32 = 31000
 
 // ConfigureKubernetesClient initializes the Kubernetes client by retrieving the kubeconfig file from home directory of current user under /.kube/config
 func (c *ClusterInteraction) ConfigureKubernetesClient() {
@@ -85,6 +89,10 @@ func (c *ClusterInteraction) ConfigureKubernetesClient() {
 	c.ClientSet, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		logger.Fatal("Failed to create Kubernetes client: %v", err)
+	}
+	c.ApiExtensionsClient, err = apiextensionsv1clientset.NewForConfig(config)
+	if err != nil {
+		logger.Fatal("Failed to create Kubernetes API extension client: %v", err)
 	}
 }
 
@@ -545,4 +553,85 @@ func (c *ClusterInteraction) CreateAgentCRDInstance(nodeName string) (bool, erro
 		return false, fmt.Errorf("error creating Agent CRD instance '%s': %v", agentName, err)
 	}
 	return true, nil
+}
+
+func (c *ClusterInteraction) DefineAgentCRD() error {
+	// Define the CustomResourceDefinition
+	agentCRD := &apiextensionsv1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: AgentCRDName,
+		},
+		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
+			Group: AgentCRDGroup,
+			Names: apiextensionsv1.CustomResourceDefinitionNames{
+				Kind:     AgentCRDKind,
+				ListKind: AgentCRDListKind,
+				Plural:   AgentCRDResourcePlural,
+				Singular: AgentCRDResourceSingular,
+			},
+			Scope: apiextensionsv1.NamespaceScoped,
+			Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
+				{
+					Name:    AgentCRDVersion,
+					Served:  true,
+					Storage: true,
+					Schema: &apiextensionsv1.CustomResourceValidation{
+						OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
+							Type: "object",
+							Properties: map[string]apiextensionsv1.JSONSchemaProps{
+								"spec": {
+									Type: "object",
+									Properties: map[string]apiextensionsv1.JSONSchemaProps{
+										"agentName": {
+											Type: "string",
+										},
+										"nodeStatus": {
+											Type: "string",
+										},
+										"podStatus": {
+											Type: "array",
+											Items: &apiextensionsv1.JSONSchemaPropsOrArray{
+												Schema: &apiextensionsv1.JSONSchemaProps{
+													Type: "object",
+													Properties: map[string]apiextensionsv1.JSONSchemaProps{
+														"podName": {
+															Type: "string",
+														},
+														"tenantId": {
+															Type: "string",
+														},
+														"status": {
+															Type: "string",
+														},
+														"reason": {
+															Type: "string",
+														},
+														"lastCheck": {
+															Type:   "string",
+															Format: "date-time",
+														},
+													},
+												},
+											},
+										},
+										"lastUpdate": {
+											Type:   "string",
+											Format: "date-time",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create the CRD
+	agentCRD, err := c.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.TODO(), agentCRD, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to define Agent CRD")
+	}
+	return nil
 }

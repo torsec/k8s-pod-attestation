@@ -11,6 +11,7 @@ import (
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"github.com/torsec/k8s-pod-attestation/pkg/registrar"
 	"github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation"
+	"github.com/torsec/k8s-pod-attestation/pkg/whitelist"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -47,6 +48,9 @@ func (wh *WorkerHandler) Init(attestationEnabledNamespaces []string, defaultResy
 	wh.clusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
 	wh.clusterInteractor.ConfigureKubernetesClient()
 	wh.informerFactory = informers.NewSharedInformerFactory(wh.clusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
+	if err := wh.clusterInteractor.DefineAgentCRD() {
+		logger.Fatal("Failed to define agent CRD: %v", err)
+	}
 	wh.registrarClient = registrarClient
 	wh.agentConfig = agentConfig
 	wh.agentClient = whitelistClient
@@ -170,7 +174,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 
-	ekCert, err := cryptoUtils.LoadCertificateFromPEM(workerCredentials.EKCert)
+	ekCert, err := cryptoUtils.LoadCertificateFromPEM([]byte(workerCredentials.EKCert))
 	if err != nil {
 		logger.Error("Failed to load EK Certificate: %v", err)
 		return false

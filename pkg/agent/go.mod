@@ -5,10 +5,10 @@ go 1.23.4
 require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250326174341-562ed8cf03f7
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250326174341-562ed8cf03f7
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250326174341-562ed8cf03f7
-	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250326174341-562ed8cf03f7
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250327121718-2e9daad23d77
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250327121718-2e9daad23d77
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250327121718-2e9daad23d77
+	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250327121718-2e9daad23d77
 )
 
 require (

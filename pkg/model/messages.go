@@ -89,3 +89,15 @@ type WorkerRegistrationConfirm struct {
 	Message string `json:"message"`
 	Status  string `json:"status"`
 }
+
+type PodWhitelistCheckRequest struct {
+	PodImageName   string     `json:"podImageName"`
+	PodImageDigest string     `json:"podImageDigest"`
+	PodFiles       []IMAEntry `json:"podFiles"`
+	HashAlg        string     `json:"hashAlg"` // Include the hash algorithm in the request
+}
+
+type AppendFilesToImageRequest struct {
+	ImageName string           `json:"imageName"`
+	NewFiles  PodFileWhitelist `json:"newFiles"`
+}
