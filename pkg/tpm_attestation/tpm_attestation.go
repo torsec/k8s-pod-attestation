@@ -19,8 +19,18 @@ import (
 
 const symBlockSize = 16
 
-func ValidateAIKPublicData(AIKNameData, AIKPublicArea []byte) (*rsa.PublicKey, error) {
-	retrievedName, err := tpm2legacy.DecodeName(bytes.NewBuffer(AIKNameData))
+func ValidateAIKPublicData(aikNameData, aikPublicArea string) (*rsa.PublicKey, error) {
+	decodedNameData, err := base64.StdEncoding.DecodeString(aikNameData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode AIK Name data")
+	}
+
+	decodedPublicArea, err := base64.StdEncoding.DecodeString(aikPublicArea)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode AIK Public Area data")
+	}
+
+	retrievedName, err := tpm2legacy.DecodeName(bytes.NewBuffer(decodedNameData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode AIK Name")
 	}
@@ -35,13 +45,14 @@ func ValidateAIKPublicData(AIKNameData, AIKPublicArea []byte) (*rsa.PublicKey, e
 	}
 
 	pubHash := hash.New()
-	pubHash.Write(AIKPublicArea)
+	pubHash.Write(decodedPublicArea)
 	pubDigest := pubHash.Sum(nil)
+
 	if !bytes.Equal(retrievedName.Digest.Value, pubDigest) {
 		return nil, fmt.Errorf("computed AIK Name does not match received Name digest")
 	}
 
-	retrievedAKPublicArea, err := tpm2legacy.DecodePublic(AIKPublicArea)
+	retrievedAKPublicArea, err := tpm2legacy.DecodePublic(decodedPublicArea)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode received AIK Public Area")
 	}

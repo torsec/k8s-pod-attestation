@@ -22,8 +22,8 @@ func (c *Client) Init(agentHost string, agentPort int, invokerTlsCertificate *x5
 	c.invokerTlsCertificate = invokerTlsCertificate
 }
 
-func (c *Client) GetWorkerIdentifyingData() (*model.WorkerResponse, error) {
-	completeUrl := fmt.Sprintf("http://%s:%d%s", c.agentHost, c.agentPort, GetWorkerIdentifyingDataUrl)
+func (c *Client) WorkerRegistrationCredentials() (*model.WorkerResponse, error) {
+	completeUrl := fmt.Sprintf("http://%s:%d%s", c.agentHost, c.agentPort, GetWorkerRegistrationCredentialsUrl)
 	resp, err := http.Get(completeUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Worker identification data: %v", err)
@@ -49,7 +49,7 @@ func (c *Client) GetWorkerIdentifyingData() (*model.WorkerResponse, error) {
 }
 
 func (c *Client) WorkerRegistrationChallenge(workerChallenge *model.WorkerChallenge) (*model.WorkerChallengeResponse, error) {
-	completeUrl := fmt.Sprintf("http://%s:%d%s", c.agentHost, c.agentPort, ChallengeWorkerUrl)
+	completeUrl := fmt.Sprintf("http://%s:%d%s", c.agentHost, c.agentPort, WorkerRegistrationChallengeUrl)
 	// Marshal the challenge struct into JSON
 	jsonData, err := json.Marshal(workerChallenge)
 	if err != nil {

@@ -32,10 +32,10 @@ type Server struct {
 }
 
 const (
-	GetWorkerIdentifyingDataUrl = "/agent/worker/registration/identify"
-	ChallengeWorkerUrl          = "/agent/worker/registration/challenge"
-	AcknowledgeRegistrationUrl  = "/agent/worker/registration/acknowledge"
-	PodAttestationUrl           = "/agent/pod/attest"
+	GetWorkerRegistrationCredentialsUrl = "/agent/worker/registration/credentials"
+	WorkerRegistrationChallengeUrl      = "/agent/worker/registration/challenge"
+	AcknowledgeRegistrationUrl          = "/agent/worker/registration/acknowledge"
+	PodAttestationUrl                   = "/agent/pod/attest"
 )
 
 func (s *Server) Init(agentHost string, agentPort int, tlsCertificate *x509.Certificate, imaMeasurementLog string, tpm *tpm.TPM) {
@@ -154,7 +154,7 @@ func (s *Server) challengeWorker(c *gin.Context) {
 	return
 }
 
-func (s *Server) getWorkerIdentifyingData(c *gin.Context) {
+func (s *Server) getWorkerRegistrationCredentials(c *gin.Context) {
 	s.workerId = uuid.New().String()
 
 	ekCert, err := s.tpm.GetWorkerEKCertificate()
@@ -330,8 +330,8 @@ func (s *Server) Start() {
 	s.router = gin.Default()
 
 	// Define routes for the Tenant API
-	s.router.GET(GetWorkerIdentifyingDataUrl, s.getWorkerIdentifyingData) // GET worker identifying data (newly generated UUID, AIK, EK)
-	s.router.POST(ChallengeWorkerUrl, s.challengeWorker)                  // POST challenge worker for Registration
+	s.router.GET(GetWorkerRegistrationCredentialsUrl, s.getWorkerRegistrationCredentials) // GET worker identifying data (newly generated UUID, AIK, EK)
+	s.router.POST(WorkerRegistrationChallengeUrl, s.challengeWorker)                      // POST challenge worker for Registration
 	s.router.POST(AcknowledgeRegistrationUrl, s.acknowledgeRegistration)
 
 	s.router.POST(PodAttestationUrl, s.podAttestation) // POST attestation against one Pod running upon Worker of this agent

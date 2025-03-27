@@ -21,12 +21,15 @@ import (
 	"time"
 )
 
+const ephemeralKeySize = 16
+
 type WorkerHandler struct {
 	clusterInteractor *cluster_interaction.ClusterInteraction
 	informerFactory   informers.SharedInformerFactory
 	registrarClient   *registrar.Client
 	agentConfig       *model.AgentConfig
 	agentClient       *agent.Client
+	whitelistClient   *whitelist.Client
 }
 
 func (wh *WorkerHandler) Init(attestationEnabledNamespaces []string, defaultResync int, registrarClient *registrar.Client, agentConfig *model.AgentConfig) {
@@ -99,11 +102,6 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 
 // workerRegistration registers the worker node by calling the identification API
 func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploymentName string) bool {
-	agentIdentifyURL := fmt.Sprintf("http://%s:%s/agent/worker/registration/identify", agentHOST, agentPORT)
-	agentChallengeNodeURL := fmt.Sprintf("http://%s:%s/agent/worker/registration/challenge", agentHOST, agentPORT)
-	agentAcknowledgeURL := fmt.Sprintf("http://%s:%s/agent/worker/registration/acknowledge", agentHOST, agentPORT)
-	registrarWorkerCreationURL := fmt.Sprintf("http://%s:%s/worker/create", registrarHOST, registrarPORT)
-
 	err := wh.clusterInteractor.WaitForPodRunning(cluster_interaction.PodAttestationNamespace, agentDeploymentName, 1*time.Minute)
 	if err != nil {
 		logger.Error("Error while contacting Agent: %v", err)
@@ -111,7 +109,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	}
 
 	// Call Agent to identify worker data
-	workerData, err := wh.agentClient.GetWorkerIdentifyingData()
+	workerData, err := wh.agentClient.WorkerRegistrationCredentials()
 	if err != nil {
 		logger.Error("Failed to start get worker credentials and identification data: %v", err)
 		return false
@@ -135,39 +133,32 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	ekCert, err := cryptoUtils.LoadCertificateFromPEM(workerData.EKCert)
 	if err != nil {
 		logger.Error("Failed to load EK Certificate: %v", err)
-		return
+		return false
 	}
+
 	ek := ekCert.PublicKey.(*rsa.PublicKey)
 
-	decodedNameData, err := base64.StdEncoding.DecodeString(workerData.AIKNameData)
+	AIKPublicKey, err := tpm_attestation.ValidateAIKPublicData(workerData.AIKNameData, workerData.AIKPublicArea)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode AIK Name data")
-	}
-
-	decodedPublicArea, err := base64.StdEncoding.DecodeString(workerData.AIKPublicArea)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode AIK Public Area data")
-	}
-
-	AIKPublicKey, err := tpm_attestation.ValidateAIKPublicData(decodedNameData, decodedPublicArea)
-	if err != nil {
-		fmt.Printf(red.Sprintf("[%s] Failed to validate received Worker AIK: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
+		logger.Error("Failed to validate received Worker AIK: %v", err)
 		return false
 	}
 
 	// Generate ephemeral key
 	ephemeralKey, err := cryptoUtils.GenerateEphemeralKey(ephemeralKeySize)
 	if err != nil {
-		fmt.Printf(red.Sprintf("[%s] Failed to generate challenge ephemeral key: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
+		logger.Error("Failed to generate challenge ephemeral key: %v", err)
 		return false
 	}
 
 	// Some TPMs cannot process secrets > 32 bytes, so first 8 bytes of the ephemeral key are used as nonce of quote computation
 	quoteNonce := hex.EncodeToString(ephemeralKey[:8])
 
-	encodedCredentialBlob, encodedEncryptedSecret, err := tpm_attestation.GenerateCredentialActivation(workerData.AIKNameData, EK, ephemeralKey)
+	// TODO kdf instead of raw ephemeral key piece
+
+	encodedCredentialBlob, encodedEncryptedSecret, err := tpm_attestation.GenerateCredentialActivation(workerData.AIKNameData, ek, ephemeralKey)
 	if err != nil {
-		fmt.Printf(red.Sprintf("[%s] Failed to generate AIK credential activation challenge: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
+		logger.Error("Failed to generate AIK credential activation challenge: %v", err)
 		return false
 	}
 
@@ -180,25 +171,26 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	// Send challenge request to the agent
 	challengeResponse, err := sendChallengeRequest(agentChallengeNodeURL, workerChallenge)
 	if err != nil {
-		fmt.Printf(red.Sprintf("[%s] Failed to send challenge request: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
+		logger.Error("Failed to send challenge request: %v", err)
 		return false
 	}
 
 	decodedHMAC, err := base64.StdEncoding.DecodeString(challengeResponse.HMAC)
 	if err != nil {
-		fmt.Printf(red.Sprintf("[%s] Failed to decode HMAC: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
+		logger.Error("Failed to decode HMAC: %v", err)
 		return false
 	}
 
 	// Verify the HMAC response from the agent
-	if err := cryptoUtils.VerifyHMAC([]byte(workerData.UUID), ephemeralKey, decodedHMAC); err != nil {
-		fmt.Printf(red.Sprintf("[%s] Failed to verify HMAC: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
+	err = cryptoUtils.VerifyHMAC([]byte(workerData.UUID), ephemeralKey, decodedHMAC)
+	if err != nil {
+		logger.Error("Failed to verify HMAC: %v", err)
 		return false
 	}
 
 	bootAggregate, hashAlg, err := validateWorkerQuote(challengeResponse.WorkerBootQuote, quoteNonce, AIKPublicKey)
 	if err != nil {
-		fmt.Printf(red.Sprintf("[%s] Failed to validate Worker Quote: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
+		logger.Error("Failed to validate Worker Quote: %v", err)
 		return false
 	}
 
@@ -210,46 +202,44 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 
 	err = verifyBootAggregate(workerWhitelistCheckRequest)
 	if err != nil {
-		fmt.Printf(red.Sprintf("[%s] Worker Boot validation failed: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
+		logger.Error("Worker Boot validation failed: %v", err)
 		return false
 	}
 
 	AIKPublicKeyPEM := cryptoUtils.EncodePublicKeyToPEM(AIKPublicKey)
-	if AIKPublicKeyPEM == "" {
-		fmt.Printf(red.Sprintf("[%s] Failed to parse AIK Public Key to PEM format\n", time.Now().Format("02-01-2006 15:04:05"), err))
+	if AIKPublicKeyPEM == nil {
+		logger.Error("Failed to parse AIK Public Key to PEM format", err)
 		return false
 	}
 
-	workerNode := model.WorkerNode{
+	workerNode := &model.WorkerNode{
 		WorkerId: workerData.UUID,
 		Name:     newWorker.GetName(),
-		AIK:      AIKPublicKeyPEM,
+		AIK:      string(AIKPublicKeyPEM),
 	}
 
 	// Create a new worker
-	createWorkerResponse, err := createWorker(registrarWorkerCreationURL, &workerNode)
+	createWorkerResponse, err := wh.registrarClient.CreateWorker(workerNode)
 	if err != nil {
-		fmt.Printf(red.Sprintf("[%s] Failed to create Worker Node: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
+		logger.Error("Failed to create Worker Node: %v", err)
 	}
 
-	registrationAcknowledge := model.RegistrationAcknowledge{
+	registrationAcknowledge := &model.RegistrationAcknowledge{
 		Message: createWorkerResponse.Message,
 		Status:  createWorkerResponse.Status,
 	}
 
-	if createWorkerResponse.Status != "success" {
-		registrationAcknowledge.VerifierPublicKey = ""
-	} else {
+	if createWorkerResponse.Status == model.Success {
 		registrationAcknowledge.VerifierPublicKey = verifierPublicKey
 	}
 
 	err = workerRegistrationAcknowledge(agentAcknowledgeURL, registrationAcknowledge)
 	if err != nil {
-		fmt.Printf(red.Sprintf("[%s] Failed to acknowledge Worker Node about registration result: %v\n", time.Now().Format("02-01-2006 15:04:05"), err))
+		logger.Error("Failed to acknowledge Worker Node about registration result: %v", err)
 		return false
 	}
 
-	fmt.Printf(green.Sprintf("[%s] Successfully registered Worker Node '%s': %s\n", time.Now().Format("02-01-2006 15:04:05"), newWorker.GetName(), createWorkerResponse.WorkerId))
+	logger.Success("Successfully registered Worker Node '%s': %s", newWorker.GetName(), workerData.UUID)
 	return true
 }
 
@@ -300,7 +290,6 @@ func (wh *WorkerHandler) WatchNodes() {
 
 	// Keep running until stopped
 	<-stopStructCh
-	fmt.Println("Stopping application...")
 }
 
 // setupSignalHandler sets up a signal handler for graceful termination.
