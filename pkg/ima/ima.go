@@ -14,7 +14,7 @@ import (
 )
 
 const containerRuntimeDependencies = "/usr/bin/containerd:/usr/bin/containerd:/usr/lib/systemd/systemd:swapper/0"
-const containerRuntimeName = "/usr/bin/containerd-shim-runc-v2"
+const ContainerRuntimeName = "/usr/bin/containerd-shim-runc-v2"
 const containerRuntimeEngineId = "containerd"
 
 const CgpathTemplateEntryFields = 7
@@ -115,7 +115,7 @@ func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string) ([]
 		}
 
 		// entry is host container-related not a pod entry
-		if filePathField == containerRuntimeName || depField == containerRuntimeDependencies {
+		if filePathField == ContainerRuntimeName || depField == containerRuntimeDependencies {
 			// Create a unique key by combining filePath and fileHash
 			entryKey := fmt.Sprintf("%s:%s", filePathField, fileHash)
 

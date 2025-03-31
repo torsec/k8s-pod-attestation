@@ -92,43 +92,43 @@ func GenerateCredentialActivation(AIKNameData string, ekPublic *rsa.PublicKey, a
 	return encodedCredentialBlob, encodedEncryptedSecret, nil
 }
 
-func ValidatePodQuote(podQuote *model.InputQuote, nonce []byte) (string, string, string, error) {
+func ValidatePodQuoteStructure(podQuote *model.InputQuote, nonce []byte) (string, string, string, error) {
 	// Decode Base64-encoded quote and signature
 	quoteBytes, err := base64.StdEncoding.DecodeString(podQuote.Quote)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to decode Quote: %v", err)
+		return "", "", "", fmt.Errorf("failed to decode Quote: %v", err)
 	}
 
 	// Decode Base64-encoded quote and signature
 	quoteSig, err := base64.StdEncoding.DecodeString(podQuote.RawSig)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to decode Quote: %v", err)
+		return "", "", "", fmt.Errorf("failed to decode Quote: %v", err)
 	}
 
 	sig, err := tpm2legacy.DecodeSignature(bytes.NewBuffer(quoteSig))
 	if err != nil {
-		return "", "", fmt.Errorf("failed to decode quote Signature")
+		return "", "", "", fmt.Errorf("failed to decode quote Signature")
 	}
 
 	// Decode and check for magic TPMS_GENERATED_VALUE.
 	attestationData, err := tpm2legacy.DecodeAttestationData(quoteBytes)
 	if err != nil {
-		return "", "", fmt.Errorf("decoding quote attestation data failed: %v", err)
+		return "", "", "", fmt.Errorf("decoding quote attestation data failed: %v", err)
 	}
 	if attestationData.Type != tpm2legacy.TagAttestQuote {
-		return "", "", fmt.Errorf("expected quote tag, got: %v", attestationData.Type)
+		return "", "", "", fmt.Errorf("expected quote tag, got: %v", attestationData.Type)
 	}
 	attestedQuoteInfo := attestationData.AttestedQuoteInfo
 	if attestedQuoteInfo == nil {
-		return "", "", fmt.Errorf("attestation data does not contain quote info")
+		return "", "", "", fmt.Errorf("attestation data does not contain quote info")
 	}
 	if subtle.ConstantTimeCompare(attestationData.ExtraData, nonce) == 0 {
-		return "", "", fmt.Errorf("quote extraData %v did not match expected extraData %v", attestationData.ExtraData, nonce)
+		return "", "", "", fmt.Errorf("quote extraData %v did not match expected extraData %v", attestationData.ExtraData, nonce)
 	}
 
 	inputPCRs, err := convertPCRs(podQuote.PCRset.PCRs)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to convert PCRs from received quote")
+		return "", "", "", fmt.Errorf("failed to convert PCRs from received quote")
 	}
 
 	quotePCRs := &pb.PCRs{
@@ -138,18 +138,22 @@ func ValidatePodQuote(podQuote *model.InputQuote, nonce []byte) (string, string,
 
 	pcrHashAlgo, err := convertToCryptoHash(quotePCRs.GetHash())
 	if err != nil {
-		return "", "", fmt.Errorf("failed to parse hash algorithm: %v", err)
+		return "", "", "", fmt.Errorf("failed to parse hash algorithm: %v", err)
 	}
 
 	err = validatePCRDigest(attestedQuoteInfo, quotePCRs, pcrHashAlgo)
 	if err != nil {
-		return "", "", fmt.Errorf("PCRs digest validation failed: %v", err)
+		return "", "", "", fmt.Errorf("PCRs digest validation failed: %v", err)
 	}
 
-	return hex.EncodeToString(quotePCRs.GetPcrs()[10]), quotePCRs.GetHash().String(), nil
+	encodedSig := base64.StdEncoding.EncodeToString(sig.RSA.Signature)
+	pcr10content := hex.EncodeToString(quotePCRs.GetPcrs()[10])
+	pcrHash := quotePCRs.GetHash().String()
+
+	return encodedSig, pcr10content, pcrHash, nil
 }
+
 func ValidateWorkerQuote(workerQuote *model.InputQuote, nonce []byte, AIK *rsa.PublicKey) (string, string, error) {
-	// Decode Base64-encoded quote and signature
 	quoteBytes, err := base64.StdEncoding.DecodeString(workerQuote.Quote)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to decode Quote: %v", err)
@@ -207,7 +211,10 @@ func ValidateWorkerQuote(workerQuote *model.InputQuote, nonce []byte, AIK *rsa.P
 		return "", "", fmt.Errorf("PCRs digest validation failed: %v", err)
 	}
 
-	return hex.EncodeToString(attestedQuoteInfo.PCRDigest), quotePCRs.GetHash().String(), nil
+	bootAggregate := hex.EncodeToString(attestedQuoteInfo.PCRDigest)
+	pcrHash := quotePCRs.GetHash().String()
+
+	return bootAggregate, pcrHash, nil
 }
 
 func convertToCryptoHash(algo pb.HashAlgo) (crypto.Hash, error) {

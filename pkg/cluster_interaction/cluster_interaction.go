@@ -33,13 +33,21 @@ type ClusterInteraction struct {
 
 // Pod status possible values
 const (
-	NewPodStatus            = "NEW"
-	TrustedPodStatus        = "TRUSTED"
-	UntrustedPodStatus      = "UNTRUSTED"
-	UnknownPodStatus        = "UNKNOWN"
-	DeletedPodStatus        = "DELETED"
-	PodAttestationNamespace = "attestation-system"
+	NewPodStatus       = "NEW"
+	TrustedPodStatus   = "TRUSTED"
+	UntrustedPodStatus = "UNTRUSTED"
+	UnknownPodStatus   = "UNKNOWN"
+	DeletedPodStatus   = "DELETED"
 )
+
+const (
+	TrustedNodeStatus   = "TRUSTED"
+	UntrustedNodeStatus = "UNTRUSTED"
+	UnknownNodeStatus   = "UNKNOWN"
+	DeletedNodeStatus   = "DELETED"
+)
+
+const PodAttestationNamespace = "attestation-system"
 
 // Define the GroupVersionResource for the Agent CRD
 var AgentGVR = schema.GroupVersionResource{
@@ -97,7 +105,7 @@ func (c *ClusterInteraction) DeleteAttestationRequestCRDInstance(crdObj interfac
 	resourceName := unstructuredObj.GetName()
 
 	// Delete the AttestationRequest CR in the given namespace
-	err := c.DynamicClient.Resource(attestationRequestGVR).Namespace(PodAttestationNamespace).Delete(context.TODO(), resourceName, metav1.DeleteOptions{})
+	err := c.DynamicClient.Resource(AttestationRequestGVR).Namespace(PodAttestationNamespace).Delete(context.TODO(), resourceName, metav1.DeleteOptions{})
 	if err != nil {
 		return false, fmt.Errorf("failed to delete attestation request CRD: %v", err)
 	}
@@ -185,7 +193,7 @@ func (c *ClusterInteraction) DeleteAgentCRDInstance(nodeName string) error {
 	agentCRDName := fmt.Sprintf("agent-%s", nodeName)
 
 	// Delete the Agent CRD instance in the "kube-system" namespace
-	err := c.DynamicClient.Resource(agentGVR).Namespace(PodAttestationNamespace).Delete(context.TODO(), agentCRDName, metav1.DeleteOptions{})
+	err := c.DynamicClient.Resource(AgentGVR).Namespace(PodAttestationNamespace).Delete(context.TODO(), agentCRDName, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("error deleting Agent CRD instance: %v\n", err)
 
@@ -311,7 +319,7 @@ func (c *ClusterInteraction) IssueAttestationRequestCRD(podName, podUID, tenantI
 	}
 
 	// Create the AttestationRequest CR in the attestation namespace
-	_, err := c.DynamicClient.Resource(agentGVR).Namespace(PodAttestationNamespace).Create(context.TODO(), attestationRequest, metav1.CreateOptions{})
+	_, err := c.DynamicClient.Resource(AgentGVR).Namespace(PodAttestationNamespace).Create(context.TODO(), attestationRequest, metav1.CreateOptions{})
 	if err != nil {
 		return false, fmt.Errorf("failed to create attestation request: %v", err)
 	}
@@ -320,7 +328,7 @@ func (c *ClusterInteraction) IssueAttestationRequestCRD(podName, podUID, tenantI
 
 func (c *ClusterInteraction) CheckAgentCRD(agentCRDName, podName, tenantId string) (bool, error) {
 	// Use the dynamic client to get the CRD by name
-	crd, err := c.DynamicClient.Resource(agentGVR).Namespace(PodAttestationNamespace).Get(context.TODO(), agentCRDName, metav1.GetOptions{})
+	crd, err := c.DynamicClient.Resource(AgentGVR).Namespace(PodAttestationNamespace).Get(context.TODO(), agentCRDName, metav1.GetOptions{})
 	if err != nil {
 		return false, fmt.Errorf("failed to retrieve Agent CRD: %v", err)
 	}
@@ -632,7 +640,7 @@ func (c *ClusterInteraction) CreateAgentCRDInstance(nodeName string) (bool, erro
 		},
 	}
 	// Create the Agent CRD instance in the kube-system namespace
-	_, err = c.DynamicClient.Resource(agentGVR).Namespace(PodAttestationNamespace).Create(context.TODO(), agent, metav1.CreateOptions{})
+	_, err = c.DynamicClient.Resource(AgentGVR).Namespace(PodAttestationNamespace).Create(context.TODO(), agent, metav1.CreateOptions{})
 	if err != nil {
 		return false, fmt.Errorf("error creating Agent CRD instance '%s': %v", agentName, err)
 	}
@@ -789,7 +797,7 @@ func (c *ClusterInteraction) DefineAttestationRequestCRD() error {
 
 func (c *ClusterInteraction) UpdateAgentCRDWithAttestationResult(attestationResult *model.AttestationResult) (bool, error) {
 	// Get the dynamic client resource interface for the CRD
-	crdResource := c.DynamicClient.Resource(agentGVR).Namespace(PodAttestationNamespace) // Modify namespace if needed
+	crdResource := c.DynamicClient.Resource(AgentGVR).Namespace(PodAttestationNamespace) // Modify namespace if needed
 
 	// Fetch the CRD instance for the given node
 	agentCrdInstance, err := crdResource.Get(context.Background(), attestationResult.Agent, metav1.GetOptions{})

@@ -246,7 +246,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 
-	bootAggregate, hashAlg, err := tpm_attestation.ValidateWorkerQuote(inputQuote, quoteNonce, AIKPublicKey)
+	bootAggregate, pcrHashAlgo, err := tpm_attestation.ValidateWorkerQuote(inputQuote, quoteNonce, AIKPublicKey)
 	if err != nil {
 		logger.Error("Failed to validate Worker Quote: %v", err)
 		return false
@@ -255,7 +255,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	workerWhitelistCheckRequest := &model.WorkerWhitelistCheckRequest{
 		OsName:        newWorker.Status.NodeInfo.OSImage,
 		BootAggregate: bootAggregate,
-		HashAlg:       hashAlg,
+		HashAlg:       pcrHashAlgo,
 	}
 
 	whitelistResponse, err := wh.whitelistClient.CheckWorkerWhitelist(workerWhitelistCheckRequest)
