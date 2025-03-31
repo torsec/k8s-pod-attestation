@@ -1,20 +1,19 @@
 package verifier
 
 import (
-	"crypto/rsa"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/torsec/k8s-pod-attestation/pkg/agent"
 	"github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
+	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"github.com/torsec/k8s-pod-attestation/pkg/ima"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"github.com/torsec/k8s-pod-attestation/pkg/registrar"
 	"github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation"
 	"github.com/torsec/k8s-pod-attestation/pkg/whitelist"
-	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
@@ -29,9 +28,9 @@ const attestationNoncesize = 16
 type Verifier struct {
 	clusterInteractor *cluster_interaction.ClusterInteraction
 	informerFactory   dynamicinformer.DynamicSharedInformerFactory
-	agentClient 	  *agent.Client
-	registrarClient 	*registrar.Client
-	whitelistClient *whitelist.Client
+	agentClient       *agent.Client
+	registrarClient   *registrar.Client
+	whitelistClient   *whitelist.Client
 	attestationSecret []byte
 	privateKey        string
 }
@@ -433,7 +432,7 @@ func (v *Verifier) WatchAttestationRequestCRDs() {
 
 	// Wait for the informer to sync
 	if !cache.WaitForCacheSync(stopStructCh, attestationRequestInformer.HasSynced) {
-		logger.Error("Timed out waiting for caches to sync"))
+		logger.Error("Timed out waiting for caches to sync")
 		return
 	}
 

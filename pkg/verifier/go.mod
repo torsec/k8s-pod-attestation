@@ -10,7 +10,7 @@ require (
 	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250331145240-2eeff6c67866
 	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250331145240-2eeff6c67866
 	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250331145240-2eeff6c67866
-	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250331133718-37f41103a12a
+	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250331145240-2eeff6c67866
 	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250331145240-2eeff6c67866
 	k8s.io/apimachinery v0.32.3
 	k8s.io/client-go v0.32.3

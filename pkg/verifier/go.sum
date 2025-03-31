@@ -186,6 +186,8 @@ github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250331145240-2eeff6c67866
 github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250331145240-2eeff6c67866/go.mod h1:c36+cMN2yJT8q2CDbs7QhXIflRHXpTExB2J/AtyISJQ=
 github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250331133718-37f41103a12a h1:K25Kq8MPB4xHrmb7uNOZAs4wkOafiDCIvsFomk2uids=
 github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250331133718-37f41103a12a/go.mod h1:GsyVjvUaCrUGH2MGUE8zHEeTA1SITjiAIsVsHOA+Ajg=
+github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250331145240-2eeff6c67866 h1:nEB0bBv1HsCAKN9Fk/DlSV+ImR1kHVRtHBXoQD4/8cM=
+github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250331145240-2eeff6c67866/go.mod h1:GsyVjvUaCrUGH2MGUE8zHEeTA1SITjiAIsVsHOA+Ajg=
 github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250331133718-37f41103a12a h1:aGqnf4SG0Eoa6tt01p2Q2skEc26SpSUYGDLre1FIXrk=
 github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250331133718-37f41103a12a/go.mod h1:KFFB48M4rDVxJJX2MJEbaT0Q3EbdIfzRdVvEuznj+5Y=
 github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250331145240-2eeff6c67866 h1:D6Mi+tMEBds2pRUbtfsFed+KhtttVUM7+tMbF6KOQCs=
