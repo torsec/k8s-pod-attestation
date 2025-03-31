@@ -14,7 +14,6 @@ import (
 	"github.com/torsec/k8s-pod-attestation/pkg/registrar"
 	"github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation"
 	"github.com/torsec/k8s-pod-attestation/pkg/whitelist"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -37,8 +36,7 @@ type Verifier struct {
 	privateKey        string
 }
 
-func (v *Verifier) Init(attestationEnabledNamespaces []string, defaultResync int, attestationSecret []byte, privateKey string, registrarClient *registrar.Client, whitelistClient *whitelist.Client) error {
-	v.clusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
+func (v *Verifier) Init(defaultResync int, attestationSecret []byte, privateKey string, registrarClient *registrar.Client, whitelistClient *whitelist.Client) {
 	v.clusterInteractor.ConfigureKubernetesClient()
 	v.informerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(v.clusterInteractor.DynamicClient, time.Minute*time.Duration(defaultResync), cluster_interaction.PodAttestationNamespace, nil)
 	v.attestationSecret = attestationSecret
