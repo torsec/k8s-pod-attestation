@@ -64,6 +64,33 @@ func DecodePublicKeyFromPEM(publicKeyPEM []byte) (*rsa.PublicKey, error) {
 	return rsaPubKey, nil
 }
 
+// Utility function: Sign a message using the provided private key
+func SignMessage(privateKeyPEM string, message []byte) ([]byte, error) {
+	// Decode the PEM-encoded private key
+	block, _ := pem.Decode([]byte(privateKeyPEM))
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block containing private key")
+	}
+
+	// Parse the private key from the PEM block
+	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse PKCS1 private key: %v", err)
+	}
+
+	// Hash the message using SHA256
+	hashed := sha256.Sum256(message)
+
+	// Sign the hashed message using the private key
+	signature, err := rsa.SignPKCS1v15(rand.Reader, rsaPrivKey, crypto.SHA256, hashed[:])
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign message: %v", err)
+	}
+
+	// Encode the signature in Base64 and return it
+	return signature, nil
+}
+
 func Hash(message []byte) ([]byte, error) {
 	// Compute SHA256 hash
 	hash := sha256.New()

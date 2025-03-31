@@ -5,6 +5,7 @@ import (
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"github.com/torsec/k8s-pod-attestation/pkg/registrar"
+	"github.com/torsec/k8s-pod-attestation/pkg/whitelist"
 	"github.com/torsec/k8s-pod-attestation/pkg/worker_handler"
 	"log"
 	"os"
@@ -29,6 +30,7 @@ var (
 	agentConfig                  *model.AgentConfig
 	workerHandler                *worker_handler.WorkerHandler
 	registrarClient              *registrar.Client
+	whitelistClient              *whitelist.Client
 )
 
 // loadEnvironmentVariables loads required environment variables and sets default values if necessary.
@@ -50,7 +52,6 @@ func loadEnvironmentVariables() {
 	tpmPath = getEnv("TPM_PATH", "/dev/tpm0")
 	agentImageName = getEnv("AGENT_IMAGE_NAME", "")
 	defaultResyncEnv := getEnv("DEFAULT_RESYNC", "3")
-
 	defaultResync, err = strconv.Atoi(defaultResyncEnv)
 	if err != nil {
 		logger.Fatal("failed to parse DEFAULT_RESYNC: %v", err)
@@ -90,7 +91,8 @@ func main() {
 
 	registrarClient = &registrar.Client{}
 	registrarClient.Init(registrarHost, registrarPort, nil)
-
+	whitelistClient = &whitelist.Client{}
+	whitelistClient.Init(whitelistHost, whitelistPort, nil)
 	workerHandler = &worker_handler.WorkerHandler{}
 	workerHandler.Init(attestationEnabledNamespaces, defaultResync, registrarClient, agentConfig, whitelistClient)
 	workerHandler.WatchNodes()

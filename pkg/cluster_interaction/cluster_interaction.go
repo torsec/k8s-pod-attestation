@@ -42,10 +42,17 @@ const (
 )
 
 // Define the GroupVersionResource for the Agent CRD
-var agentGVR = schema.GroupVersionResource{
+var AgentGVR = schema.GroupVersionResource{
 	Group:    AgentCRDGroup, // Group name defined in your CRD
 	Version:  AgentCRDVersion,
 	Resource: AgentCRDResourcePlural, // Plural form of the CRD resource name
+}
+
+// Define the GroupVersionResource (GVR) for your CRD
+var AttestationRequestGVR = schema.GroupVersionResource{
+	Group:    AttestationRequestCRDGroup,
+	Version:  AttestationRequestCRDVersion,
+	Resource: AttestationRequestCRDResourcePlural, // plural name of the CRD
 }
 
 const KubeSystemNamespace = "kube-system"
@@ -59,8 +66,17 @@ const (
 	AgentCRDListKind         = "AgentList"
 	AgentCRDResourceSingular = "agent"
 	AgentCRDKind             = "Agent"
-	APIVersion               = AgentCRDGroup + "/" + AgentCRDVersion
-	Kind                     = "AttestationRequest"
+	AgentCRDApiVersion       = AgentCRDGroup + "/" + AgentCRDVersion
+)
+
+const (
+	AttestationRequestCRDName             = "attestationrequests.example.com"
+	AttestationRequestCRDGroup            = "example.com"
+	AttestationRequestCRDVersion          = "v1"
+	AttestationRequestCRDResourcePlural   = "attestationrequests"
+	AttestationRequestCRDResourceSingular = "attestationrequest"
+	AttestationRequestCRDListKind         = "AttestationRequestList"
+	AttestationRequestCRDKind             = "AttestationRequest"
 )
 
 const (
@@ -70,6 +86,54 @@ const (
 const (
 	ControlPlaneLabel = "node-role.kubernetes.io/control-plane"
 )
+
+func (c *ClusterInteraction) DeleteAttestationRequestCRDInstance(crdObj interface{}) (bool, error) {
+	// Assert that crdObj is of type *unstructured.Unstructured
+	unstructuredObj, ok := crdObj.(*unstructured.Unstructured)
+	if !ok {
+		return false, fmt.Errorf("invalid AttestationRequest CRD object")
+	}
+
+	resourceName := unstructuredObj.GetName()
+
+	// Delete the AttestationRequest CR in the given namespace
+	err := c.DynamicClient.Resource(attestationRequestGVR).Namespace(PodAttestationNamespace).Delete(context.TODO(), resourceName, metav1.DeleteOptions{})
+	if err != nil {
+		return false, fmt.Errorf("failed to delete attestation request CRD: %v", err)
+	}
+	return true, nil
+}
+
+// getPodImageDataByUID retrieves the image and its digest of a pod given its UID
+func (c *ClusterInteraction) GetPodImageDataByUid(podUid string) (string, string, error) {
+	// List all pods in the cluster (you may want to filter by namespace in production)
+	pods, err := c.ClientSet.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return "", "", fmt.Errorf("failed to list pods: %v", err)
+	}
+
+	// Iterate over the pods to find the one with the matching UID
+	for _, pod := range pods.Items {
+		if string(pod.UID) == podUid {
+			// If pod found, return the image and its digest (if available)
+			if len(pod.Spec.Containers) > 0 {
+				imageName := pod.Spec.Containers[0].Image
+				imageDigest := ""
+				// Check if image digest is available
+				for _, status := range pod.Status.ContainerStatuses {
+					if status.Name == pod.Spec.Containers[0].Name && status.ImageID != "" {
+						imageDigest = status.ImageID
+						return imageName, imageDigest, nil
+					}
+				}
+				return "", "", fmt.Errorf("no image digest found in pod with uid: '%s'", podUid)
+			}
+			return "", "", fmt.Errorf("no containers found in pod with UID: '%s'", podUid)
+		}
+	}
+	// If no pod is found with the given UID
+	return "", "", fmt.Errorf("no pod found with UID: '%s'", podUid)
+}
 
 // ConfigureKubernetesClient initializes the Kubernetes client by retrieving the kubeconfig file from home directory of current user under /.kube/config
 func (c *ClusterInteraction) ConfigureKubernetesClient() {
@@ -203,20 +267,40 @@ func (c *ClusterInteraction) DeleteAllPodsFromNode(nodeName string) (bool, error
 	return true, nil
 }
 
+// GetAgentPort returns the NodePort for a given service in a namespace
+func (c *ClusterInteraction) GetAgentPort(agentName string) (int32, error) {
+	agentServiceName := fmt.Sprintf("%s-service", agentName)
+
+	// Get the Service from the given namespace
+	service, err := c.ClientSet.CoreV1().Services(PodAttestationNamespace).Get(context.TODO(), agentServiceName, metav1.GetOptions{})
+	if err != nil {
+		return -1, fmt.Errorf("failed to get service: %v", err)
+	}
+
+	// Iterate through the service ports to find a NodePort
+	for _, port := range service.Spec.Ports {
+		if port.NodePort != 0 {
+			return port.NodePort, nil
+		}
+	}
+
+	return -1, fmt.Errorf("no NodePort found for service %s", agentServiceName)
+}
+
 func (c *ClusterInteraction) IssueAttestationRequestCRD(podName, podUID, tenantId, agentName, agentIP, hmac string) (bool, error) {
 	attestationRequestName := fmt.Sprintf("attestation-request-%s", podName)
 
 	// Create an unstructured object to represent the AttestationRequest
 	attestationRequest := &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": APIVersion,
-			"kind":       Kind,
+			"apiVersion": AgentCRDApiVersion,
+			"kind":       AgentCRDKind,
 			"metadata": map[string]interface{}{
 				"name": attestationRequestName, // Unique name for the custom resource
 			},
 			"spec": map[string]interface{}{
 				"podName":   podName,
-				"podUID":    podUID,
+				"podUid":    podUID,
 				"tenantId":  tenantId,
 				"agentName": agentName,
 				"agentIP":   agentIP,
@@ -533,7 +617,7 @@ func (c *ClusterInteraction) CreateAgentCRDInstance(nodeName string) (bool, erro
 	// Construct the Agent CRD instance
 	agent := &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": APIVersion,
+			"apiVersion": AgentCRDApiVersion,
 			"kind":       AgentCRDKind,
 			"metadata": map[string]interface{}{
 				"name":      agentName,
@@ -634,4 +718,122 @@ func (c *ClusterInteraction) DefineAgentCRD() error {
 		return fmt.Errorf("failed to define Agent CRD")
 	}
 	return nil
+}
+
+func (c *ClusterInteraction) DefineAttestationRequestCRD() error {
+	// Define the CustomResourceDefinition
+	attestationRequestCRD := &apiextensionsv1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: AttestationRequestCRDName,
+		},
+		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
+			Group: AttestationRequestCRDGroup,
+			Names: apiextensionsv1.CustomResourceDefinitionNames{
+				Kind:     AttestationRequestCRDKind,
+				ListKind: AttestationRequestCRDListKind,
+				Plural:   AttestationRequestCRDResourcePlural,
+				Singular: AttestationRequestCRDResourceSingular,
+			},
+			Scope: apiextensionsv1.NamespaceScoped,
+			Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
+				{
+					Name:    AttestationRequestCRDVersion,
+					Served:  true,
+					Storage: true,
+					Schema: &apiextensionsv1.CustomResourceValidation{
+						OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
+							Type: "object",
+							Properties: map[string]apiextensionsv1.JSONSchemaProps{
+								"spec": {
+									Type: "object",
+									Properties: map[string]apiextensionsv1.JSONSchemaProps{
+										"podName": {
+											Type: "string",
+										},
+										"podUid": {
+											Type: "string",
+										},
+										"tenantId": {
+											Type: "string",
+										},
+										"agentName": {
+											Type: "string",
+										},
+										"agentIp": {
+											Type: "string",
+										},
+										"issued": {
+											Type:   "string",
+											Format: "date-time",
+										},
+										"hmac": {
+											Type: "string",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create the CRD
+	attestationRequestCRD, err := c.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.TODO(), attestationRequestCRD, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to define Attestation Request CRD")
+	}
+	return nil
+}
+
+func (c *ClusterInteraction) UpdateAgentCRDWithAttestationResult(attestationResult *model.AttestationResult) (bool, error) {
+	// Get the dynamic client resource interface for the CRD
+	crdResource := c.DynamicClient.Resource(agentGVR).Namespace(PodAttestationNamespace) // Modify namespace if needed
+
+	// Fetch the CRD instance for the given node
+	agentCrdInstance, err := crdResource.Get(context.Background(), attestationResult.Agent, metav1.GetOptions{})
+	if err != nil {
+		return false, fmt.Errorf("failed to get Agent CRD: '%s'", attestationResult.Agent)
+	}
+
+	// Get the 'spec' field of the CRD
+	spec := agentCrdInstance.Object["spec"].(map[string]interface{})
+
+	switch attestationResult.TargetType {
+	case "Node":
+		spec["nodeStatus"] = attestationResult.Result
+		spec["lastUpdate"] = time.Now().Format(time.RFC3339)
+
+	case "Pod":
+		// Fetch the 'podStatus' array
+		podStatusList := spec["podStatus"].([]interface{})
+
+		// Iterate through the 'podStatus' array to find and update the relevant pod
+		for i, ps := range podStatusList {
+			pod := ps.(map[string]interface{})
+			if pod["podName"].(string) == attestationResult.Target {
+				// Update pod attributes
+				pod["status"] = attestationResult.Result
+				pod["reason"] = attestationResult.Reason
+				pod["lastCheck"] = time.Now().Format(time.RFC3339)
+
+				// Replace the updated pod back in the podStatus array
+				podStatusList[i] = pod
+				break
+			}
+		}
+		// Update the CRD spec with the modified 'podStatus' array
+		spec["podStatus"] = podStatusList
+		spec["lastUpdate"] = time.Now().Format(time.RFC3339)
+	}
+
+	agentCrdInstance.Object["spec"] = spec
+
+	// Push the updates back to the Kubernetes API
+	_, err = crdResource.Update(context.Background(), agentCrdInstance, metav1.UpdateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("failed to update Agent CRD '%s'", attestationResult.Agent)
+	}
+	return true, nil
 }

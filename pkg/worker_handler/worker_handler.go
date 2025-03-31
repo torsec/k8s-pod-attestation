@@ -48,12 +48,13 @@ func (wh *WorkerHandler) Init(attestationEnabledNamespaces []string, defaultResy
 	wh.clusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
 	wh.clusterInteractor.ConfigureKubernetesClient()
 	wh.informerFactory = informers.NewSharedInformerFactory(wh.clusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
-	if err := wh.clusterInteractor.DefineAgentCRD() {
+	err := wh.clusterInteractor.DefineAgentCRD()
+	if err != nil {
 		logger.Fatal("Failed to define agent CRD: %v", err)
 	}
 	wh.registrarClient = registrarClient
 	wh.agentConfig = agentConfig
-	wh.agentClient = whitelistClient
+	wh.whitelistClient = whitelistClient
 }
 
 func (wh *WorkerHandler) SetAgentClient(agentClient *agent.Client) {
@@ -251,15 +252,20 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 
-	workerWhitelistCheckRequest := model.WorkerWhitelistCheckRequest{
+	workerWhitelistCheckRequest := &model.WorkerWhitelistCheckRequest{
 		OsName:        newWorker.Status.NodeInfo.OSImage,
 		BootAggregate: bootAggregate,
 		HashAlg:       hashAlg,
 	}
 
-	err = verifyBootAggregate(workerWhitelistCheckRequest)
+	whitelistResponse, err := wh.whitelistClient.CheckWorkerWhitelist(workerWhitelistCheckRequest)
 	if err != nil {
 		logger.Error("Worker Boot validation failed: %v", err)
+		return false
+	}
+
+	if whitelistResponse.Status != model.Success {
+		logger.Error("Invalid Worker Boot measurements: %v", whitelistResponse.Message)
 		return false
 	}
 

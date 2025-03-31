@@ -6,7 +6,6 @@ import (
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	"os"
@@ -126,11 +125,7 @@ func (pw *PodWatcher) WatchPods() {
 func (pw *PodWatcher) updateAgentCRDWithPodStatus(nodeName, podName, tenantId, status string) {
 	agentCRDName := "agent-" + nodeName
 	// Get the current CRD instance
-	crdResource := pw.clusterInteractor.DynamicClient.Resource(schema.GroupVersionResource{
-		Group:    clusterInteraction.AgentCRDGroup,
-		Version:  clusterInteraction.AgentCRDVersion,
-		Resource: clusterInteraction.AgentCRDResource,
-	}).Namespace(clusterInteraction.PodAttestationNamespace)
+	crdResource := pw.clusterInteractor.DynamicClient.Resource(clusterInteraction.AgentGVR).Namespace(clusterInteraction.PodAttestationNamespace)
 
 	crdInstance, err := crdResource.Get(context.Background(), agentCRDName, v1.GetOptions{})
 	if err != nil {

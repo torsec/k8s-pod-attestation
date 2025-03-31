@@ -87,6 +87,14 @@ type ContainerRuntimeWhitelist struct {
 	ValidFiles           []ContainerDependencyWhitelist `json:"validFiles" json:"validFiles"`
 }
 
+type AttestationResult struct {
+	Agent      string
+	Target     string
+	TargetType string
+	Result     string
+	Reason     string
+}
+
 /*
 type PodStatus struct {
 	PodName   string `json:"podName"`
