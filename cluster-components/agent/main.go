@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	agentServer *agent.Server
-	workerTPM   *tpm.TPM
+	agentServer agent.Server
+	workerTPM   tpm.TPM
 	agentHost   string
 	agentPort   int
 	tpmPath     string
@@ -40,12 +40,10 @@ func loadEnvironmentVariables() {
 
 func main() {
 	loadEnvironmentVariables()
-	agentServer = &agent.Server{}
-	workerTPM = &tpm.TPM{}
 	workerTPM.Init(tpmPath)
 	workerTPM.OpenTPM()
 	defer workerTPM.CloseTPM()
 
-	agentServer.Init(agentHost, agentPort, nil, imaMlPath, workerTPM)
+	agentServer.Init(agentHost, agentPort, nil, imaMlPath, &workerTPM)
 	agentServer.Start()
 }

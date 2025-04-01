@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	clusterStatusController *cluster_status_controller.ClusterStatusController
+	clusterStatusController cluster_status_controller.ClusterStatusController
 	defaultResync           int
 )
 

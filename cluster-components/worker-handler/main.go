@@ -27,10 +27,10 @@ var (
 	imaMlPath                    string
 	tpmPath                      string
 	defaultResync                int
-	agentConfig                  *model.AgentConfig
-	workerHandler                *worker_handler.WorkerHandler
-	registrarClient              *registrar.Client
-	whitelistClient              *whitelist.Client
+	agentConfig                  model.AgentConfig
+	workerHandler                worker_handler.WorkerHandler
+	registrarClient              registrar.Client
+	whitelistClient              whitelist.Client
 )
 
 // loadEnvironmentVariables loads required environment variables and sets default values if necessary.
@@ -80,7 +80,7 @@ func getEnv(key, defaultValue string) string {
 func main() {
 	loadEnvironmentVariables()
 
-	agentConfig = &model.AgentConfig{
+	agentConfig = model.AgentConfig{
 		TPMPath:                 tpmPath,
 		IMAMountPath:            imaMountPath,
 		IMAMeasurementLogPath:   imaMlPath,
@@ -89,11 +89,8 @@ func main() {
 		AgentNodePortAllocation: agentNodePortAllocation,
 	}
 
-	registrarClient = &registrar.Client{}
 	registrarClient.Init(registrarHost, registrarPort, nil)
-	whitelistClient = &whitelist.Client{}
 	whitelistClient.Init(whitelistHost, whitelistPort, nil)
-	workerHandler = &worker_handler.WorkerHandler{}
-	workerHandler.Init(attestationEnabledNamespaces, defaultResync, registrarClient, agentConfig, whitelistClient)
+	workerHandler.Init(attestationEnabledNamespaces, defaultResync, &registrarClient, &agentConfig, &whitelistClient)
 	workerHandler.WatchNodes()
 }

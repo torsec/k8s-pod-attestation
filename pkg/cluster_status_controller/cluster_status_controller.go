@@ -14,12 +14,11 @@ import (
 )
 
 type ClusterStatusController struct {
-	clusterInteractor *clusterInteraction.ClusterInteraction
+	clusterInteractor clusterInteraction.ClusterInteraction
 	informerFactory   dynamicinformer.DynamicSharedInformerFactory
 }
 
 func (csc *ClusterStatusController) Init(defaultResync int) {
-	csc.clusterInteractor = &clusterInteraction.ClusterInteraction{}
 	csc.clusterInteractor.ConfigureKubernetesClient()
 	csc.informerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(csc.clusterInteractor.DynamicClient, time.Minute*time.Duration(defaultResync), clusterInteraction.PodAttestationNamespace, nil)
 }

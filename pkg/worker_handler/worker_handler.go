@@ -36,7 +36,7 @@ pQIDAQAB
 )
 
 type WorkerHandler struct {
-	clusterInteractor *cluster_interaction.ClusterInteraction
+	clusterInteractor cluster_interaction.ClusterInteraction
 	informerFactory   informers.SharedInformerFactory
 	registrarClient   *registrar.Client
 	agentConfig       *model.AgentConfig
@@ -45,9 +45,8 @@ type WorkerHandler struct {
 }
 
 func (wh *WorkerHandler) Init(attestationEnabledNamespaces []string, defaultResync int, registrarClient *registrar.Client, agentConfig *model.AgentConfig, whitelistClient *whitelist.Client) {
-	wh.clusterInteractor = &cluster_interaction.ClusterInteraction{}
-	wh.clusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
 	wh.clusterInteractor.ConfigureKubernetesClient()
+	wh.clusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
 	wh.informerFactory = informers.NewSharedInformerFactory(wh.clusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
 	err := wh.clusterInteractor.DefineAgentCRD()
 	if err != nil {

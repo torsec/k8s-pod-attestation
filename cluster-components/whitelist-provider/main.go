@@ -9,7 +9,7 @@ import (
 
 // MongoDB client and global variables
 var (
-	whitelistServer *whitelist.Server
+	whitelistServer whitelist.Server
 	whitelistHost   string
 	whitelistPort   int
 	whitelistUri    string
@@ -37,7 +37,6 @@ func getEnv(key, defaultValue string) string {
 
 func main() {
 	loadEnvironmentVariables()
-	whitelistServer = &whitelist.Server{}
 	whitelistServer.Init(whitelistHost, whitelistPort, whitelistUri, nil)
 	whitelistServer.Start()
 }

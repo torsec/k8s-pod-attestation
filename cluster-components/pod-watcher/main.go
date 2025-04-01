@@ -12,7 +12,7 @@ var (
 	attestationEnabledNamespaces []string
 	attestationNamespaces        string
 	defaultResync                int
-	podWatcher                   *pod_watcher.PodWatcher
+	podWatcher                   pod_watcher.PodWatcher
 )
 
 // loadEnvironmentVariables loads required environment variables and sets default values if necessary.
@@ -46,7 +46,6 @@ func getEnv(key, defaultValue string) string {
 
 func main() {
 	loadEnvironmentVariables()
-	podWatcher = &pod_watcher.PodWatcher{}
 	podWatcher.Init(attestationEnabledNamespaces, defaultResync)
 	podWatcher.WatchPods()
 }

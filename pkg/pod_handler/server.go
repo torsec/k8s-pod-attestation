@@ -24,12 +24,11 @@ type Server struct {
 	registrarClient   *registrar.Client
 	attestationSecret []byte
 	// automatically initialized
-	clusterInteractor *clusterInteraction.ClusterInteraction
+	clusterInteractor clusterInteraction.ClusterInteraction
 	router            *gin.Engine
 }
 
 func (s *Server) Init(podHandlerHost string, podHandlerPort int, tlsCertificate *x509.Certificate, registrarClient *registrar.Client, attestationSecret []byte) {
-	s.clusterInteractor = &clusterInteraction.ClusterInteraction{}
 	s.podHandlerHost = podHandlerHost
 	s.podHandlerPort = podHandlerPort
 	s.tlsCertificate = tlsCertificate

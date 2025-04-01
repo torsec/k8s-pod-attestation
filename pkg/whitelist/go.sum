@@ -109,6 +109,8 @@ github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250401084726-0027f8473
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250401084726-0027f8473ca8/go.mod h1:pP/DpVLMzgLxrc+4AYwjlUolcrIY19P12+RPWCaz/pQ=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250401121408-22b7b995c1dc h1:HrpDT4xHgDInK3UyOjVHtSV+Uz0ULV0v90/ckGHHIqs=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250401121408-22b7b995c1dc/go.mod h1:ZFwzdtvry6L00T1EBbo3D1Sj3Ktj10VhtXqsuuBaQcI=
+github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250401164944-a25aa54fb976 h1:7o9dLzymkT5wCcQ4srXtQXvSQcInucZ/LLxCKr98Keo=
+github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250401164944-a25aa54fb976/go.mod h1:ZFwzdtvry6L00T1EBbo3D1Sj3Ktj10VhtXqsuuBaQcI=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250327121718-2e9daad23d77 h1:xKhfnuLdYQl4X/kj5NMmNavKeYcEbIB72bvOwk14dv4=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250327121718-2e9daad23d77/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250327153511-9b38c322dd0e h1:e4BYlgwT9KVgprPY3Ad5j3+ytUnJUdbO0Zd9BaY8rfA=
@@ -121,6 +123,8 @@ github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250401084726-0027f8473c
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250401084726-0027f8473ca8/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250401121408-22b7b995c1dc h1:Z+isrw/nB8y8SvDwHkvieOtUJWZcAuGERscikMbVCzk=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250401121408-22b7b995c1dc/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250401150006-d678a7d856b5 h1:GytOX0BlzgbRsrDez6a9+DXgmLrI4lZgZBI0jd4EsYk=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250401150006-d678a7d856b5/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
 github.com/twitchyliquid64/golang-asm v0.15.1 h1:SU5vSMR7hnwNxj24w34ZyCi/FmDZTkS4MhqMhdFk5YI=
 github.com/twitchyliquid64/golang-asm v0.15.1/go.mod h1:a1lVb/DtPvCB8fslRZhAngC2+aY1QWCk3Cedj/Gdt08=
 github.com/ugorji/go/codec v1.2.12 h1:9LC83zGrHhuUA9l16C9AHXAqEV/2wBQ4nkvumAE65EE=

@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	attestationVerifier *verifier.Verifier
-	registrarClient     *registrar.Client
-	whitelistClient     *whitelist.Client
+	attestationVerifier verifier.Verifier
+	registrarClient     registrar.Client
+	whitelistClient     whitelist.Client
 	registrarHost       string
 	registrarPort       int
 	whitelistHost       string
@@ -56,12 +56,8 @@ func getEnv(key, defaultValue string) string {
 
 func main() {
 	loadEnvironmentVariables()
-	attestationVerifier = &verifier.Verifier{}
-	registrarClient = &registrar.Client{}
 	registrarClient.Init(registrarHost, registrarPort, nil)
-	whitelistClient = &whitelist.Client{}
 	whitelistClient.Init(whitelistHost, whitelistPort, nil)
-
-	attestationVerifier.Init(defaultResync, attestationSecret, verifierPrivateKey, registrarClient, whitelistClient)
+	attestationVerifier.Init(defaultResync, attestationSecret, verifierPrivateKey, &registrarClient, &whitelistClient)
 	attestationVerifier.WatchAttestationRequestCRDs()
 }

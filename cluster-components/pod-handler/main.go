@@ -11,8 +11,8 @@ import (
 
 // Global variables
 var (
-	podHandlerServer             *pod_handler.Server
-	registrarClient              *registrar.Client
+	podHandlerServer             pod_handler.Server
+	registrarClient              registrar.Client
 	podHandlerHost               string
 	podHandlerPort               int
 	registrarHost                string
@@ -61,9 +61,7 @@ func getEnv(key, defaultValue string) string {
 
 func main() {
 	loadEnvironmentVariables()
-	podHandlerServer = &pod_handler.Server{}
-	registrarClient = &registrar.Client{}
 	registrarClient.Init(registrarHost, registrarPort, nil)
-	podHandlerServer.Init(podHandlerHost, podHandlerPort, nil, registrarClient, attestationSecret)
+	podHandlerServer.Init(podHandlerHost, podHandlerPort, nil, &registrarClient, attestationSecret)
 	podHandlerServer.Start()
 }

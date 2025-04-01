@@ -26,7 +26,7 @@ import (
 const attestationNoncesize = 16
 
 type Verifier struct {
-	clusterInteractor *cluster_interaction.ClusterInteraction
+	clusterInteractor cluster_interaction.ClusterInteraction
 	informerFactory   dynamicinformer.DynamicSharedInformerFactory
 	agentClient       *agent.Client
 	registrarClient   *registrar.Client
@@ -36,7 +36,6 @@ type Verifier struct {
 }
 
 func (v *Verifier) Init(defaultResync int, attestationSecret []byte, privateKey string, registrarClient *registrar.Client, whitelistClient *whitelist.Client) {
-	v.clusterInteractor = &cluster_interaction.ClusterInteraction{}
 	v.clusterInteractor.ConfigureKubernetesClient()
 	err := v.clusterInteractor.DefineAttestationRequestCRD()
 	if err != nil {
