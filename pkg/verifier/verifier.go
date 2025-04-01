@@ -36,6 +36,7 @@ type Verifier struct {
 }
 
 func (v *Verifier) Init(defaultResync int, attestationSecret []byte, privateKey string, registrarClient *registrar.Client, whitelistClient *whitelist.Client) {
+	v.clusterInteractor = &cluster_interaction.ClusterInteraction{}
 	v.clusterInteractor.ConfigureKubernetesClient()
 	v.informerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(v.clusterInteractor.DynamicClient, time.Minute*time.Duration(defaultResync), cluster_interaction.PodAttestationNamespace, nil)
 	v.attestationSecret = attestationSecret

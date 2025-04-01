@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
+	clusterInteraction "github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
 	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
@@ -24,11 +24,12 @@ type Server struct {
 	registrarClient   *registrar.Client
 	attestationSecret []byte
 	// automatically initialized
-	clusterInteractor *cluster_interaction.ClusterInteraction
+	clusterInteractor *clusterInteraction.ClusterInteraction
 	router            *gin.Engine
 }
 
 func (s *Server) Init(podHandlerHost string, podHandlerPort int, tlsCertificate *x509.Certificate, registrarClient *registrar.Client, attestationSecret []byte) {
+	s.clusterInteractor = &clusterInteraction.ClusterInteraction{}
 	s.podHandlerHost = podHandlerHost
 	s.podHandlerPort = podHandlerPort
 	s.tlsCertificate = tlsCertificate

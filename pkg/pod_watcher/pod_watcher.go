@@ -20,6 +20,7 @@ type PodWatcher struct {
 }
 
 func (pw *PodWatcher) Init(attestationEnabledNamespaces []string, defaultResync int) {
+	pw.clusterInteractor = &clusterInteraction.ClusterInteraction{}
 	pw.clusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
 	pw.clusterInteractor.ConfigureKubernetesClient()
 	pw.informerFactory = informers.NewSharedInformerFactory(pw.clusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))

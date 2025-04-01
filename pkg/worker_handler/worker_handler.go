@@ -45,6 +45,7 @@ type WorkerHandler struct {
 }
 
 func (wh *WorkerHandler) Init(attestationEnabledNamespaces []string, defaultResync int, registrarClient *registrar.Client, agentConfig *model.AgentConfig, whitelistClient *whitelist.Client) {
+	wh.clusterInteractor = &cluster_interaction.ClusterInteraction{}
 	wh.clusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
 	wh.clusterInteractor.ConfigureKubernetesClient()
 	wh.informerFactory = informers.NewSharedInformerFactory(wh.clusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
