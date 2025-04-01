@@ -26,7 +26,7 @@ func (c *Client) Init(registrarHost string, registrarPort int, invokerTlsCertifi
 
 // VerifyTenantSignature verifies the provided signature by contacting Server API
 func (c *Client) VerifyTenantSignature(verifySignatureRequest *model.VerifySignatureRequest) (*model.RegistrarResponse, error) {
-	registrarURL := fmt.Sprintf("http://%s:%d/tenant/verify", c.registrarHost, c.registrarPort)
+	registrarURL := fmt.Sprintf("http://%s:%d%s", c.registrarHost, c.registrarPort, TenantVerifySignatureUrl)
 
 	jsonPayload, err := json.Marshal(verifySignatureRequest)
 	if err != nil {
@@ -60,7 +60,7 @@ func (c *Client) VerifyTenantSignature(verifySignatureRequest *model.VerifySigna
 
 // VerifyEKCertificate verifies provided Endorsement Key certificate by rebuilding the certificate chain with the TPM manufacturer intermediate and root CAs
 func (c *Client) VerifyEKCertificate(EKCertcheckRequest model.VerifyTPMEKCertificateRequest) (*model.RegistrarResponse, error) {
-	registrarCertificateValidateURL := fmt.Sprintf("http://%s:%d/worker/verifyEKCertificate", c.registrarHost, c.registrarPort)
+	registrarCertificateValidateURL := fmt.Sprintf("http://%s:%d%s", c.registrarHost, c.registrarPort, WorkerVerifyEkCertUrl)
 
 	// Marshal the attestation request to JSON
 	jsonPayload, err := json.Marshal(EKCertcheckRequest)
@@ -97,7 +97,7 @@ func (c *Client) VerifyEKCertificate(EKCertcheckRequest model.VerifyTPMEKCertifi
 // Create a new worker in the registrar
 
 func (c *Client) CreateWorker(workerNode *model.WorkerNode) (*model.RegistrarResponse, error) {
-	createWorkerURL := fmt.Sprintf("http://%s:%d/worker/create", c.registrarHost, c.registrarPort)
+	createWorkerURL := fmt.Sprintf("http://%s:%d%s", c.registrarHost, c.registrarPort, WorkerCreateUrl)
 
 	jsonData, err := json.Marshal(workerNode)
 	if err != nil {
@@ -129,7 +129,7 @@ func (c *Client) CreateWorker(workerNode *model.WorkerNode) (*model.RegistrarRes
 }
 
 func (c *Client) RemoveWorker(workerName string) (*model.RegistrarResponse, error) {
-	registrarWorkerDeletionURL := fmt.Sprintf("http://%s:%d/worker/deleteByName?name=%s", c.registrarHost, c.registrarPort, workerName)
+	registrarWorkerDeletionURL := fmt.Sprintf("http://%s:%d%s?name=%s", c.registrarHost, c.registrarPort, WorkerDeleteByName, workerName)
 
 	// Create a new HTTP request
 	req, err := http.NewRequest(http.MethodDelete, registrarWorkerDeletionURL, nil)
@@ -166,7 +166,7 @@ func (c *Client) RemoveWorker(workerName string) (*model.RegistrarResponse, erro
 }
 
 func (c *Client) GetWorkerIdByName(nodeName string) (*model.RegistrarResponse, error) {
-	registrarSearchWorkerURL := fmt.Sprintf("http://%s:%d/worker/getIdByName?name=%s", c.registrarHost, c.registrarPort, nodeName)
+	registrarSearchWorkerURL := fmt.Sprintf("http://%s:%d%s?name=%s", c.registrarHost, c.registrarPort, WorkerGetIdByNameUrl, nodeName)
 
 	resp, err := http.Get(registrarSearchWorkerURL)
 	if err != nil {
@@ -195,7 +195,7 @@ func (c *Client) GetWorkerIdByName(nodeName string) (*model.RegistrarResponse, e
 
 // Get Tenant Info from Server
 func (c *Client) GetTenantIdByName(tenantName string) (*model.RegistrarResponse, error) {
-	registrarURL := fmt.Sprintf("http://%s:%d/tenant/getIdByName?name=%s", c.registrarHost, c.registrarPort, tenantName)
+	registrarURL := fmt.Sprintf("http://%s:%d%s?name=%s", c.registrarHost, c.registrarPort, TenantGetIdByNameUrl, tenantName)
 	resp, err := http.Get(registrarURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve Tenant info: %v", err.Error())
@@ -222,7 +222,7 @@ func (c *Client) GetTenantIdByName(tenantName string) (*model.RegistrarResponse,
 
 // VerifyWorkerSignature verifies the provided signature by contacting Server API
 func (c *Client) VerifyWorkerSignature(verifySignatureRequest *model.VerifySignatureRequest) (*model.RegistrarResponse, error) {
-	registrarURL := fmt.Sprintf("http://%s:%d/worker/verify", c.registrarHost, c.registrarPort)
+	registrarURL := fmt.Sprintf("http://%s:%d%s", c.registrarHost, c.registrarPort, WorkerVerifySignatureUrl)
 
 	// Marshal payload to JSON
 	jsonPayload, err := json.Marshal(verifySignatureRequest)
@@ -254,7 +254,7 @@ func (c *Client) VerifyWorkerSignature(verifySignatureRequest *model.VerifySigna
 }
 
 func (c *Client) CreateTenant(tenant *model.Tenant) (*model.RegistrarResponse, error) {
-	createTenantURL := fmt.Sprintf("http://%s:%d/tenant/create", c.registrarHost, c.registrarPort)
+	createTenantURL := fmt.Sprintf("http://%s:%d%s", c.registrarHost, c.registrarPort, TenantCreateUrl)
 
 	jsonData, err := json.Marshal(tenant)
 	if err != nil {
@@ -286,7 +286,7 @@ func (c *Client) CreateTenant(tenant *model.Tenant) (*model.RegistrarResponse, e
 }
 
 func (c *Client) DeleteTenantByName(tenantName string) (*model.RegistrarResponse, error) {
-	deleteTenantURL := fmt.Sprintf("http://%s:%d/tenant/deleteByName?name=%s", c.registrarHost, c.registrarPort, tenantName)
+	deleteTenantURL := fmt.Sprintf("http://%s:%d%s?name=%s", c.registrarHost, c.registrarPort, TenantDeleteByNameUrl, tenantName)
 
 	// Create a new HTTP request
 	req, err := http.NewRequest(http.MethodDelete, deleteTenantURL, nil)

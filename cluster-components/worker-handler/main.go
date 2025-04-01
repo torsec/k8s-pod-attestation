@@ -50,7 +50,7 @@ func loadEnvironmentVariables() {
 	imaMountPath = getEnv("IMA_MOUNT_PATH", "/root/ascii_runtime_measurements")
 	imaMlPath = getEnv("IMA_ML_PATH", "/sys/kernel/security/integrity/ima/ascii_runtime_measurements")
 	tpmPath = getEnv("TPM_PATH", "/dev/tpm0")
-	agentImageName = getEnv("AGENT_IMAGE_NAME", "")
+	agentImageName = getEnv("AGENT_IMAGE_NAME", "franczar/k8s-attestation-agent:latest")
 	defaultResyncEnv := getEnv("DEFAULT_RESYNC", "3")
 	defaultResync, err = strconv.Atoi(defaultResyncEnv)
 	if err != nil {

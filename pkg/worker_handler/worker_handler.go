@@ -67,6 +67,7 @@ func (wh *WorkerHandler) deleteNodeHandling(obj interface{}) {
 	isControlPlane, err := wh.clusterInteractor.NodeIsControlPlane("", node)
 	if err != nil {
 		logger.Error("Failed to determine if node '%s' is control-plane: %v", node.GetName(), err)
+		return
 	}
 
 	if isControlPlane {
@@ -170,6 +171,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		logger.Error("Failed to verify EK Certificate: %v", err)
 		return false
 	}
+
 	if ekVerificationResponse.Status != model.Success {
 		logger.Error("Invalid EK Certificate: %v", err)
 		return false
@@ -183,7 +185,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 
 	ek := ekCert.PublicKey.(*rsa.PublicKey)
 
-	AIKPublicKey, err := tpm_attestation.ValidateAIKPublicData(workerCredentials.AIKNameData, workerCredentials.AIKPublicArea)
+	aikPublicKey, err := tpm_attestation.ValidateAIKPublicData(workerCredentials.AIKNameData, workerCredentials.AIKPublicArea)
 	if err != nil {
 		logger.Error("Failed to validate received Worker AIK: %v", err)
 		return false
@@ -246,7 +248,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 
-	bootAggregate, pcrHashAlgo, err := tpm_attestation.ValidateWorkerQuote(inputQuote, quoteNonce, AIKPublicKey)
+	bootAggregate, pcrHashAlgo, err := tpm_attestation.ValidateWorkerQuote(inputQuote, quoteNonce, aikPublicKey)
 	if err != nil {
 		logger.Error("Failed to validate Worker Quote: %v", err)
 		return false
@@ -269,8 +271,8 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 
-	AIKPublicKeyPEM := cryptoUtils.EncodePublicKeyToPEM(AIKPublicKey)
-	if AIKPublicKeyPEM == nil {
+	aikPublicPem := cryptoUtils.EncodePublicKeyToPEM(aikPublicKey)
+	if aikPublicPem == nil {
 		logger.Error("Failed to parse AIK Public Key to PEM format", err)
 		return false
 	}
@@ -278,7 +280,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	workerNode := &model.WorkerNode{
 		WorkerId: workerCredentials.UUID,
 		Name:     newWorker.GetName(),
-		AIK:      string(AIKPublicKeyPEM),
+		AIK:      string(aikPublicPem),
 	}
 
 	// Create a new worker

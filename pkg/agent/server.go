@@ -255,7 +255,7 @@ func (s *Server) podAttestation(c *gin.Context) {
 	// TODO standardize
 	evidence := model.Evidence{
 		PodName:        attestationRequest.PodName,
-		PodUID:         attestationRequest.PodUid,
+		Poduid:         attestationRequest.PodUid,
 		TenantId:       attestationRequest.TenantId,
 		Quote:          encodedQuote,
 		MeasurementLog: measurementLog,

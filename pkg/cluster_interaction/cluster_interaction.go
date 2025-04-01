@@ -468,7 +468,7 @@ func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, agentConfig *model.
 					Containers: []v1.Container{
 						{
 							Name:  agentContainerName,
-							Image: agentConfig.ImageName, //"franczar/k8s-attestation-agent:latest"
+							Image: agentConfig.ImageName,
 							Env: []v1.EnvVar{
 								{Name: "AGENT_PORT", Value: strconv.Itoa(int(agentConfig.AgentPort))},
 								{Name: "TPM_PATH", Value: agentConfig.TPMPath},

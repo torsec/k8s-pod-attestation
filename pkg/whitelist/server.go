@@ -501,7 +501,7 @@ func (s *Server) dropContainerRuntimeWhitelist(c *gin.Context) {
 }
 
 func (s *Server) Start() {
-	// Initialize Gin router
+	s.initializeMongoDB()
 	s.router = gin.Default()
 
 	// Worker whitelist

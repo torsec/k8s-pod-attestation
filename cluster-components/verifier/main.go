@@ -9,7 +9,6 @@ import (
 	"strconv"
 )
 
-// Color variables for output
 var (
 	attestationVerifier *verifier.Verifier
 	registrarClient     *registrar.Client

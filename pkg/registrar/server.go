@@ -26,6 +26,18 @@ type Server struct {
 	router         *gin.Engine
 }
 
+const (
+	TenantCreateUrl          = "/tenant/create"
+	TenantVerifySignatureUrl = "/tenant/verify/signature"
+	TenantGetIdByNameUrl     = "/tenant/getIdByName"
+	TenantDeleteByNameUrl    = "/tenant/deleteByName"
+	WorkerCreateUrl          = "/worker/create"
+	WorkerVerifySignatureUrl = "/worker/verify/signature"
+	WorkerVerifyEkCertUrl    = "/worker/verify/ekCertificate"
+	WorkerGetIdByNameUrl     = "/worker/getIdByName"
+	WorkerDeleteByName       = "/worker/deleteByName"
+)
+
 func (s *Server) Init(registrarHost string, registrarPort int, tlsCertificate *x509.Certificate) {
 	s.registrarHost = registrarHost
 	s.registrarPort = registrarPort
@@ -615,16 +627,16 @@ func (s *Server) Start() {
 	}(s.db)
 
 	// Define routes for the Tenant API
-	s.router.POST("/tenant/create", s.createTenant)               // POST create tenant
-	s.router.POST("/tenant/verify", s.verifyTenantSignature)      // POST verify tenant signature
-	s.router.GET("/tenant/getIdByName", s.getTenantIdByName)      // GET tenant ID by name
-	s.router.DELETE("/tenant/deleteByName", s.deleteTenantByName) // DELETE tenant by name
+	s.router.POST(TenantCreateUrl, s.createTenant)                   // POST create tenant
+	s.router.POST(TenantVerifySignatureUrl, s.verifyTenantSignature) // POST verify tenant signature
+	s.router.GET(TenantGetIdByNameUrl, s.getTenantIdByName)          // GET tenant ID by name
+	s.router.DELETE(TenantDeleteByNameUrl, s.deleteTenantByName)     // DELETE tenant by name
 
-	s.router.POST("/worker/create", s.createWorker)                           // POST create worker
-	s.router.POST("/worker/verify", s.verifyWorkerSignature)                  // POST verify worker signature
-	s.router.POST("/worker/verifyEKCertificate", s.verifyWorkerEKCertificate) // POST verify worker EK certificate
-	s.router.GET("/worker/getIdByName", s.getWorkerIdByName)                  // GET worker ID by name
-	s.router.DELETE("/worker/deleteByName", s.deleteWorkerByName)             // DELETE worker by Name
+	s.router.POST(WorkerCreateUrl, s.createWorker)                    // POST create worker
+	s.router.POST(WorkerVerifySignatureUrl, s.verifyWorkerSignature)  // POST verify worker signature
+	s.router.POST(WorkerVerifyEkCertUrl, s.verifyWorkerEKCertificate) // POST verify worker EK certificate
+	s.router.GET(WorkerGetIdByNameUrl, s.getWorkerIdByName)           // GET worker ID by name
+	s.router.DELETE(WorkerDeleteByName, s.deleteWorkerByName)         // DELETE worker by Name
 
 	// Start the server
 	logger.Info("server is running on port: %d", s.registrarPort)

@@ -17,6 +17,8 @@ import (
 
 var bootReservedPCRs = []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
+const SimulatorPath = "simulator"
+
 type TPM struct {
 	rwc       io.ReadWriteCloser
 	tpmPath   string
@@ -35,7 +37,7 @@ func (tpm *TPM) OpenTPM() {
 		logger.Fatal("Unable to open TPM: no device path provided")
 	}
 
-	if tpm.tpmPath == "simulator" {
+	if tpm.tpmPath == SimulatorPath {
 		tpm.rwc, err = simulator.GetWithFixedSeedInsecure(1073741825)
 		if err != nil {
 			logger.Fatal("Unable to open TPM simulator: %v", err)
