@@ -790,7 +790,7 @@ func (c *ClusterInteraction) DefineAttestationRequestCRD() error {
 	// Create the CRD
 	attestationRequestCRD, err := c.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.TODO(), attestationRequestCRD, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to define Attestation Request CRD")
+		return fmt.Errorf("failed to define Attestation Request CRD: %v", err)
 	}
 	return nil
 }

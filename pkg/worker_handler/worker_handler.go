@@ -51,7 +51,7 @@ func (wh *WorkerHandler) Init(attestationEnabledNamespaces []string, defaultResy
 	wh.informerFactory = informers.NewSharedInformerFactory(wh.clusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
 	err := wh.clusterInteractor.DefineAgentCRD()
 	if err != nil {
-		logger.Fatal("Failed to define agent CRD: %v", err)
+		logger.Fatal("Failed to initialize Worker Handler: %v", err)
 	}
 	wh.registrarClient = registrarClient
 	wh.agentConfig = agentConfig

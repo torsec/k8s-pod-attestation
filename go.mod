@@ -4,11 +4,11 @@ go 1.23.4
 
 require (
 	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250331133718-37f41103a12a
-	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250331133718-37f41103a12a
+	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250401121408-22b7b995c1dc
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250331123216-7f3d2e899994
 	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250331133718-37f41103a12a
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250327165150-9014ef207988
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250331123216-7f3d2e899994
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250401121408-22b7b995c1dc
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250401121408-22b7b995c1dc
 	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250331133718-37f41103a12a
 	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250331133718-37f41103a12a
 	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250331133718-37f41103a12a
@@ -24,7 +24,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/fatih/color v1.18.0 // indirect
-	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
+	github.com/fxamacker/cbor/v2 v2.8.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/gin-contrib/sse v1.0.0 // indirect
 	github.com/gin-gonic/gin v1.10.0 // indirect
@@ -67,6 +67,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/pod_watcher v0.0.0-20250401150006-d678a7d856b5 // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250327165150-9014ef207988 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
