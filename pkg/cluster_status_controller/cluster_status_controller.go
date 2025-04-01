@@ -5,7 +5,6 @@ import (
 	clusterInteraction "github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
 	"os"
@@ -20,6 +19,7 @@ type ClusterStatusController struct {
 }
 
 func (csc *ClusterStatusController) Init(defaultResync int) {
+	csc.clusterInteractor = &clusterInteraction.ClusterInteraction{}
 	csc.clusterInteractor.ConfigureKubernetesClient()
 	csc.informerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(csc.clusterInteractor.DynamicClient, time.Minute*time.Duration(defaultResync), clusterInteraction.PodAttestationNamespace, nil)
 }
@@ -55,14 +55,8 @@ func extractNodeName(agentName string) (string, error) {
 func (csc *ClusterStatusController) WatchAgentCRDs() {
 	stopCh := setupSignalHandler()
 
-	crdGVR := schema.GroupVersionResource{
-		Group:    clusterInteraction.AgentCRDGroup,
-		Version:  clusterInteraction.AgentCRDVersion,
-		Resource: clusterInteraction.AgentCRDResource,
-	}
-
 	// Get the informer for the CRD
-	agentInformer := csc.informerFactory.ForResource(crdGVR).Informer()
+	agentInformer := csc.informerFactory.ForResource(clusterInteraction.AgentGVR).Informer()
 
 	// Add event handlers
 	_, err := agentInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
