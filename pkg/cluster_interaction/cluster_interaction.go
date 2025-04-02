@@ -556,26 +556,37 @@ func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, agentConfig *model.
 }
 
 // WaitForPodRunning waits for the given pod to reach the "Running" state
-func (c *ClusterInteraction) WaitForPodRunning(namespace, podName string, timeout time.Duration) error {
+func (c *ClusterInteraction) WaitForAllDeploymentPodsRunning(namespace, deploymentName string, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	podNameSelector := fmt.Sprintf("metadata.name=%s", podName)
-	podWatcher, err := c.ClientSet.CoreV1().Pods(namespace).Watch(ctx, metav1.ListOptions{
-		FieldSelector: podNameSelector,
+	// Get deployment to extract label selector
+	deployment, err := c.ClientSet.AppsV1().Deployments(namespace).Get(ctx, deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get deployment '%s': %v", deploymentName, err)
+	}
+
+	// Use deployment's label selector to find matching pods
+	labelSelector := metav1.FormatLabelSelector(deployment.Spec.Selector)
+
+	watcher, err := c.ClientSet.CoreV1().Pods(namespace).Watch(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to watch pod '%s': %v", podName, err)
+		return fmt.Errorf("failed to watch pods for deployment '%s': %v", deploymentName, err)
 	}
-	defer podWatcher.Stop()
+	defer watcher.Stop()
+
+	// Keep track of running pods
+	runningPods := make(map[string]bool)
 
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("timed out waiting for pod '%s' to be running", podName)
-		case event, ok := <-podWatcher.ResultChan():
+			return fmt.Errorf("timed out waiting for all pods of deployment '%s' to be running", deploymentName)
+		case event, ok := <-watcher.ResultChan():
 			if !ok {
-				return fmt.Errorf("watcher closed unexpectedly for pod '%s'", podName)
+				return fmt.Errorf("watcher closed unexpectedly for deployment '%s'", deploymentName)
 			}
 
 			pod, ok := event.Object.(*v1.Pod)
@@ -583,7 +594,23 @@ func (c *ClusterInteraction) WaitForPodRunning(namespace, podName string, timeou
 				return fmt.Errorf("unexpected type while watching pod")
 			}
 
+			// Update running pods tracking
 			if pod.Status.Phase == v1.PodRunning {
+				runningPods[pod.GetName()] = true
+			} else {
+				delete(runningPods, pod.GetName()) // Remove from running list if not in Running phase
+			}
+
+			// Get the latest pod list to check the total number of pods
+			pods, err := c.ClientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+				LabelSelector: labelSelector,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to list pods for deployment '%s': %v", deploymentName, err)
+			}
+
+			// Check if all pods are in the running state
+			if len(runningPods) == len(pods.Items) {
 				return nil
 			}
 		}

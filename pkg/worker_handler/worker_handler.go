@@ -162,7 +162,7 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 
 // workerRegistration registers the worker node by calling the identification API
 func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploymentName string) bool {
-	err := wh.clusterInteractor.WaitForPodRunning(cluster_interaction.PodAttestationNamespace, agentDeploymentName, 1*time.Minute)
+	err := wh.clusterInteractor.WaitForAllDeploymentPodsRunning(cluster_interaction.PodAttestationNamespace, agentDeploymentName, 1*time.Minute)
 	if err != nil {
 		logger.Error("Error while contacting Agent: %v", err)
 		return false

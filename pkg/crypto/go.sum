@@ -22,6 +22,10 @@ github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402110444-f62cb6b322
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402110444-f62cb6b32280/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402123629-48d30d0c63fb h1:h9/x/wpYtGWpzkw4NUfxMbwQkZV8zKiAfl7TyGNwcLM=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402123629-48d30d0c63fb/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402133531-23a39779cf54 h1:yr7TLn6iicv1lPJ7DMHn3UU2LLsvjWq5dQ4b6VFHynU=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402133531-23a39779cf54/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402142050-54878dcb42ed h1:kb+ZhpqA8Yu9Fywx5/liHEf9hF7WW4ndxWwmxtvi6Mk=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402142050-54878dcb42ed/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
 golang.org/x/sys v0.14.0 h1:Vz7Qs629MkJkGyHxUlRHizWJRG2j8fbQKjELVSNhy7Q=
 golang.org/x/sys v0.14.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
 golang.org/x/sys v0.31.0 h1:ioabZlmFYtWhL+TRYpcnNlLwhyxaM9kWTDEmfnprqik=
