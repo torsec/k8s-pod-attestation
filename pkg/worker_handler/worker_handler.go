@@ -187,7 +187,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	}
 
 	if ekVerificationResponse.Status != model.Success {
-		logger.Error("Invalid EK Certificate: %v", err)
+		logger.Error("Invalid EK Certificate: %s", ekVerificationResponse.Message)
 		return false
 	}
 
@@ -287,7 +287,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 
 	aikPublicPem := cryptoUtils.EncodePublicKeyToPEM(aikPublicKey)
 	if aikPublicPem == nil {
-		logger.Error("Failed to parse AIK Public Key to PEM format", err)
+		logger.Error("Failed to parse AIK Public Key to PEM format")
 		return false
 	}
 
@@ -319,7 +319,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	}
 
 	if registrationConfirm.Status != model.Success {
-		logger.Error("Worker Node registration confirmation failed: %v", registrationConfirm)
+		logger.Error("Worker Node registration confirmation failed: %s", registrationConfirm.Message)
 		return false
 	}
 

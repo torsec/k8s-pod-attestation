@@ -6,8 +6,8 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250402142050-54878dcb42ed
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250402142050-54878dcb42ed
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402142050-54878dcb42ed
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250402154414-b85a54c368d4
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402154414-b85a54c368d4
 	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250402142050-54878dcb42ed
 )
 
