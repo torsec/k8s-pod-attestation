@@ -561,25 +561,33 @@ func (c *ClusterInteraction) WaitForPodRunning(namespace, podName string, timeou
 	defer cancel()
 
 	podNameSelector := fmt.Sprintf("metadata.name=%s", podName)
-	watcher, err := c.ClientSet.CoreV1().Pods(namespace).Watch(ctx, metav1.ListOptions{
+	podWatcher, err := c.ClientSet.CoreV1().Pods(namespace).Watch(ctx, metav1.ListOptions{
 		FieldSelector: podNameSelector,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to watch pod '%s': %v", podName, err)
 	}
-	defer watcher.Stop()
+	defer podWatcher.Stop()
 
-	for event := range watcher.ResultChan() {
-		pod, ok := event.Object.(*v1.Pod)
-		if !ok {
-			return fmt.Errorf("unexpected type while watching pod")
-		}
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timed out waiting for pod '%s' to be running", podName)
+		case event, ok := <-podWatcher.ResultChan():
+			if !ok {
+				return fmt.Errorf("watcher closed unexpectedly for pod '%s'", podName)
+			}
 
-		if pod.Status.Phase == v1.PodRunning {
-			return nil
+			pod, ok := event.Object.(*v1.Pod)
+			if !ok {
+				return fmt.Errorf("unexpected type while watching pod")
+			}
+
+			if pod.Status.Phase == v1.PodRunning {
+				return nil
+			}
 		}
 	}
-	return fmt.Errorf("timed out waiting for pod '%s' to be running", podName)
 }
 
 func (c *ClusterInteraction) CreateAgentCRDInstance(nodeName string) (bool, error) {

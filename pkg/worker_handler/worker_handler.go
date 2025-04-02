@@ -82,7 +82,12 @@ func (wh *WorkerHandler) deleteNodeHandling(obj interface{}) {
 		logger.Error("Failed to delete Agent from node '%s': %v", node.GetName(), err)
 		return
 	}
-	logger.Success("Successfully deleted Agent from node '%s'", node.GetName())
+	err = wh.clusterInteractor.DeleteAgentCRDInstance(node.GetName())
+	if err != nil {
+		logger.Error("Failed to delete Agent CRD of node '%s': %v", node.GetName(), err)
+		return
+	}
+	logger.Success("Successfully deleted Agent and Agent CRD of node '%s'", node.GetName())
 }
 
 func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
@@ -138,7 +143,7 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 	isNewWorkerRegistered := wh.workerRegistration(node, agentDeploymentName)
 
 	if !isNewWorkerRegistered {
-		logger.Error("Failed to register node '%s'; deleting node from cluster", node.GetName(), agentPort)
+		logger.Error("Failed to register node '%s'; deleting node from cluster", node.GetName())
 		_, err := wh.clusterInteractor.DeleteNode(node.GetName())
 		if err != nil {
 			logger.Fatal("Failed to delete node '%s': %v", node.GetName(), err)

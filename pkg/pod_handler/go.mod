@@ -8,7 +8,7 @@ require (
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250402123629-48d30d0c63fb
 	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250402123629-48d30d0c63fb
 	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402123629-48d30d0c63fb
-	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402110444-f62cb6b32280
+	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402123629-48d30d0c63fb
 )
 
 require (

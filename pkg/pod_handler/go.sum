@@ -273,6 +273,8 @@ github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402095813-1d681c
 github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402095813-1d681c5e3cf9/go.mod h1:LlsGI56/bsd3knUZdvSyS75CRzsain8RYv20pcKVv8c=
 github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402110444-f62cb6b32280 h1:kqIDEWZssC3QbA4RTyZaPje9sD90DYwy557oR2X2iEA=
 github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402110444-f62cb6b32280/go.mod h1:So4E/HL+aY6JSCFJa1Nvfen0DWqDxjdq+eFi0Qkzb+s=
+github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402123629-48d30d0c63fb h1:snlEyfRJXyHhDMKn0U/HPh29gnwI4UVdvtQzy4nb9g4=
+github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402123629-48d30d0c63fb/go.mod h1:So4E/HL+aY6JSCFJa1Nvfen0DWqDxjdq+eFi0Qkzb+s=
 github.com/twitchyliquid64/golang-asm v0.15.1 h1:SU5vSMR7hnwNxj24w34ZyCi/FmDZTkS4MhqMhdFk5YI=
 github.com/twitchyliquid64/golang-asm v0.15.1/go.mod h1:a1lVb/DtPvCB8fslRZhAngC2+aY1QWCk3Cedj/Gdt08=
 github.com/ugorji/go/codec v1.2.12 h1:9LC83zGrHhuUA9l16C9AHXAqEV/2wBQ4nkvumAE65EE=

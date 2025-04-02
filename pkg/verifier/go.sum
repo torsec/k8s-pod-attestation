@@ -300,6 +300,8 @@ github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402095813-1d681c
 github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402095813-1d681c5e3cf9/go.mod h1:LlsGI56/bsd3knUZdvSyS75CRzsain8RYv20pcKVv8c=
 github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402110444-f62cb6b32280 h1:kqIDEWZssC3QbA4RTyZaPje9sD90DYwy557oR2X2iEA=
 github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402110444-f62cb6b32280/go.mod h1:So4E/HL+aY6JSCFJa1Nvfen0DWqDxjdq+eFi0Qkzb+s=
+github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402123629-48d30d0c63fb h1:snlEyfRJXyHhDMKn0U/HPh29gnwI4UVdvtQzy4nb9g4=
+github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402123629-48d30d0c63fb/go.mod h1:So4E/HL+aY6JSCFJa1Nvfen0DWqDxjdq+eFi0Qkzb+s=
 github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250327165150-9014ef207988 h1:SgE64b3P/4jrAnNrSjp0E5WPlEOfP2i9EeF0ULTyj7E=
 github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250327165150-9014ef207988/go.mod h1:c36+cMN2yJT8q2CDbs7QhXIflRHXpTExB2J/AtyISJQ=
 github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250331133718-37f41103a12a h1:tflb2I4C9BulJdHZltNk8s9fqGoxnvYpjgwxvcICBwQ=
