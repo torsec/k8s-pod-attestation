@@ -51,11 +51,11 @@ func (c *Client) VerifyTenantSignature(verifySignatureRequest *model.VerifySigna
 		}
 	}(resp.Body)
 
-	var registrarResponse *model.RegistrarResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+	var registrarResponse model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&registrarResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode signature verification response: %v", err)
 	}
-	return registrarResponse, nil
+	return &registrarResponse, nil
 }
 
 // VerifyEKCertificate verifies provided Endorsement Key certificate by rebuilding the certificate chain with the TPM manufacturer intermediate and root CAs
@@ -87,11 +87,11 @@ func (c *Client) VerifyEKCertificate(EKCertcheckRequest model.VerifyTPMEKCertifi
 		}
 	}(resp.Body)
 
-	var registrarResponse *model.RegistrarResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+	var registrarResponse model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&registrarResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode endorsement key verification response: %v", err)
 	}
-	return registrarResponse, nil
+	return &registrarResponse, nil
 }
 
 // Create a new worker in the registrar
@@ -121,11 +121,11 @@ func (c *Client) CreateWorker(workerNode *model.WorkerNode) (*model.RegistrarRes
 		}
 	}(resp.Body)
 
-	var registrarResponse *model.RegistrarResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+	var registrarResponse model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&registrarResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode created worker response: %v", err)
 	}
-	return registrarResponse, nil
+	return &registrarResponse, nil
 }
 
 func (c *Client) RemoveWorker(workerName string) (*model.RegistrarResponse, error) {
@@ -157,12 +157,12 @@ func (c *Client) RemoveWorker(workerName string) (*model.RegistrarResponse, erro
 		}
 	}(resp.Body)
 
-	var registrarResponse *model.RegistrarResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+	var registrarResponse model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&registrarResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode worker remove response: %v", err)
 	}
 
-	return registrarResponse, nil
+	return &registrarResponse, nil
 }
 
 func (c *Client) GetWorkerIdByName(nodeName string) (*model.RegistrarResponse, error) {
@@ -185,12 +185,12 @@ func (c *Client) GetWorkerIdByName(nodeName string) (*model.RegistrarResponse, e
 		}
 	}(resp.Body)
 
-	var registrarResponse *model.RegistrarResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+	var registrarResponse model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&registrarResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode get worker response: %v", err.Error())
 	}
 
-	return registrarResponse, nil
+	return &registrarResponse, nil
 }
 
 // Get Tenant Info from Server
@@ -213,11 +213,11 @@ func (c *Client) GetTenantIdByName(tenantName string) (*model.RegistrarResponse,
 		}
 	}(resp.Body)
 
-	var registrarResponse *model.RegistrarResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+	var registrarResponse model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&registrarResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode get tenant response: %v", err.Error())
 	}
-	return registrarResponse, nil
+	return &registrarResponse, nil
 }
 
 // VerifyWorkerSignature verifies the provided signature by contacting Server API
@@ -244,13 +244,13 @@ func (c *Client) VerifyWorkerSignature(verifySignatureRequest *model.VerifySigna
 	}
 
 	// Parse the response into the RegistrarResponse struct
-	var registrarResponse *model.RegistrarResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+	var registrarResponse model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&registrarResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode signature verification response: %v", err.Error())
 	}
 
 	// Verify if the status and message indicate success
-	return registrarResponse, nil
+	return &registrarResponse, nil
 }
 
 func (c *Client) CreateTenant(tenant *model.Tenant) (*model.RegistrarResponse, error) {
@@ -278,11 +278,11 @@ func (c *Client) CreateTenant(tenant *model.Tenant) (*model.RegistrarResponse, e
 		}
 	}(resp.Body)
 
-	var registrarResponse *model.RegistrarResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+	var registrarResponse model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&registrarResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode created tenant response: %v", err)
 	}
-	return registrarResponse, nil
+	return &registrarResponse, nil
 }
 
 func (c *Client) DeleteTenantByName(tenantName string) (*model.RegistrarResponse, error) {
@@ -314,10 +314,10 @@ func (c *Client) DeleteTenantByName(tenantName string) (*model.RegistrarResponse
 		}
 	}(resp.Body)
 
-	var registrarResponse *model.RegistrarResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrarResponse); err != nil {
+	var registrarResponse model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&registrarResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode tenant remove response: %v", err)
 	}
 
-	return registrarResponse, nil
+	return &registrarResponse, nil
 }

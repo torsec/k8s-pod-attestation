@@ -41,11 +41,11 @@ func (c *Client) WorkerRegistrationCredentials() (*model.WorkerCredentialsRespon
 		}
 	}(resp.Body)
 
-	var credentialsResponse *model.WorkerCredentialsResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(credentialsResponse); err != nil {
+	var credentialsResponse model.WorkerCredentialsResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&credentialsResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
 	}
-	return credentialsResponse, nil
+	return &credentialsResponse, nil
 }
 
 func (c *Client) WorkerRegistrationChallenge(workerChallenge *model.WorkerChallenge) (*model.WorkerChallengeResponse, error) {
@@ -75,12 +75,12 @@ func (c *Client) WorkerRegistrationChallenge(workerChallenge *model.WorkerChalle
 	}(resp.Body)
 
 	// Decode the response JSON into the WorkerChallengeResponse struct
-	var challengeResponse *model.WorkerChallengeResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(challengeResponse); err != nil {
+	var challengeResponse model.WorkerChallengeResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&challengeResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode challenge response: %v", err)
 	}
 
-	return challengeResponse, nil
+	return &challengeResponse, nil
 }
 
 func (c *Client) WorkerRegistrationAcknowledge(acknowledge *model.RegistrationAcknowledge) (*model.WorkerRegistrationConfirm, error) {
@@ -111,11 +111,11 @@ func (c *Client) WorkerRegistrationAcknowledge(acknowledge *model.RegistrationAc
 		}
 	}(resp.Body)
 
-	var registrationConfirm *model.WorkerRegistrationConfirm
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(registrationConfirm); err != nil {
+	var registrationConfirm model.WorkerRegistrationConfirm
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&registrationConfirm); err != nil {
 		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
 	}
-	return registrationConfirm, nil
+	return &registrationConfirm, nil
 }
 
 func (c *Client) PodAttestation(attestationRequest *model.AttestationRequest) (*model.AttestationResponse, error) {
@@ -146,9 +146,9 @@ func (c *Client) PodAttestation(attestationRequest *model.AttestationRequest) (*
 		}
 	}(resp.Body)
 
-	var attestationResponse *model.AttestationResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(attestationResponse); err != nil {
+	var attestationResponse model.AttestationResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&attestationResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
 	}
-	return attestationResponse, nil
+	return &attestationResponse, nil
 }

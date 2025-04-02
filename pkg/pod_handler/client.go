@@ -49,12 +49,12 @@ func (c *Client) SecurePodDeployment(podDeploymentRequest model.PodDeploymentReq
 	}(resp.Body)
 
 	// Decode the response JSON into the WorkerChallengeResponse struct
-	var podHandlerResponse *model.PodHandlerResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(podHandlerResponse); err != nil {
+	var podHandlerResponse model.PodHandlerResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&podHandlerResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode pod deployment response: %v", err)
 	}
 
-	return podHandlerResponse, nil
+	return &podHandlerResponse, nil
 }
 
 func (c *Client) PodAttestation(podAttestationRequest *model.PodAttestationRequest) (*model.PodHandlerResponse, error) {
@@ -84,10 +84,10 @@ func (c *Client) PodAttestation(podAttestationRequest *model.PodAttestationReque
 	}(resp.Body)
 
 	// Decode the response JSON into the WorkerChallengeResponse struct
-	var podHandlerResponse *model.PodHandlerResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(podHandlerResponse); err != nil {
+	var podHandlerResponse model.PodHandlerResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&podHandlerResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode pod attestation response: %v", err)
 	}
 
-	return podHandlerResponse, nil
+	return &podHandlerResponse, nil
 }

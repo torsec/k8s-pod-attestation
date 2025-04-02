@@ -39,7 +39,7 @@ func (v *Verifier) Init(defaultResync int, attestationSecret []byte, privateKey 
 	v.clusterInteractor.ConfigureKubernetesClient()
 	err := v.clusterInteractor.DefineAttestationRequestCRD()
 	if err != nil {
-		logger.Fatal("Failed to initialize Verifier: %v", err)
+		logger.Error("Failed to initialize Verifier: %v", err)
 	}
 	v.informerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(v.clusterInteractor.DynamicClient, time.Minute*time.Duration(defaultResync), cluster_interaction.PodAttestationNamespace, nil)
 	v.attestationSecret = attestationSecret

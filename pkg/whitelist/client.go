@@ -47,11 +47,11 @@ func (c *Client) CheckWorkerWhitelist(workerWhitelistCheckRequest *model.WorkerW
 		}
 	}(resp.Body)
 
-	var whitelistResponse *model.WhitelistResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(whitelistResponse); err != nil {
+	var whitelistResponse model.WhitelistResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&whitelistResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
 	}
-	return whitelistResponse, nil
+	return &whitelistResponse, nil
 }
 
 func (c *Client) AppendToWorkerWhitelist(osWhitelist *model.OsWhitelist) (*model.WhitelistResponse, error) {
@@ -79,11 +79,11 @@ func (c *Client) AppendToWorkerWhitelist(osWhitelist *model.OsWhitelist) (*model
 		}
 	}(resp.Body)
 
-	var whitelistResponse *model.WhitelistResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(whitelistResponse); err != nil {
+	var whitelistResponse model.WhitelistResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&whitelistResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
 	}
-	return whitelistResponse, nil
+	return &whitelistResponse, nil
 }
 
 func (c *Client) DeleteFromWorkerWhitelist(osName string) (*model.WhitelistResponse, error) {
@@ -115,12 +115,12 @@ func (c *Client) DeleteFromWorkerWhitelist(osName string) (*model.WhitelistRespo
 		}
 	}(resp.Body)
 
-	var whitelistResponse *model.WhitelistResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(whitelistResponse); err != nil {
+	var whitelistResponse model.WhitelistResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&whitelistResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	return whitelistResponse, nil
+	return &whitelistResponse, nil
 }
 
 func (c *Client) DropWorkerWhitelist() (*model.WhitelistResponse, error) {
@@ -152,12 +152,12 @@ func (c *Client) DropWorkerWhitelist() (*model.WhitelistResponse, error) {
 		}
 	}(resp.Body)
 
-	var whitelistResponse *model.WhitelistResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(whitelistResponse); err != nil {
+	var whitelistResponse model.WhitelistResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&whitelistResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	return whitelistResponse, nil
+	return &whitelistResponse, nil
 }
 
 func (c *Client) CheckPodWhitelist(podWhitelistCheckRequest *model.PodWhitelistCheckRequest) (*model.WhitelistResponse, error) {
@@ -185,11 +185,11 @@ func (c *Client) CheckPodWhitelist(podWhitelistCheckRequest *model.PodWhitelistC
 		}
 	}(resp.Body)
 
-	var whitelistResponse *model.WhitelistResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(whitelistResponse); err != nil {
+	var whitelistResponse model.WhitelistResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&whitelistResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
 	}
-	return whitelistResponse, nil
+	return &whitelistResponse, nil
 }
 
 func (c *Client) AppendImageToPodWhitelist(imageWhitelist *model.ImageWhitelist) (*model.WhitelistResponse, error) {
@@ -217,11 +217,11 @@ func (c *Client) AppendImageToPodWhitelist(imageWhitelist *model.ImageWhitelist)
 		}
 	}(resp.Body)
 
-	var whitelistResponse *model.WhitelistResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(whitelistResponse); err != nil {
+	var whitelistResponse model.WhitelistResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&whitelistResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
 	}
-	return whitelistResponse, nil
+	return &whitelistResponse, nil
 }
 
 func (c *Client) AppendFilesToImage(appendFilesRequest *model.AppendFilesToImageRequest) (*model.WhitelistResponse, error) {
@@ -249,11 +249,11 @@ func (c *Client) AppendFilesToImage(appendFilesRequest *model.AppendFilesToImage
 		}
 	}(resp.Body)
 
-	var whitelistResponse *model.WhitelistResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(whitelistResponse); err != nil {
+	var whitelistResponse model.WhitelistResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&whitelistResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
 	}
-	return whitelistResponse, nil
+	return &whitelistResponse, nil
 }
 
 func (c *Client) DropPodWhitelist() (*model.WhitelistResponse, error) {
@@ -285,12 +285,12 @@ func (c *Client) DropPodWhitelist() (*model.WhitelistResponse, error) {
 		}
 	}(resp.Body)
 
-	var whitelistResponse *model.WhitelistResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(whitelistResponse); err != nil {
+	var whitelistResponse model.WhitelistResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&whitelistResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	return whitelistResponse, nil
+	return &whitelistResponse, nil
 }
 
 func (c *Client) CheckContainerRuntimeWhitelist(containerRuntimeCheckRequest *model.ContainerRuntimeCheckRequest) (*model.WhitelistResponse, error) {
@@ -318,11 +318,11 @@ func (c *Client) CheckContainerRuntimeWhitelist(containerRuntimeCheckRequest *mo
 		}
 	}(resp.Body)
 
-	var whitelistResponse *model.WhitelistResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(whitelistResponse); err != nil {
+	var whitelistResponse model.WhitelistResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&whitelistResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
 	}
-	return whitelistResponse, nil
+	return &whitelistResponse, nil
 }
 
 func (c *Client) AppendToContainerRuntimeWhitelist(containerRuntimeWhitelist *model.ContainerRuntimeWhitelist) (*model.WhitelistResponse, error) {
@@ -350,11 +350,11 @@ func (c *Client) AppendToContainerRuntimeWhitelist(containerRuntimeWhitelist *mo
 		}
 	}(resp.Body)
 
-	var whitelistResponse *model.WhitelistResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(whitelistResponse); err != nil {
+	var whitelistResponse model.WhitelistResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&whitelistResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
 	}
-	return whitelistResponse, nil
+	return &whitelistResponse, nil
 }
 
 func (c *Client) DeleteFromContainerRuntimeWhitelist(containerRuntimeName string) (*model.WhitelistResponse, error) {
@@ -386,12 +386,12 @@ func (c *Client) DeleteFromContainerRuntimeWhitelist(containerRuntimeName string
 		}
 	}(resp.Body)
 
-	var whitelistResponse *model.WhitelistResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(whitelistResponse); err != nil {
+	var whitelistResponse model.WhitelistResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&whitelistResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	return whitelistResponse, nil
+	return &whitelistResponse, nil
 }
 
 func (c *Client) DropContainerRuntimeWhitelist() (*model.WhitelistResponse, error) {
@@ -423,10 +423,10 @@ func (c *Client) DropContainerRuntimeWhitelist() (*model.WhitelistResponse, erro
 		}
 	}(resp.Body)
 
-	var whitelistResponse *model.WhitelistResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(whitelistResponse); err != nil {
+	var whitelistResponse model.WhitelistResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&whitelistResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	return whitelistResponse, nil
+	return &whitelistResponse, nil
 }

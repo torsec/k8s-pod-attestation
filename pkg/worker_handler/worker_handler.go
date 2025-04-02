@@ -50,7 +50,7 @@ func (wh *WorkerHandler) Init(attestationEnabledNamespaces []string, defaultResy
 	wh.informerFactory = informers.NewSharedInformerFactory(wh.clusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
 	err := wh.clusterInteractor.DefineAgentCRD()
 	if err != nil {
-		logger.Fatal("Failed to initialize Worker Handler: %v", err)
+		logger.Error("Failed to initialize Worker Handler: %v", err)
 	}
 	wh.registrarClient = registrarClient
 	wh.agentConfig = agentConfig
@@ -91,6 +91,11 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 	isControlPlane, err := wh.clusterInteractor.NodeIsControlPlane("", node)
 	if err != nil {
 		logger.Error("Failed to determine if node '%s' is control-plane: %v", node.GetName(), err)
+		_, err = wh.clusterInteractor.DeleteNode(node.GetName())
+		if err != nil {
+			logger.Fatal("Failed to delete node '%s': %v", node.GetName(), err)
+		}
+		return
 	}
 
 	if isControlPlane {
@@ -101,6 +106,10 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 	workerResponse, err := wh.registrarClient.GetWorkerIdByName(node.GetName())
 	if err != nil {
 		logger.Error("Failed to determine if node '%s' is registered: %v", node.GetName(), err)
+		_, err = wh.clusterInteractor.DeleteNode(node.GetName())
+		if err != nil {
+			logger.Fatal("Failed to delete node '%s': %v", node.GetName(), err)
+		}
 		return
 	}
 
