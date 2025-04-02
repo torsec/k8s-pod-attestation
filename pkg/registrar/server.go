@@ -130,7 +130,13 @@ func (s *Server) verifyWorkerEKCertificate(c *gin.Context) {
 		return
 	}
 
-	tpmEkCertificate, err := cryptoUtils.LoadCertificateFromPEM([]byte(req.EKCertificate))
+	decodedEkCertificate, err := base64.StdEncoding.DecodeString(req.EKCertificate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "EK Certificate is not valid base64", "status": model.Error})
+		return
+	}
+
+	tpmEkCertificate, err := cryptoUtils.LoadCertificateFromPEM(decodedEkCertificate)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "EK Certificate is not valid PEM", "status": model.Error})
 		return

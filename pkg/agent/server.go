@@ -173,7 +173,9 @@ func (s *Server) getWorkerRegistrationCredentials(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"uuid": s.workerId, "ekCert": ekCert, "aikNameData": aikNameData, "aikPublicArea": aikPublicArea})
+	encodedEkCert := base64.StdEncoding.EncodeToString(ekCert)
+
+	c.JSON(http.StatusOK, gin.H{"uuid": s.workerId, "ekCert": encodedEkCert, "aikNameData": aikNameData, "aikPublicArea": aikPublicArea})
 }
 
 func (s *Server) podAttestation(c *gin.Context) {
