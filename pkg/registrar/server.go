@@ -91,28 +91,28 @@ func getKnownTPMCACertificates() []model.TPMCACertificate {
 }
 
 func (s *Server) getTPMVendorById(vendorTCGIdentifier string) (*model.TPMVendor, error) {
-	var tpmVendor *model.TPMVendor
+	var tpmVendor model.TPMVendor
 	query := "SELECT vendorId, name, TCGIdentifier FROM tpm_vendors WHERE TCGIdentifier = ?"
-	err := s.db.QueryRow(query, vendorTCGIdentifier).Scan(tpmVendor.VendorID, tpmVendor.Name, tpmVendor.TCGIdentifier)
+	err := s.db.QueryRow(query, vendorTCGIdentifier).Scan(&tpmVendor.VendorID, &tpmVendor.Name, &tpmVendor.TCGIdentifier)
 	if errors.Is(err, sql.ErrNoRows) {
-		return tpmVendor, fmt.Errorf("TPM Vendor not found")
+		return nil, fmt.Errorf("TPM Vendor not found")
 	} else if err != nil {
-		return tpmVendor, err
+		return &tpmVendor, err
 	}
-	return tpmVendor, nil
+	return &tpmVendor, nil
 }
 
 // Fetch the Certificate by commonName from the database
 func (s *Server) getCertificateByCommonName(commonName string) (*model.TPMCACertificate, error) {
-	var tpmCert *model.TPMCACertificate
+	var tpmCert model.TPMCACertificate
 	query := "SELECT certificateId, cn, PEMCertificate FROM tpm_ca_certificates WHERE cn = ?"
-	err := s.db.QueryRow(query, commonName).Scan(tpmCert.CertificateID, tpmCert.CommonName, tpmCert.PEMCertificate)
+	err := s.db.QueryRow(query, commonName).Scan(&tpmCert.CertificateID, &tpmCert.CommonName, &tpmCert.PEMCertificate)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("certificate not found")
 	} else if err != nil {
-		return tpmCert, err
+		return &tpmCert, err
 	}
-	return tpmCert, nil
+	return &tpmCert, nil
 }
 
 // Insert a new certificate into the database
@@ -198,15 +198,15 @@ func (s *Server) tenantExistsByPublicKey(publicKey string) (bool, error) {
 
 // Fetch the tenant by name from the database
 func (s *Server) getTenantByName(name string) (*model.Tenant, error) {
-	var tenant *model.Tenant
+	var tenant model.Tenant
 	query := "SELECT tenantId, name, publicKey FROM tenants WHERE name = ?"
-	err := s.db.QueryRow(query, name).Scan(tenant.TenantId, tenant.Name, tenant.PublicKey)
+	err := s.db.QueryRow(query, name).Scan(&tenant.TenantId, &tenant.Name, &tenant.PublicKey)
 	if errors.Is(err, sql.ErrNoRows) {
-		return tenant, fmt.Errorf("tenant not found")
+		return nil, fmt.Errorf("tenant not found")
 	} else if err != nil {
-		return tenant, err
+		return &tenant, err
 	}
-	return tenant, nil
+	return &tenant, nil
 }
 
 // Insert a new tenant into the database
@@ -401,15 +401,15 @@ func (s *Server) insertWorker(worker *model.WorkerNode) error {
 
 // Fetch the tenant by name from the database
 func (s *Server) getWorkerByName(name string) (*model.WorkerNode, error) {
-	var worker *model.WorkerNode
+	var worker model.WorkerNode
 	query := "SELECT workerId, name, AIK FROM workers WHERE name = ?"
-	err := s.db.QueryRow(query, name).Scan(worker.WorkerId, worker.Name, worker.AIK)
+	err := s.db.QueryRow(query, name).Scan(&worker.WorkerId, &worker.Name, &worker.AIK)
 	if errors.Is(err, sql.ErrNoRows) {
-		return worker, fmt.Errorf("worker not found")
+		return nil, fmt.Errorf("worker not found")
 	} else if err != nil {
-		return worker, err
+		return &worker, err
 	}
-	return worker, nil
+	return &worker, nil
 }
 
 // Endpoint: Create a new worker (with name and AIK, generating UUID for WorkerID)
