@@ -247,9 +247,8 @@ func (s *Server) deleteTenantByName(c *gin.Context) {
 
 // Endpoint: Create a new tenant (with name and public key, generating UUID for TenantId)
 func (s *Server) createTenant(c *gin.Context) {
-	var newTenantRequest *model.NewTenantRequest
-
-	if err := c.BindJSON(newTenantRequest); err != nil {
+	var newTenantRequest model.NewTenantRequest
+	if err := c.BindJSON(&newTenantRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": model.Error})
 		return
 	}
@@ -306,8 +305,8 @@ func (s *Server) createTenant(c *gin.Context) {
 
 // Endpoint: Verify tenant's signature
 func (s *Server) verifyTenantSignature(c *gin.Context) {
-	var verifySignatureRequest *model.VerifySignatureRequest
-	if err := c.BindJSON(verifySignatureRequest); err != nil {
+	var verifySignatureRequest model.VerifySignatureRequest
+	if err := c.BindJSON(&verifySignatureRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": model.Error})
 		return
 	}
@@ -415,9 +414,9 @@ func (s *Server) getWorkerByName(name string) (*model.WorkerNode, error) {
 
 // Endpoint: Create a new worker (with name and AIK, generating UUID for WorkerID)
 func (s *Server) createWorker(c *gin.Context) {
-	var newWorker *model.WorkerNode
+	var newWorker model.WorkerNode
 
-	if err := c.BindJSON(newWorker); err != nil {
+	if err := c.BindJSON(&newWorker); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": model.Error})
 		return
 	}
@@ -462,7 +461,7 @@ func (s *Server) createWorker(c *gin.Context) {
 	}
 
 	// Insert the new Worker into the database
-	if err := s.insertWorker(newWorker); err != nil {
+	if err := s.insertWorker(&newWorker); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to create worker", "status": model.Error})
 		return
 	}
@@ -476,8 +475,8 @@ func (s *Server) createWorker(c *gin.Context) {
 
 // Endpoint: Verify Worker's signature using its registered AIK
 func (s *Server) verifyWorkerSignature(c *gin.Context) {
-	var verifySignatureRequest *model.VerifySignatureRequest
-	if err := c.BindJSON(verifySignatureRequest); err != nil {
+	var verifySignatureRequest model.VerifySignatureRequest
+	if err := c.BindJSON(&verifySignatureRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request payload", "status": model.Error})
 		return
 	}

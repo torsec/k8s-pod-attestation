@@ -723,7 +723,7 @@ func (c *ClusterInteraction) DefineAgentCRD() error {
 	// Create the CRD
 	agentCRD, err := c.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.TODO(), agentCRD, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to define Agent CRD")
+		return fmt.Errorf("failed to define Agent CRD: %v", err)
 	}
 	return nil
 }

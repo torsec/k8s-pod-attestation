@@ -47,7 +47,7 @@ func (s *Server) SetPort(port int) {
 
 // Secure Pod Deployment Handler
 func (s *Server) securePodDeployment(c *gin.Context) {
-	var podDeploymentRequest *model.PodDeploymentRequest
+	var podDeploymentRequest model.PodDeploymentRequest
 	if err := c.BindJSON(&podDeploymentRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request format"})
 		return
@@ -101,7 +101,7 @@ func (s *Server) deployPod(podManifest, tenantName string) error {
 }
 
 func (s *Server) requestPodAttestation(c *gin.Context) {
-	var podAttestationRequest *model.PodAttestationRequest
+	var podAttestationRequest model.PodAttestationRequest
 	if err := c.BindJSON(&podAttestationRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request format"})
 		return

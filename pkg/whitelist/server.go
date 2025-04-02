@@ -83,15 +83,15 @@ func (s *Server) initializeMongoDB() {
 
 // checkWorkerWhitelist verifies if a given OS and digest match the stored worker whitelist.
 func (s *Server) checkWorkerWhitelist(c *gin.Context) {
-	var checkRequest *model.WorkerWhitelistCheckRequest
-	if err := c.ShouldBindJSON(checkRequest); err != nil {
+	var checkRequest model.WorkerWhitelistCheckRequest
+	if err := c.ShouldBindJSON(&checkRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request body"})
 		return
 	}
 
 	// Query MongoDB for the document matching the requested OS name
 	var osWhitelist model.OsWhitelist
-	err := s.workerWhitelist.FindOne(context.TODO(), bson.M{"osName": checkRequest.OsName}).Decode(osWhitelist)
+	err := s.workerWhitelist.FindOne(context.TODO(), bson.M{"osName": checkRequest.OsName}).Decode(&osWhitelist)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "OS whitelist not found"})
@@ -121,17 +121,17 @@ func (s *Server) checkWorkerWhitelist(c *gin.Context) {
 
 // appendToWorkerWhitelist handles the addition of a new valid OsWhitelist.
 func (s *Server) appendToWorkerWhitelist(c *gin.Context) {
-	var newOsWhitelist *model.OsWhitelist
+	var newOsWhitelist model.OsWhitelist
 
 	// Bind JSON input to the OsWhitelist struct
-	if err := c.ShouldBindJSON(newOsWhitelist); err != nil {
+	if err := c.ShouldBindJSON(&newOsWhitelist); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request body"})
 		return
 	}
 
 	// Check if the OSName already exists in the WorkerWhitelist
-	var existingOsWhitelist *model.OsWhitelist
-	err := s.workerWhitelist.FindOne(context.TODO(), bson.M{"osName": newOsWhitelist.OSName}).Decode(existingOsWhitelist)
+	var existingOsWhitelist model.OsWhitelist
+	err := s.workerWhitelist.FindOne(context.TODO(), bson.M{"osName": newOsWhitelist.OSName}).Decode(&existingOsWhitelist)
 	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query Worker whitelist"})
 		return
@@ -190,15 +190,15 @@ func (s *Server) dropWorkerWhitelist(c *gin.Context) {
 
 // checkPodWhitelist verifies if the given pod's files match the stored whitelist for the pod's image.
 func (s *Server) checkPodWhitelist(c *gin.Context) {
-	var checkRequest *model.PodWhitelistCheckRequest
-	if err := c.ShouldBindJSON(checkRequest); err != nil {
+	var checkRequest model.PodWhitelistCheckRequest
+	if err := c.ShouldBindJSON(&checkRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request body"})
 		return
 	}
 
 	// Query MongoDB for matching pod image
-	var imageWhitelist *model.ImageWhitelist
-	err := s.podWhitelist.FindOne(context.TODO(), bson.M{"imageName": checkRequest.PodImageName}).Decode(imageWhitelist)
+	var imageWhitelist model.ImageWhitelist
+	err := s.podWhitelist.FindOne(context.TODO(), bson.M{"imageName": checkRequest.PodImageName}).Decode(&imageWhitelist)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Pod image not found"})
@@ -251,18 +251,17 @@ func (s *Server) checkPodWhitelist(c *gin.Context) {
 
 // appendNewImageToPodWhitelist adds a new ImageWhitelist with valid files to the pod whitelist if it doesn't exist
 func (s *Server) appendImageToPodWhitelist(c *gin.Context) {
-	var imageWhitelist *model.ImageWhitelist
-
+	var imageWhitelist model.ImageWhitelist
 	// Bind JSON input to the ImageWhitelist struct
-	if err := c.ShouldBindJSON(imageWhitelist); err != nil {
+	if err := c.ShouldBindJSON(&imageWhitelist); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request body"})
 		return
 	}
 
 	// Query to check if the imageName already exists
 	filter := bson.M{"imageName": imageWhitelist.ImageName}
-	var existingImageWhitelist *model.ImageWhitelist
-	err := s.podWhitelist.FindOne(context.TODO(), filter).Decode(existingImageWhitelist)
+	var existingImageWhitelist model.ImageWhitelist
+	err := s.podWhitelist.FindOne(context.TODO(), filter).Decode(&existingImageWhitelist)
 
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -287,9 +286,9 @@ func (s *Server) appendImageToPodWhitelist(c *gin.Context) {
 
 // appendFilesToExistingImageWhitelistByImageName adds new valid files to an existing ImageWhitelist for the given imageName.
 func (s *Server) appendFilesToImage(c *gin.Context) {
-	var appendFilesRequest *model.AppendFilesToImageRequest
+	var appendFilesRequest model.AppendFilesToImageRequest
 	// Bind JSON input to the list of new valid files
-	if err := c.ShouldBindJSON(appendFilesRequest); err != nil {
+	if err := c.ShouldBindJSON(&appendFilesRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request body"})
 		return
 	}
@@ -323,8 +322,8 @@ func (s *Server) deleteFileFromImage(c *gin.Context) {
 
 	// Query MongoDB for the pod image whitelist by imageName
 	filter := bson.M{"imageName": imageName}
-	var imageWhitelist *model.ImageWhitelist
-	err = s.podWhitelist.FindOne(context.TODO(), filter).Decode(imageWhitelist)
+	var imageWhitelist model.ImageWhitelist
+	err = s.podWhitelist.FindOne(context.TODO(), filter).Decode(&imageWhitelist)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Pod image not found"})
@@ -377,15 +376,15 @@ func (s *Server) dropPodWhitelist(c *gin.Context) {
 
 // checkContainerRuntimeWhitelist verifies if a given Container Runtime and digest match the stored Container Runtime whitelist.
 func (s *Server) checkContainerRuntimeWhitelist(c *gin.Context) {
-	var checkRequest *model.ContainerRuntimeCheckRequest
-	if err := c.ShouldBindJSON(checkRequest); err != nil {
+	var checkRequest model.ContainerRuntimeCheckRequest
+	if err := c.ShouldBindJSON(&checkRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request body"})
 		return
 	}
 
 	// Query MongoDB for the document matching the requested Container Runtime name
-	var existingContainerRuntimeWhitelist *model.ContainerRuntimeWhitelist
-	err := s.containerRuntimeWhitelist.FindOne(context.TODO(), bson.M{"containerRuntimeName": checkRequest.ContainerRuntimeName}).Decode(existingContainerRuntimeWhitelist)
+	var existingContainerRuntimeWhitelist model.ContainerRuntimeWhitelist
+	err := s.containerRuntimeWhitelist.FindOne(context.TODO(), bson.M{"containerRuntimeName": checkRequest.ContainerRuntimeName}).Decode(&existingContainerRuntimeWhitelist)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Container Runtime whitelist not found"})
@@ -433,17 +432,17 @@ func (s *Server) checkContainerRuntimeWhitelist(c *gin.Context) {
 
 // appendToContainerRuntimeWhitelist handles the addition of a new valid ContainerRuntimeWhitelist.
 func (s *Server) appendToContainerRuntimeWhitelist(c *gin.Context) {
-	var newContainerRuntimeWhitelist *model.ContainerRuntimeWhitelist
+	var newContainerRuntimeWhitelist model.ContainerRuntimeWhitelist
 
 	// Bind JSON input to the OsWhitelist struct
-	if err := c.ShouldBindJSON(newContainerRuntimeWhitelist); err != nil {
+	if err := c.ShouldBindJSON(&newContainerRuntimeWhitelist); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request body"})
 		return
 	}
 
 	// Check if the Container Runtime already exists in the Container Runtime whitelist
-	var existingContainerRuntimeWhitelist *model.ContainerRuntimeWhitelist
-	err := s.containerRuntimeWhitelist.FindOne(context.TODO(), bson.M{"containerRuntimeName": newContainerRuntimeWhitelist.ContainerRuntimeName}).Decode(existingContainerRuntimeWhitelist)
+	var existingContainerRuntimeWhitelist model.ContainerRuntimeWhitelist
+	err := s.containerRuntimeWhitelist.FindOne(context.TODO(), bson.M{"containerRuntimeName": newContainerRuntimeWhitelist.ContainerRuntimeName}).Decode(&existingContainerRuntimeWhitelist)
 	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query Container Runtime whitelist"})
 		return

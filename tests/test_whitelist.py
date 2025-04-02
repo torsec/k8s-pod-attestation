@@ -1,8 +1,9 @@
 import json
+
 import requests
 
 # Base URL of the server
-BASE_URL = "http://localhost:30002"
+BASE_URL = "http://localhost:9090"
 
 # Headers for requests
 headers = {'Content-Type': 'application/json'}
@@ -265,7 +266,7 @@ def append_pod_whitelist():
 
 # Test function for checking a pod whitelist
 def check_pod_whitelist():
-    response = requests.post(f"{BASE_URL}/whitelist/pod/check", headers=headers, data=json.dumps(check_pod_data))
+    response = requests.post(f"{BASE_URL}/whitelist/pod/image/check", headers=headers, data=json.dumps(check_pod_data))
     print("Check Pod Whitelist Response:", response.status_code, response.json())
 
 # Test function for deleting a file from pod whitelist
