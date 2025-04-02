@@ -55,7 +55,7 @@ func (s *Server) SetPort(port int) {
 }
 
 func (s *Server) acknowledgeRegistration(c *gin.Context) {
-	var acknowledge *model.RegistrationAcknowledge
+	var acknowledge model.RegistrationAcknowledge
 
 	if err := c.BindJSON(&acknowledge); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -94,9 +94,9 @@ func (s *Server) acknowledgeRegistration(c *gin.Context) {
 }
 
 func (s *Server) challengeWorker(c *gin.Context) {
-	var workerChallenge *model.WorkerChallenge
+	var workerChallenge model.WorkerChallenge
 	// Bind the JSON request body to the struct
-	if err := c.BindJSON(workerChallenge); err != nil {
+	if err := c.BindJSON(&workerChallenge); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "Invalid request payload",
 			"status":  model.Error,
@@ -177,7 +177,7 @@ func (s *Server) getWorkerRegistrationCredentials(c *gin.Context) {
 }
 
 func (s *Server) podAttestation(c *gin.Context) {
-	var attestationRequest *model.AttestationRequest
+	var attestationRequest model.AttestationRequest
 
 	// Bind the JSON request body to the struct
 	if err := c.BindJSON(&attestationRequest); err != nil {
