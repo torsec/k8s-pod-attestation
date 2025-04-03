@@ -103,5 +103,5 @@ signature = sign_message(pod_name)
 time.sleep(20)
 
 while True:
-    pod_attestation(tenant_name, base64.b64encode(pod_name.encode()).decode(), signature)
+    pod_attestation(tenant_name, pod_name, signature)
     time.sleep(10)
