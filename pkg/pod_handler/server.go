@@ -53,12 +53,6 @@ func (s *Server) securePodDeployment(c *gin.Context) {
 		return
 	}
 
-	signedManifest, err := base64.StdEncoding.DecodeString(podDeploymentRequest.Manifest)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request format"})
-		return
-	}
-
 	verifySignatureRequest := &model.VerifySignatureRequest{
 		Name:      podDeploymentRequest.TenantName,
 		Message:   podDeploymentRequest.Manifest,
@@ -126,7 +120,7 @@ func (s *Server) requestPodAttestation(c *gin.Context) {
 		return
 	}
 
-	if signatureVerificationResponse.Message != model.Success {
+	if signatureVerificationResponse.Status != model.Success {
 		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Invalid Signature "})
 		return
 	}
