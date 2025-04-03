@@ -3,8 +3,8 @@ module main
 go 1.23.4
 
 require (
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250402163006-1febba09d409
-	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250402163006-1febba09d409
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250402192317-f44350d8cb40
+	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250402192317-f44350d8cb40
 )
 
 require (
@@ -30,7 +30,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402163006-1febba09d409 // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402192317-f44350d8cb40 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect

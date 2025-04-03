@@ -4,11 +4,11 @@ go 1.23.4
 
 require (
 	github.com/gin-gonic/gin v1.10.0
-	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250402163006-1febba09d409
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250402163006-1febba09d409
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250402163006-1febba09d409
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402163006-1febba09d409
-	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402163006-1febba09d409
+	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250402192317-f44350d8cb40
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250402192317-f44350d8cb40
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250402192317-f44350d8cb40
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402192317-f44350d8cb40
+	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402192317-f44350d8cb40
 )
 
 require (

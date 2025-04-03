@@ -174,11 +174,11 @@ func handleTPMSubjectAltName(cert *x509.Certificate, tpmVendors []model.TPMVendo
 			}
 
 			// check if Certificate Vendor is a TCG valid one
-			TPMVendorId := (subjectAltName.DirectoryNames[0].Names[0].Value).(string)
+			TCGVendorId := (subjectAltName.DirectoryNames[0].Names[0].Value).(string)
 			var foundTPMVendor *model.TPMVendor
 
 			for _, tpmVendor := range tpmVendors {
-				if tpmVendor.VendorID == TPMVendorId {
+				if tpmVendor.TCGIdentifier == TCGVendorId {
 					foundTPMVendor = &tpmVendor
 				}
 			}
