@@ -4,8 +4,8 @@ go 1.23.4
 
 require (
 	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250402192317-f44350d8cb40
-	github.com/torsec/k8s-pod-attestation/pkg/pod_handler v0.0.0-20250402192317-f44350d8cb40
-	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402192317-f44350d8cb40
+	github.com/torsec/k8s-pod-attestation/pkg/pod_handler v0.0.0-20250403095655-24f42a48e22a
+	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250403095655-24f42a48e22a
 )
 
 require (
@@ -51,9 +51,9 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250402192317-f44350d8cb40 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250402192317-f44350d8cb40 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402192317-f44350d8cb40 // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250403095655-24f42a48e22a // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250403095655-24f42a48e22a // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250403095655-24f42a48e22a // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/x448/float16 v0.8.4 // indirect

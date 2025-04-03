@@ -191,7 +191,12 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 
-	ekCert, err := cryptoUtils.LoadCertificateFromPEM([]byte(workerCredentials.EKCert))
+	decodedEkCert, err := base64.StdEncoding.DecodeString(workerCredentials.EKCert)
+	if err != nil {
+		logger.Error("Failed to decode EK Certificate from base64: %v", err)
+	}
+
+	ekCert, err := cryptoUtils.LoadCertificateFromPEM(decodedEkCert)
 	if err != nil {
 		logger.Error("Failed to load EK Certificate: %v", err)
 		return false

@@ -1,7 +1,7 @@
-github.com/davecgh/go-spew metav1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/davecgh/go-spew metav1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/davecgh/go-spew metav1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
 github.com/davecgh/go-spew metav1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/davecgh/go-spew metav1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/davecgh/go-spew metav1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
+github.com/davecgh/go-spew metav1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
@@ -45,9 +45,9 @@ github.com/google/gnostic-models v0.6.9/go.mod h1:CiWsm0s6BSQd1hRn8/QmxqB6BesYcb
 github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
+github.com/google/gofuzz metav1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/google/gofuzz metav1.2.0 h1:xRy4A+RhZaiKjJ1bPfwQ8sedCA+YS2YcCHW6ec7JMi0=
 github.com/google/gofuzz metav1.2.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
-github.com/google/gofuzz metav1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/google/gofuzz v1.2.0 h1:xRy4A+RhZaiKjJ1bPfwQ8sedCA+YS2YcCHW6ec7JMi0=
 github.com/google/gofuzz v1.2.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
@@ -141,6 +141,8 @@ github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250402163
 github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250402163006-1febba09d409/go.mod h1:yQglEZRfrxRbW94ze+xoKzoI86rneC1XaSekIwqwXQo=
 github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250402192317-f44350d8cb40 h1:gDmihVm2/IStyC4gMdh2Kwcu7LpOZuZ335KzFOW0O6I=
 github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250402192317-f44350d8cb40/go.mod h1:75PTn/ZMEOxB7MZN1KQV728qT1ZTiPwh5Lrc+pt/8rU=
+github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250403095655-24f42a48e22a h1:9MmuVS9vxdc1KG87dVPDs3h/1aUfYFXLv9HzwrJjDyE=
+github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250403095655-24f42a48e22a/go.mod h1:mI8lZ0ANzfORnmdRpFJ8A1ovSA/jem7AGag489gl4nA=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250303134704-a187d53e839d h1:lkPhDhCtBvRoMHK9P7wUqdKAGxUNOCLhyQOUe9oaZew=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250303134704-a187d53e839d/go.mod h1:pP/DpVLMzgLxrc+4AYwjlUolcrIY19P12+RPWCaz/pQ=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250303145756-5a2fc449d304 h1:XSSGlA1MSiz3nqv8+4Q50F/n1KFtpbXUV0hh7rlRkVo=
@@ -199,10 +201,12 @@ github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402163006-1febba09d4
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402163006-1febba09d409/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402192317-f44350d8cb40 h1:2ikEBOr78fAYmP1ry6rnBJa83JO9htGqfvHYIHnh3gY=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402192317-f44350d8cb40/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250403095655-24f42a48e22a h1:Z8dvYLWuKxBwS1c5NYFsYqCLRP3cXybZrNf6k+rOb2U=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250403095655-24f42a48e22a/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
 github.com/x448/float16 v0.8.4/go.mod h1:14CWIYCyZA/cWjXOioeEpHeN/83MdbZDRQHoFcYsOfg=
-github.com/yuin/goldmark metav1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark metav1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
+github.com/yuin/goldmark metav1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
