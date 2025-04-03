@@ -96,7 +96,7 @@ create_tenant(tenant_name, public_key)
 signature = sign_message(message)
 
 # Verify the signature
-verify_signature(tenant_name, base64.b64encode(message).decode(), signature)
+verify_signature(tenant_name, base64.b64encode(message.encode()).decode(), signature)
 
 signature = sign_message(pod_name)
 
