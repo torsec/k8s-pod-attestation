@@ -121,7 +121,7 @@ func (s *Server) requestPodAttestation(c *gin.Context) {
 	}
 
 	if signatureVerificationResponse.Status != model.Success {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Invalid Signature "})
+		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Invalid Signature"})
 		return
 	}
 
@@ -132,8 +132,14 @@ func (s *Server) requestPodAttestation(c *gin.Context) {
 	}
 	tenantId := tenantIdResponse.Message
 
+	decodedPodName, err := base64.StdEncoding.DecodeString(podAttestationRequest.PodName)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Failed to decode pod name"})
+		return
+	}
+
 	// get Pod information (Worker on which it is deployed, this is needed to also retrieve the Agent to contact, the Agent CRD to control ensuring Tenant ownership of pod to be attested)
-	workerDeploying, agentIP, podUID, err := s.clusterInteractor.GetAttestationInformation(podAttestationRequest.PodName)
+	workerDeploying, agentIP, podUid, err := s.clusterInteractor.GetAttestationInformation(string(decodedPodName))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": err.Error()})
 		return
@@ -148,11 +154,11 @@ func (s *Server) requestPodAttestation(c *gin.Context) {
 		return
 	}
 
-	integrityMessage := fmt.Sprintf("%s::%s::%s::%s::%s", podAttestationRequest.PodName, podUID, tenantId, agentCRDName, agentIP)
+	integrityMessage := fmt.Sprintf("%s::%s::%s::%s::%s", podAttestationRequest.PodName, podUid, tenantId, agentCRDName, agentIP)
 	hmacValue := cryptoUtils.ComputeHMAC([]byte(integrityMessage), s.attestationSecret)
 
 	// issue an Attestation Request for target Pod and Agent, it will be intercepted by the Verifier
-	_, err = s.clusterInteractor.IssueAttestationRequestCRD(podAttestationRequest.PodName, podUID, tenantId, agentCRDName, agentIP, base64.StdEncoding.EncodeToString(hmacValue))
+	_, err = s.clusterInteractor.IssueAttestationRequestCRD(podAttestationRequest.PodName, podUid, tenantId, agentCRDName, agentIP, base64.StdEncoding.EncodeToString(hmacValue))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": err.Error()})
 		return

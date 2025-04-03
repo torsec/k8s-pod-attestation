@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"io"
+	"net"
 	"net/http"
+	"time"
 )
 
 type Client struct {
@@ -46,6 +48,30 @@ func (c *Client) WorkerRegistrationCredentials() (*model.WorkerCredentialsRespon
 		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
 	}
 	return &credentialsResponse, nil
+}
+
+func (c *Client) WaitForAgent(retryInterval, timeout time.Duration) error {
+	address := fmt.Sprintf("%s:%d", c.agentHost, c.agentPort)
+	start := time.Now()
+
+	for {
+		// Try to establish a TCP connection to the host
+		conn, err := net.DialTimeout("tcp", address, retryInterval)
+		if err == nil {
+			// If the connection is successful, close it and return
+			err := conn.Close()
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+
+		// Check if the timeout has been exceeded
+		if time.Since(start) > timeout {
+			return fmt.Errorf("timeout: Agent is not reachable after %v", timeout)
+		}
+		time.Sleep(retryInterval)
+	}
 }
 
 func (c *Client) WorkerRegistrationChallenge(workerChallenge *model.WorkerChallenge) (*model.WorkerChallengeResponse, error) {

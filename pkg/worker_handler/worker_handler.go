@@ -154,10 +154,15 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploymentName string) bool {
 	err := wh.clusterInteractor.WaitForAllDeploymentPodsRunning(cluster_interaction.PodAttestationNamespace, agentDeploymentName, 1*time.Minute)
 	if err != nil {
-		logger.Error("Error while contacting Agent: %v", err)
+		logger.Error("Agent deployment not ready to run: %v", err)
 		return false
 	}
 
+	err = wh.agentClient.WaitForAgent(1*time.Second, 1*time.Minute)
+	if err != nil {
+		logger.Error("Error while contacting Agent: %v", err.Error())
+		return false
+	}
 	// Call Agent to identify worker data
 	workerCredentials, err := wh.agentClient.WorkerRegistrationCredentials()
 	if err != nil {
