@@ -3,9 +3,9 @@ module main
 go 1.23.4
 
 require (
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250403152149-ce3a08ad84bd
-	github.com/torsec/k8s-pod-attestation/pkg/pod_handler v0.0.0-20250403152149-ce3a08ad84bd
-	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250403152149-ce3a08ad84bd
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250403163200-8a718ec919da
+	github.com/torsec/k8s-pod-attestation/pkg/pod_handler v0.0.0-20250403164628-a4dbaa1cec98
+	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250403163428-951693da0747
 )
 
 require (
@@ -53,7 +53,7 @@ require (
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250403152149-ce3a08ad84bd // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250403152149-ce3a08ad84bd // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250403152149-ce3a08ad84bd // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250403163428-951693da0747 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
