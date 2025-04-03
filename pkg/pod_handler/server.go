@@ -109,7 +109,7 @@ func (s *Server) requestPodAttestation(c *gin.Context) {
 
 	verifySignatureRequest := &model.VerifySignatureRequest{
 		Name:      podAttestationRequest.TenantName,
-		Message:   podAttestationRequest.PodName,
+		Message:   base64.StdEncoding.EncodeToString([]byte(podAttestationRequest.PodName)),
 		Signature: podAttestationRequest.Signature,
 	}
 
@@ -132,14 +132,8 @@ func (s *Server) requestPodAttestation(c *gin.Context) {
 	}
 	tenantId := tenantIdResponse.Message
 
-	decodedPodName, err := base64.StdEncoding.DecodeString(podAttestationRequest.PodName)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Failed to decode pod name"})
-		return
-	}
-
 	// get Pod information (Worker on which it is deployed, this is needed to also retrieve the Agent to contact, the Agent CRD to control ensuring Tenant ownership of pod to be attested)
-	workerDeploying, agentIP, podUid, err := s.clusterInteractor.GetAttestationInformation(string(decodedPodName))
+	workerDeploying, agentIP, podUid, err := s.clusterInteractor.GetAttestationInformation(podAttestationRequest.PodName)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": err.Error()})
 		return

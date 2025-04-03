@@ -3,7 +3,7 @@ module main
 go 1.23.4
 
 require (
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250403172554-78c032068c9e
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250403183430-a254280ba7ab
 	github.com/torsec/k8s-pod-attestation/pkg/pod_watcher v0.0.0-20250403172554-78c032068c9e
 )
 
