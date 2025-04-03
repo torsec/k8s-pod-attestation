@@ -3,9 +3,9 @@ module main
 go 1.23.4
 
 require (
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250402192317-f44350d8cb40
-	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250403095655-24f42a48e22a
-	github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250402192317-f44350d8cb40
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250403103846-2cde46d6f1a7
+	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250403103846-2cde46d6f1a7
+	github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250403103846-2cde46d6f1a7
 	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250403095655-24f42a48e22a
 )
 
@@ -60,10 +60,10 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250402192317-f44350d8cb40 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250403095655-24f42a48e22a // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250403095655-24f42a48e22a // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250403095655-24f42a48e22a // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250403103846-2cde46d6f1a7 // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250403103846-2cde46d6f1a7 // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250403103846-2cde46d6f1a7 // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250403103846-2cde46d6f1a7 // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250403095655-24f42a48e22a // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250403095655-24f42a48e22a // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250403095655-24f42a48e22a // indirect

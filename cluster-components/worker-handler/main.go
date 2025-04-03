@@ -27,6 +27,7 @@ var (
 	imaMlPath                    string
 	tpmPath                      string
 	defaultResync                int
+	verifierPublicKey            string
 	agentConfig                  model.AgentConfig
 	workerHandler                worker_handler.WorkerHandler
 	registrarClient              registrar.Client
@@ -47,6 +48,7 @@ func loadEnvironmentVariables() {
 	if err != nil {
 		logger.Fatal("failed to parse WHITELIST_PORT: %v", err)
 	}
+	verifierPublicKey = getEnv("VERIFIER_PUBLIC_KEY", "")
 	imaMountPath = getEnv("IMA_MOUNT_PATH", "/root/ascii_runtime_measurements")
 	imaMlPath = getEnv("IMA_ML_PATH", "/sys/kernel/security/integrity/ima/ascii_runtime_measurements")
 	tpmPath = getEnv("TPM_PATH", "/dev/tpm0")
@@ -91,6 +93,6 @@ func main() {
 
 	registrarClient.Init(registrarHost, registrarPort, nil)
 	whitelistClient.Init(whitelistHost, whitelistPort, nil)
-	workerHandler.Init(attestationEnabledNamespaces, defaultResync, &registrarClient, &agentConfig, &whitelistClient)
+	workerHandler.Init(verifierPublicKey, attestationEnabledNamespaces, defaultResync, &registrarClient, &agentConfig, &whitelistClient)
 	workerHandler.WatchNodes()
 }

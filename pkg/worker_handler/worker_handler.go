@@ -23,18 +23,6 @@ import (
 
 const ephemeralKeySize = 16
 
-var (
-	verifierPublicKey = `-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuoi/38EDObItiLd1Q8Cy
-XsPaHjOreYqVJYEO4NfCZR2H01LXrdj/LcpyrB1rKBc4UWI8lroSdhjMJxC62372
-WvDk9cD5k+iyPwdM+EggpiRfEmHWF3zob8junyWHW6JInf0+AGhbKgBfMXo9PvAn
-r5CVeqp2BrstdZtrWVRuQAKip9c7hl+mHODkE5yb0InHyRe5WWr5P7wtXtAPM6SO
-8dVk/QWXdsB9rsb+Ejy4LHSIUpHUOZO8LvGD1rVLO82H4EUXKBFeiOEJjly4HOkv
-mFe/c/Cma1pM+702X6ULf0/BIMJkWzD3INdLtk8FE8rIxrrMSnDtmWw9BgGdsDgk
-pQIDAQAB
------END PUBLIC KEY-----`
-)
-
 type WorkerHandler struct {
 	clusterInteractor cluster_interaction.ClusterInteraction
 	informerFactory   informers.SharedInformerFactory
@@ -42,9 +30,11 @@ type WorkerHandler struct {
 	agentConfig       *model.AgentConfig
 	agentClient       *agent.Client
 	whitelistClient   *whitelist.Client
+	verifierPublicKey string
 }
 
-func (wh *WorkerHandler) Init(attestationEnabledNamespaces []string, defaultResync int, registrarClient *registrar.Client, agentConfig *model.AgentConfig, whitelistClient *whitelist.Client) {
+func (wh *WorkerHandler) Init(verifierPublicKey string, attestationEnabledNamespaces []string, defaultResync int, registrarClient *registrar.Client, agentConfig *model.AgentConfig, whitelistClient *whitelist.Client) {
+	wh.verifierPublicKey = verifierPublicKey
 	wh.clusterInteractor.ConfigureKubernetesClient()
 	wh.clusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
 	wh.informerFactory = informers.NewSharedInformerFactory(wh.clusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
@@ -314,7 +304,8 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	}
 
 	if createWorkerResponse.Status == model.Success {
-		registrationAcknowledge.VerifierPublicKey = verifierPublicKey
+		verifierPublicKeyEncoded := base64.StdEncoding.EncodeToString([]byte(wh.verifierPublicKey))
+		registrationAcknowledge.VerifierPublicKey = verifierPublicKeyEncoded
 	}
 
 	registrationConfirm, err := wh.agentClient.WorkerRegistrationAcknowledge(registrationAcknowledge)
