@@ -336,8 +336,14 @@ func (s *Server) verifyTenantSignature(c *gin.Context) {
 		return
 	}
 
+	signedMessage, err := base64.StdEncoding.DecodeString(verifySignatureRequest.Message)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to decode message from base64", "status": model.Error})
+		return
+	}
+
 	// Verify signature
-	if err := cryptoUtils.VerifySignature(tenantPublicKey, []byte(verifySignatureRequest.Message), tenantSignature); err != nil {
+	if err := cryptoUtils.VerifySignature(tenantPublicKey, signedMessage, tenantSignature); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Signature verification failed", "status": model.Error})
 		return
 	}
