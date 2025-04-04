@@ -95,6 +95,11 @@ type AttestationResult struct {
 	Reason     string
 }
 
+type AttestationEvidence struct {
+	Evidence  Evidence `json:"evidence"`
+	Signature string   `json:"signature,omitempty"`
+}
+
 /*
 type PodStatus struct {
 	PodName   string `json:"podName"`

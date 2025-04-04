@@ -52,7 +52,7 @@ fi
 
 # Delete the namespace if the command is "delete"
 if [ "$COMMAND" == "delete" ]; then
-  echo "Deleting namespace '$NAMESPACE'..."
+  echo 'Deleting namespace "$NAMESPACE"'
   kubectl delete namespace "$NAMESPACE" --ignore-not-found=true
   echo "Namespace '$NAMESPACE' deletion attempted."
 fi

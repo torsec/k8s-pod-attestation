@@ -500,15 +500,15 @@ func (s *Server) verifyWorkerSignature(c *gin.Context) {
 		return
 	}
 
-	decodedMessage, err := base64.StdEncoding.DecodeString(verifySignatureRequest.Message)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Failed to decode message from base64", "status": model.Error})
-		return
-	}
-
 	workerPublicKey, err := cryptoUtils.DecodePublicKeyFromPEM([]byte(worker.AIK))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to decode public key", "status": model.Error})
+		return
+	}
+
+	decodedMessage, err := base64.StdEncoding.DecodeString(verifySignatureRequest.Message)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Failed to decode message from base64", "status": model.Error})
 		return
 	}
 
@@ -519,7 +519,7 @@ func (s *Server) verifyWorkerSignature(c *gin.Context) {
 	}
 
 	// Verify signature
-	if err := cryptoUtils.VerifySignature(workerPublicKey, decodedMessage, workerSignature); err != nil {
+	if err = cryptoUtils.VerifySignature(workerPublicKey, decodedMessage, workerSignature); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Signature verification failed", "status": model.Error})
 		return
 	}

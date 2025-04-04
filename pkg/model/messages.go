@@ -81,8 +81,9 @@ type AttestationRequest struct {
 }
 
 type AttestationResponse struct {
-	Evidence  Evidence `json:"evidence"`
-	Signature string   `json:"signature,omitempty"`
+	AttestationEvidence AttestationEvidence `json:"attestationEvidence"`
+	Message             string              `json:"message"`
+	Status              string              `json:"status"`
 }
 
 type WorkerRegistrationConfirm struct {

@@ -179,26 +179,30 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		return nil, fmt.Errorf("error while sending Attestation Request to Agent: %v", err)
 	}
 
+	if attestationResponse.Status != model.Success {
+		return nil, fmt.Errorf("invalid attestation response: %v", attestationResponse.Message)
+	}
+
+	evidenceRaw, err := json.Marshal(attestationResponse.AttestationEvidence)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize Evidence: %v", err)
+	}
+
+	evidenceDigest, err := cryptoUtils.Hash(evidenceRaw)
+	if err != nil {
+		return nil, fmt.Errorf("error computing Attestation Evidence digest")
+	}
+
+	// Serialize Evidence struct to JSON
 	workerName, err := extractNodeName(agentName)
 	if err != nil {
 		return nil, fmt.Errorf("error while verifying Attestation Evidence: invalid Worker name")
 	}
 
-	// Serialize Evidence struct to JSON
-	rawEvidence, err := json.Marshal(attestationResponse.Evidence)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize Evidence: %v", err)
-	}
-
-	evidenceDigest, err := cryptoUtils.Hash(rawEvidence)
-	if err != nil {
-		return nil, fmt.Errorf("error computing Attestation Evidence digest")
-	}
-
 	verifyWorkerSignatureRequest := &model.VerifySignatureRequest{
 		Name:      workerName,
 		Message:   base64.StdEncoding.EncodeToString(evidenceDigest),
-		Signature: attestationResponse.Signature,
+		Signature: attestationResponse.AttestationEvidence.Signature,
 	}
 
 	// process Evidence
@@ -223,7 +227,7 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		}, fmt.Errorf("invalid evidence signature")
 	}
 
-	quoteJson, err := base64.StdEncoding.DecodeString(attestationResponse.Evidence.Quote)
+	quoteJson, err := base64.StdEncoding.DecodeString(attestationResponse.AttestationEvidence.Evidence.Quote)
 	if err != nil {
 		return &model.AttestationResult{
 			Agent:      agentName,
@@ -258,7 +262,7 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		}, fmt.Errorf("error while validating Worker Quote")
 	}
 
-	imaPodEntries, imaContainerRuntimeEntries, err := ima.MeasurementLogValidation(attestationResponse.Evidence.MeasurementLog, pcr10Content, attestationRequest.PodUid)
+	imaPodEntries, imaContainerRuntimeEntries, err := ima.MeasurementLogValidation(attestationResponse.AttestationEvidence.MeasurementLog, pcr10Content, attestationRequest.PodUid)
 	if err != nil {
 		return &model.AttestationResult{
 			Agent:      agentName,
