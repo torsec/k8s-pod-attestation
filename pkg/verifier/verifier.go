@@ -346,7 +346,7 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		Agent:      agentName,
 		Target:     attestationRequest.PodName,
 		TargetType: "Pod",
-		Result:     cluster_interaction.UntrustedPodStatus,
+		Result:     cluster_interaction.TrustedPodStatus,
 		Reason:     "Pod Attestation ended with success",
 	}, nil
 }
@@ -382,6 +382,12 @@ func (v *Verifier) addAttestationRequestCRDHandling(obj interface{}) {
 	}
 
 	attestationResult, failReason := v.podAttestation(attestationRequestCRD)
+
+	_, err := v.clusterInteractor.DeleteAttestationRequestCRDInstance(obj)
+	if err != nil {
+		logger.Error("failed to delete Attestation Request: %v", err)
+	}
+
 	if attestationResult != nil {
 		if failReason != nil {
 			logger.Warning("Pod Attestation completed with negative outcome: %v; agent: '%s', target: '%s' name: '%s', result: '%s'", failReason, attestationResult.Agent, attestationResult.TargetType, attestationResult.Target, attestationResult.Result)
@@ -397,13 +403,8 @@ func (v *Verifier) addAttestationRequestCRDHandling(obj interface{}) {
 	}
 
 	if failReason != nil {
-		logger.Error("failed to process Attestation Request: %v; Attestation not performed; removing Attestation Request", failReason)
-		_, err := v.clusterInteractor.DeleteAttestationRequestCRDInstance(obj)
-		if err != nil {
-			logger.Error("failed to delete Attestation Request: %v", err)
-		}
+		logger.Error("failed to process Attestation Request: %v; Attestation not performed", failReason)
 	}
-
 }
 
 func (v *Verifier) updateAttestationRequestCRDHandling(oldObj interface{}, newObj interface{}) {

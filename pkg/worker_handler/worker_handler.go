@@ -67,17 +67,27 @@ func (wh *WorkerHandler) deleteNodeHandling(obj interface{}) {
 
 	logger.Info("Worker node '%s' removed from the cluster; removing Agent and Agent CRD", node.GetName())
 
+	registrarResponse, err := wh.registrarClient.RemoveWorker(node.GetName())
+	if err != nil {
+		logger.Error("Failed to remove contact Registrar to remove worker '%s': %v", node.GetName(), err)
+		return
+	}
+
+	if registrarResponse.Status != model.Success {
+		logger.Error("Failed to remove worker '%s' from Registrar: %s", node.GetName(), registrarResponse.Message)
+	}
+
 	err = wh.clusterInteractor.DeleteAgent(node.GetName())
 	if err != nil {
-		logger.Error("Failed to delete Agent from node '%s': %v", node.GetName(), err)
+		logger.Error("Failed to delete Agent from worker '%s': %v", node.GetName(), err)
 		return
 	}
 	err = wh.clusterInteractor.DeleteAgentCRDInstance(node.GetName())
 	if err != nil {
-		logger.Error("Failed to delete Agent CRD of node '%s': %v", node.GetName(), err)
+		logger.Error("Failed to delete Agent CRD of worker '%s': %v", node.GetName(), err)
 		return
 	}
-	logger.Success("Successfully deleted Agent and Agent CRD of node '%s'", node.GetName())
+	logger.Success("Successfully deleted Agent and Agent CRD of worker '%s'", node.GetName())
 }
 
 func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
