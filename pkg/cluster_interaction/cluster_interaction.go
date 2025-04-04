@@ -803,7 +803,7 @@ func (c *ClusterInteraction) DefineAttestationRequestCRD() error {
 										"agentName": {
 											Type: "string",
 										},
-										"agentIp": {
+										"agentIP": {
 											Type: "string",
 										},
 										"issued": {
