@@ -168,6 +168,10 @@ github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250403190117-fffdb9c9e2
 github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250403190117-fffdb9c9e277/go.mod h1:X/1T0P4NVXjusMY+CweUjVN+J+lWMQGvQ63Mf5dS9+I=
 github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250404095015-3fd4ed1540a6 h1:S9XW3Th3hI/cTD6CviPecYhiM2yIMwJUga4DXyFGvSQ=
 github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250404095015-3fd4ed1540a6/go.mod h1:Hbk3S8W7Jc0BD0hAi/NSW/SHZDDmmaHrC27vHaiP9NQ=
+github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250404110210-30a8546646d9 h1:feTat7gNgwYf2Z+4bIuODCrktbxfQ+COnR91XUk53sA=
+github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250404110210-30a8546646d9/go.mod h1:Fp8I6S0OQz+hmBQdIlKd6EITK3WJ9eWtlDsrJKpAW3Y=
+github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250404123753-25c5aec292f5 h1:+ygx8xBMnBqx3uHAzSf9lGU8tmJpp2OhEcR93MBnn9k=
+github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250404123753-25c5aec292f5/go.mod h1:Fp8I6S0OQz+hmBQdIlKd6EITK3WJ9eWtlDsrJKpAW3Y=
 github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250402163006-1febba09d409 h1:dz3ZTpW0w0TFLrARfHjbbvh8D3PouUg+ybYezx+ecss=
 github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250402163006-1febba09d409/go.mod h1:yQglEZRfrxRbW94ze+xoKzoI86rneC1XaSekIwqwXQo=
 github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250402192317-f44350d8cb40 h1:gDmihVm2/IStyC4gMdh2Kwcu7LpOZuZ335KzFOW0O6I=
@@ -188,6 +192,8 @@ github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250403190
 github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250403190117-fffdb9c9e277/go.mod h1:Zpnb4SAyqXuC6DNd8IiBAPaOp6sTT0bTMhZ++ZQtA9Q=
 github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250404095015-3fd4ed1540a6 h1:s5+xQjItIO9sKJBCMypgIvwa2ewmyCQlQe/cYBmjsaM=
 github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250404095015-3fd4ed1540a6/go.mod h1:gpFLBfrCh5aAZpYXAnJqD3NPuOMKNVLvWV/SgD6amS0=
+github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250404123753-25c5aec292f5 h1:Wwum80VX2AD3zcZyL1VQUM/y2Gf/TJtAMkLIaL7GddE=
+github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250404123753-25c5aec292f5/go.mod h1:o8ArKU4fEHI1CjQip1WNOg1ZHVwmVTRTeAciZd+U6UI=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250402163006-1febba09d409 h1:8wXmksewVpMmRXTWbeXa6yzmEtRuOj7MZu8la/QYLpA=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250402163006-1febba09d409/go.mod h1:J2RCtlJs4fEQZtvXF85olG8tEI3hhOTmw1KRqLDI2v4=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250402192317-f44350d8cb40 h1:zCXDaVCKKjOqh5STcfxDii/yZHMoKjG/9+BvVKH08UI=
@@ -206,6 +212,8 @@ github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250403183430-a254280ba
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250403183430-a254280ba7ab/go.mod h1:DuK/3T+/rnpz5LZUsmffnTmx8sqG+ZznOiEmR63rDLQ=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250403190117-fffdb9c9e277 h1:ZwiSI4AVjU6zOnqgg4jBtu3JtSfpMDRkbOR1PEgvepk=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250403190117-fffdb9c9e277/go.mod h1:DuK/3T+/rnpz5LZUsmffnTmx8sqG+ZznOiEmR63rDLQ=
+github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250404123753-25c5aec292f5 h1:/uZhcZ9XSKp9f07j652TTYBHTyhT4zNEZXyd8myz8pw=
+github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250404123753-25c5aec292f5/go.mod h1:OlewKekzyfg6fLl4UPcjBFOWAs2R31Gl/O8Om58De04=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250402163006-1febba09d409 h1:kQ6toQ67Y8A3yZnQ2iWYPIT/zqd5bV+GL6iF7sMSqK0=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250402163006-1febba09d409/go.mod h1:ZFwzdtvry6L00T1EBbo3D1Sj3Ktj10VhtXqsuuBaQcI=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250402192317-f44350d8cb40 h1:lP9qMwf2nEUWpZgH9u9/ZmzaTCiY5YLcTISlawe/PX8=
@@ -226,6 +234,10 @@ github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250403190117-fffdb9c9e
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250403190117-fffdb9c9e277/go.mod h1:ZFwzdtvry6L00T1EBbo3D1Sj3Ktj10VhtXqsuuBaQcI=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404095015-3fd4ed1540a6 h1:V8BdqaOTDbjhsa9Z9MERLBANz3vRo+5J6DM4bC8xAYQ=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404095015-3fd4ed1540a6/go.mod h1:ZFwzdtvry6L00T1EBbo3D1Sj3Ktj10VhtXqsuuBaQcI=
+github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404110210-30a8546646d9 h1:6gfmszPY/pa7KgNX3oFBWB6lznKDwsMocOMyPQwJMWc=
+github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404110210-30a8546646d9/go.mod h1:ZFwzdtvry6L00T1EBbo3D1Sj3Ktj10VhtXqsuuBaQcI=
+github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404123753-25c5aec292f5 h1:P53/7BGbmM2hC4GIgzIGsAn0QbMcjEZWvsWucamptho=
+github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404123753-25c5aec292f5/go.mod h1:ZFwzdtvry6L00T1EBbo3D1Sj3Ktj10VhtXqsuuBaQcI=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402154414-b85a54c368d4 h1:eUb1rD3yMFCsL5obruLdBeyaGdiYDI2K130hz08jq9Y=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402154414-b85a54c368d4/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250402163006-1febba09d409 h1:Y9SBYBxrvO3HywZ+FAw8b1go/GFu4S/CADnsU7l+VwU=
@@ -246,6 +258,10 @@ github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250403190117-fffdb9c9e2
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250403190117-fffdb9c9e277/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250404095015-3fd4ed1540a6 h1:dowigTVyeSnHgunROXAbl6zcPIJxF7Imb6ZsGinif80=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250404095015-3fd4ed1540a6/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250404110210-30a8546646d9 h1:9eK9tdq07sfP+SCsUpvKaNFsDgu87AcQbqutc4C+zuU=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250404110210-30a8546646d9/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250404123753-25c5aec292f5 h1:4Vx6oaRSTrpbOMLTtrR+yBINXhiASKquQKjIQ/F455k=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250404123753-25c5aec292f5/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
 github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402163006-1febba09d409 h1:UUL6Cu11pXRK+Tk+YQ9BJgtLnF3/7iYU3Fi4jN3dqJo=
 github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402163006-1febba09d409/go.mod h1:6w5Lla8wPzn3STZY0cYsYQr1Wsae+k3mapOyEApHGw4=
 github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250402192317-f44350d8cb40 h1:e+jYrdlrwcHSstDDcssahoscXoBjb1zqCdb4J1eHjhI=
@@ -268,6 +284,10 @@ github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250403190117-fffdb9
 github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250403190117-fffdb9c9e277/go.mod h1:7zwOX3qD75TuzkGhixPciOg+JBH+dchUWa7TMCtsGBg=
 github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250404095015-3fd4ed1540a6 h1:/7eICH680NTqmJEzmzdl+A0O/zKIFQoa5/Eu8o6nrlg=
 github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250404095015-3fd4ed1540a6/go.mod h1:uadWi8g67avO10r93LMCWeG/fmQWTBMWnpWepohz3Fw=
+github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250404110210-30a8546646d9 h1:/Y4i9ApaJNdkE08sxHVss6JIThaFvZEDC3xL5yan1AM=
+github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250404110210-30a8546646d9/go.mod h1:evPElHL/UeaTz8ksCxuedfUwiyV2GtP87dyURsMiQfs=
+github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250404123753-25c5aec292f5 h1:Bg1xE+ATyjB0TzLsJ4x2uV0C1hbhOyOHNBbdjGzmW6c=
+github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250404123753-25c5aec292f5/go.mod h1:evPElHL/UeaTz8ksCxuedfUwiyV2GtP87dyURsMiQfs=
 github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250402163006-1febba09d409 h1:rexI4xTxuRsvfW15XypswZV8oP3i8D7C0IaO/54PI5g=
 github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250402163006-1febba09d409/go.mod h1:AqmbTy5sFcMoMJePb3OxaIbEHSAHbylRuGwaINfnoC4=
 github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250402192317-f44350d8cb40 h1:TFRCxGyDVYO4yHgVRg3mX/4ZYvQ/WIZ/4dTH/uyWt38=
@@ -286,6 +306,8 @@ github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250403190117-fffdb9c9e277
 github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250403190117-fffdb9c9e277/go.mod h1:0o1pXG91WgC+jOoW/rUlQnVLX8ABGeUyFd3RsKbsYx0=
 github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250404095015-3fd4ed1540a6 h1:QB7cQmnIuYmrpmhC4WFj8KgoN7ssRLwPpoalrN7LD5w=
 github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250404095015-3fd4ed1540a6/go.mod h1:KSJ6xKU+oFeyR7Q5vRNr7RGULoM5w35ow5VRebhmKNo=
+github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250404123753-25c5aec292f5 h1:NDqtNL3BDVaRo952lr3kyGgUf/5kamjEZfNQ8izn4Ig=
+github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250404123753-25c5aec292f5/go.mod h1:GWgZk+8repCbT0HBVp5tbGh+Nu2geuUujHs2k0qH4Fw=
 github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250402154414-b85a54c368d4 h1:ANvwlQqCKJFYTB1z8ywo1534awbs5H3zoSVudkHd8zo=
 github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250402154414-b85a54c368d4/go.mod h1:Aku4rvJkPiHjfdrZgIg+Kz+MBdibNUj9C4G5/wUMxfY=
 github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250402163006-1febba09d409 h1:9lKucSbL/NH6yphgyjd4xzwsFjnD4mDv80kEq239y8g=
@@ -306,6 +328,10 @@ github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250403190117-
 github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250403190117-fffdb9c9e277/go.mod h1:HGie77xaBklN9VUpTAvCXeom6pbe2XcV1B0Ar1xsAqM=
 github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250404095015-3fd4ed1540a6 h1:+lRpttOOQgCu3FwTRYEtPWJUg0kj5J7yd1kahTv2HfQ=
 github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250404095015-3fd4ed1540a6/go.mod h1:KL7G0L0U6mSJe0rilTTp1XtvKSPSXscERqAHtTo6/ck=
+github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250404110210-30a8546646d9 h1:i1AUlywsN7185GVvih7PXMlx5Oz1vJXGJOMMuiBOzzA=
+github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250404110210-30a8546646d9/go.mod h1:V4Ebw5YIkqO3CLaDD8NFOtcogW3P4eKpVQaRUkaj5U4=
+github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250404123753-25c5aec292f5 h1:y33LMZkJJLsnoq+mUkzJhetNelEI8Pn+7lrSrsq4dAs=
+github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250404123753-25c5aec292f5/go.mod h1:V4Ebw5YIkqO3CLaDD8NFOtcogW3P4eKpVQaRUkaj5U4=
 github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250402154414-b85a54c368d4 h1:LJ0w8OsSs+M3B8+Ci+IhDPx+Od7Ufotx+WFvv1PrwnA=
 github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250402154414-b85a54c368d4/go.mod h1:DAhdKBLqPgzhrV4AilhdMSIWXxnJZpSeUKTexq1KBpk=
 github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250402163006-1febba09d409 h1:8JmEFNL/2POV7FfOQHKvc8ygH8Z3EhaTwUhJNIXzsZQ=
@@ -326,6 +352,10 @@ github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250403190117-fffdb9
 github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250403190117-fffdb9c9e277/go.mod h1:GsCCpG4bJKkcjxbZfYAKJH6ES6CMGDOP5n8iMKU5ukY=
 github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250404095015-3fd4ed1540a6 h1:t1abg7C8MJINts6W6op1NFs+kabWkz6EOobPjxNX9h8=
 github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250404095015-3fd4ed1540a6/go.mod h1:7H8hn744p3rAlm5FKfNSPZwSKxoWaEkNhLLsQNJXgQA=
+github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250404110210-30a8546646d9 h1:DDFw5rHfkuy9Ulgf5YgturRoRSd8ilZ+y23a52mZXsw=
+github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250404110210-30a8546646d9/go.mod h1:JWleKssVGUBkwEu20KeOIM1jwWArH5cGjgK0YacoO+o=
+github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250404123753-25c5aec292f5 h1:zUT2MSDtgZCIX0Rao2TkG1Loj0n7PaldfzBHZXfofFw=
+github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250404123753-25c5aec292f5/go.mod h1:JWleKssVGUBkwEu20KeOIM1jwWArH5cGjgK0YacoO+o=
 github.com/torsec/k8s-pod-attestation/pkg/worker_handler v0.0.0-20250402154414-b85a54c368d4 h1:/tbhANPvR+JWMGWM5w/ppFKaMR1WRevOK8zeeVkfp10=
 github.com/torsec/k8s-pod-attestation/pkg/worker_handler v0.0.0-20250402154414-b85a54c368d4/go.mod h1:GXRnkiyBwF/5DjFZ+91LllE9drSsNAHXtiU0bUtkjcM=
 github.com/torsec/k8s-pod-attestation/pkg/worker_handler v0.0.0-20250402163006-1febba09d409 h1:48h+ibDnX7mHeiTvKLKGot3wpqhiwlkK9rlWpSZZhgk=
@@ -348,6 +378,10 @@ github.com/torsec/k8s-pod-attestation/pkg/worker_handler v0.0.0-20250403190117-f
 github.com/torsec/k8s-pod-attestation/pkg/worker_handler v0.0.0-20250403190117-fffdb9c9e277/go.mod h1:VEj3ZA0K4wVggg8RJ6PtsJmbiyFBeTBXR12BZeYSXms=
 github.com/torsec/k8s-pod-attestation/pkg/worker_handler v0.0.0-20250404095015-3fd4ed1540a6 h1:WEYTKX5HRU/knQANj4QhyvE5zyKzJUgB2vg0MS7DjU0=
 github.com/torsec/k8s-pod-attestation/pkg/worker_handler v0.0.0-20250404095015-3fd4ed1540a6/go.mod h1:Df1PiktRjduI9pa2MZHkx6i3ZyaB+mD21iCI177LKAw=
+github.com/torsec/k8s-pod-attestation/pkg/worker_handler v0.0.0-20250404110210-30a8546646d9 h1:4n/jcZcz8I+sAnWYu71u6wd2brWRZ6MOO0kLK90tlWg=
+github.com/torsec/k8s-pod-attestation/pkg/worker_handler v0.0.0-20250404110210-30a8546646d9/go.mod h1:zvi0oW7ORtS7annDeukD0kBKmT+ZXTJgLktxXwYDPF8=
+github.com/torsec/k8s-pod-attestation/pkg/worker_handler v0.0.0-20250404123753-25c5aec292f5 h1:w4E9R/I07CLjUt3/JLcU8wwUyCbtW5LR6ramrei9bXo=
+github.com/torsec/k8s-pod-attestation/pkg/worker_handler v0.0.0-20250404123753-25c5aec292f5/go.mod h1:zvi0oW7ORtS7annDeukD0kBKmT+ZXTJgLktxXwYDPF8=
 github.com/twitchyliquid64/golang-asm v0.15.1 h1:SU5vSMR7hnwNxj24w34ZyCi/FmDZTkS4MhqMhdFk5YI=
 github.com/twitchyliquid64/golang-asm v0.15.1/go.mod h1:a1lVb/DtPvCB8fslRZhAngC2+aY1QWCk3Cedj/Gdt08=
 github.com/ugorji/go/codec v1.2.12 h1:9LC83zGrHhuUA9l16C9AHXAqEV/2wBQ4nkvumAE65EE=

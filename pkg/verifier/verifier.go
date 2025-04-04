@@ -23,12 +23,12 @@ import (
 	"time"
 )
 
-const attestationNoncesize = 16
+const attestationNonceSize = 16
 
 type Verifier struct {
 	clusterInteractor cluster_interaction.ClusterInteraction
 	informerFactory   dynamicinformer.DynamicSharedInformerFactory
-	agentClient       *agent.Client
+	agentClient       agent.Client
 	registrarClient   *registrar.Client
 	whitelistClient   *whitelist.Client
 	attestationSecret []byte
@@ -84,7 +84,7 @@ func (v *Verifier) parseAttestationRequestFromCRD(spec map[string]interface{}) (
 		return nil, fmt.Errorf("invalid Attestation Request CRD: %s", err)
 	}
 
-	nonce, err := cryptoUtils.GenerateHexNonce(attestationNoncesize)
+	nonce, err := cryptoUtils.GenerateHexNonce(attestationNonceSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate nonce for Attestation Request")
 	}
@@ -376,19 +376,26 @@ func (v *Verifier) addAttestationRequestCRDHandling(obj interface{}) {
 
 	attestationResult, failReason := v.podAttestation(attestationRequestCRD)
 	if attestationResult != nil {
-		logger.Success("Pod Attestation completed: agent: '%s', target: '%s' name: '%s', result: '%s'", attestationResult.Agent, attestationResult.TargetType, attestationResult.Target, attestationResult.Result)
+		if failReason != nil {
+			logger.Warning("Pod Attestation completed with negative outcome: %v; agent: '%s', target: '%s' name: '%s', result: '%s'", failReason, attestationResult.Agent, attestationResult.TargetType, attestationResult.Target, attestationResult.Result)
+		} else {
+			logger.Success("Pod Attestation completed with positive outcome; agent: '%s', target: '%s' name: '%s', result: '%s'", attestationResult.Agent, attestationResult.TargetType, attestationResult.Target, attestationResult.Result)
+		}
 		_, err := v.clusterInteractor.UpdateAgentCRDWithAttestationResult(attestationResult)
 		if err != nil {
-			logger.Error("failed to update Agent CRD with Attestation Result")
+			logger.Error("failed to update Agent CRD with Attestation Result: %v", err)
 			return
 		}
-	} else if failReason != nil {
-		logger.Error("failed to process Attestation Request; Attestation not performed; removing Attestation Request")
+	}
+
+	if failReason != nil {
+		logger.Error("failed to process Attestation Request: %v; Attestation not performed; removing Attestation Request", failReason)
 		_, err := v.clusterInteractor.DeleteAttestationRequestCRDInstance(obj)
 		if err != nil {
-			logger.Error("failed to delete Attestation Request")
+			logger.Error("failed to delete Attestation Request: %v", err)
 		}
 	}
+
 }
 
 func (v *Verifier) updateAttestationRequestCRDHandling(oldObj interface{}, newObj interface{}) {
@@ -396,7 +403,7 @@ func (v *Verifier) updateAttestationRequestCRDHandling(oldObj interface{}, newOb
 	if attestationRequest == nil {
 		return
 	}
-	logger.Info("Attestation Request '%s' updated", attestationRequest["name"])
+	logger.Info("Attestation Request for pod: '%s' updated", attestationRequest["podName"])
 }
 
 func (v *Verifier) deleteAttestationRequestCRDHandling(obj interface{}) {
@@ -404,7 +411,7 @@ func (v *Verifier) deleteAttestationRequestCRDHandling(obj interface{}) {
 	if attestationRequest == nil {
 		return
 	}
-	logger.Info("Attestation Request '%s' deleted", attestationRequest["name"])
+	logger.Info("Attestation Request for pod: '%s' deleted", attestationRequest["podName"])
 }
 
 // watchAttestationRequestCRDs starts watching for changes to the AttestationRequest CRD

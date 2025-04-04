@@ -5,8 +5,8 @@ go 1.23.4
 require (
 	github.com/google/go-tpm v0.9.3
 	github.com/google/go-tpm-tools v0.4.5
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250403190117-fffdb9c9e277
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404095015-3fd4ed1540a6
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250404123753-25c5aec292f5
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404123753-25c5aec292f5
 )
 
 require (
@@ -19,7 +19,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250404095015-3fd4ed1540a6 // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250404123753-25c5aec292f5 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
