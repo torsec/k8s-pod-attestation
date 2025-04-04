@@ -184,9 +184,8 @@ func (s *Server) podAttestation(c *gin.Context) {
 	// Bind the JSON request body to the struct
 	if err := c.BindJSON(&attestationRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"attestationEvidence": "",
-			"message":             "Invalid request payload",
-			"status":              model.Error,
+			"message": "Invalid request payload",
+			"status":  model.Error,
 		})
 		return
 	}
@@ -201,9 +200,8 @@ func (s *Server) podAttestation(c *gin.Context) {
 	receivedAttestationRequestJSON, err := json.Marshal(receivedAttestationRequest)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"attestationEvidence": "",
-			"message":             "Error serializing Attestation Request",
-			"status":              model.Error,
+			"message": "Error serializing Attestation Request",
+			"status":  model.Error,
 		})
 		return
 	}
@@ -211,9 +209,8 @@ func (s *Server) podAttestation(c *gin.Context) {
 	decodedAttestationRequestSignature, err := base64.StdEncoding.DecodeString(attestationRequest.Signature)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"attestationEvidence": "",
-			"message":             "Error decoding Attestation Request Signature from base64",
-			"status":              model.Error,
+			"message": "Error decoding Attestation Request Signature from base64",
+			"status":  model.Error,
 		})
 		return
 	}
@@ -221,9 +218,8 @@ func (s *Server) podAttestation(c *gin.Context) {
 	err = cryptoUtils.VerifySignature(s.verifierPublicKey, receivedAttestationRequestJSON, decodedAttestationRequestSignature)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"attestationEvidence": "",
-			"message":             "Attestation request signature verification failed",
-			"status":              model.Error,
+			"message": "Attestation request signature verification failed",
+			"status":  model.Error,
 		})
 		return
 	}
@@ -231,9 +227,8 @@ func (s *Server) podAttestation(c *gin.Context) {
 	nonceBytes, err := hex.DecodeString(attestationRequest.Nonce)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"attestationEvidence": "",
-			"message":             "Failed to decode nonce",
-			"status":              model.Error,
+			"message": "Failed to decode nonce",
+			"status":  model.Error,
 		})
 		return
 	}
@@ -242,9 +237,8 @@ func (s *Server) podAttestation(c *gin.Context) {
 	workerQuote, err := s.tpm.QuoteGeneralPurposePCRs(nonceBytes, quotePcrs)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"attestationEvidence": "",
-			"message":             err.Error(),
-			"status":              model.Error,
+			"message": err.Error(),
+			"status":  model.Error,
 		})
 		return
 	}
@@ -254,9 +248,8 @@ func (s *Server) podAttestation(c *gin.Context) {
 	measurementLog, err := s.getWorkerMeasurementLog()
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"attestationEvidence": "",
-			"message":             err.Error(),
-			"status":              model.Error,
+			"message": err.Error(),
+			"status":  model.Error,
 		})
 		return
 	}
@@ -274,9 +267,8 @@ func (s *Server) podAttestation(c *gin.Context) {
 	evidenceRaw, err := json.Marshal(evidence)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"attestationEvidence": "",
-			"message":             "Failed to marshal Evidence",
-			"status":              model.Error,
+			"message": "Failed to marshal Evidence",
+			"status":  model.Error,
 		})
 		return
 	}
@@ -284,9 +276,8 @@ func (s *Server) podAttestation(c *gin.Context) {
 	evidenceDigest, err := cryptoUtils.Hash(evidenceRaw)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"attestationEvidence": "",
-			"message":             "Failed to compute Evidence digest",
-			"status":              model.Error,
+			"message": "Failed to compute Evidence digest",
+			"status":  model.Error,
 		})
 		return
 	}
@@ -294,9 +285,8 @@ func (s *Server) podAttestation(c *gin.Context) {
 	signedEvidence, err := s.tpm.SignWithAIK(evidenceDigest)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"attestationEvidence": "",
-			"message":             "Failed to sign Evidence",
-			"status":              model.Error,
+			"message": "Failed to sign Evidence",
+			"status":  model.Error,
 		})
 		return
 	}

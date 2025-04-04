@@ -30,7 +30,7 @@ func getEnv(key, defaultValue string) string {
 func loadEnvironmentVariables() {
 	var err error
 	tpmPath = getEnv("TPM_PATH", "/dev/tpm0")
-	imaMlPath = getEnv("IMA_ML_PATH", "/sys/kernel/security/integrity/ima/ascii_runtime_measurements")
+	imaMlPath = getEnv("IMA_ML_PATH", "/root/ascii_runtime_measurements")
 	agentHost = getEnv("AGENT_HOST", "localhost")
 	agentPort, err = strconv.Atoi(getEnv("AGENT_PORT", "8080"))
 	if err != nil {

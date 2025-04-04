@@ -297,6 +297,9 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		HashAlg:                      pcrHashAlg,
 	}
 
+	logger.Info("pod entries: %s", imaPodEntries)
+	logger.Info("container runtime entries: %s", imaContainerRuntimeEntries)
+
 	containerRuntimeValidationResponse, err := v.whitelistClient.CheckContainerRuntimeWhitelist(containerRuntimeCheckRequest)
 	if err != nil {
 		return &model.AttestationResult{
@@ -390,6 +393,7 @@ func (v *Verifier) addAttestationRequestCRDHandling(obj interface{}) {
 			logger.Error("failed to update Agent CRD with Attestation Result: %v", err)
 			return
 		}
+		return
 	}
 
 	if failReason != nil {
