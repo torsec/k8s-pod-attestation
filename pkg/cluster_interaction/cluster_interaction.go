@@ -320,7 +320,7 @@ func (c *ClusterInteraction) IssueAttestationRequestCRD(podName, podUid, tenantI
 	}
 
 	// Create the AttestationRequest CR in the attestation namespace
-	_, err := c.DynamicClient.Resource(AgentGVR).Namespace(PodAttestationNamespace).Create(context.TODO(), attestationRequest, metav1.CreateOptions{})
+	_, err := c.DynamicClient.Resource(AttestationRequestGVR).Namespace(PodAttestationNamespace).Create(context.TODO(), attestationRequest, metav1.CreateOptions{})
 	if err != nil {
 		return false, fmt.Errorf("failed to create attestation request: %v", err)
 	}
