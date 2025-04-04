@@ -67,8 +67,8 @@ const KubeSystemNamespace = "kube-system"
 
 // Agent CRD parameters
 const (
-	AgentCRDName             = "agents.example.com"
-	AgentCRDGroup            = "example.com"
+	AgentCRDName             = "agents.attestation.com"
+	AgentCRDGroup            = "attestation.com"
 	AgentCRDVersion          = "v1"
 	AgentCRDResourcePlural   = "agents"
 	AgentCRDListKind         = "AgentList"
@@ -78,13 +78,14 @@ const (
 )
 
 const (
-	AttestationRequestCRDName             = "attestationrequests.example.com"
-	AttestationRequestCRDGroup            = "example.com"
+	AttestationRequestCRDName             = "attestationrequests.attestation.com"
+	AttestationRequestCRDGroup            = "attestation.com"
 	AttestationRequestCRDVersion          = "v1"
 	AttestationRequestCRDResourcePlural   = "attestationrequests"
 	AttestationRequestCRDResourceSingular = "attestationrequest"
 	AttestationRequestCRDListKind         = "AttestationRequestList"
 	AttestationRequestCRDKind             = "AttestationRequest"
+	AttestationRequestCRDApiVersion       = AttestationRequestCRDGroup + "/" + AttestationRequestCRDVersion
 )
 
 const (
@@ -295,20 +296,20 @@ func (c *ClusterInteraction) GetAgentPort(agentName string) (int32, error) {
 	return -1, fmt.Errorf("no NodePort found for service %s", agentServiceName)
 }
 
-func (c *ClusterInteraction) IssueAttestationRequestCRD(podName, podUID, tenantId, agentName, agentIP, hmac string) (bool, error) {
+func (c *ClusterInteraction) IssueAttestationRequestCRD(podName, podUid, tenantId, agentName, agentIP, hmac string) (bool, error) {
 	attestationRequestName := fmt.Sprintf("attestation-request-%s", podName)
 
 	// Create an unstructured object to represent the AttestationRequest
 	attestationRequest := &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": AgentCRDApiVersion,
-			"kind":       AgentCRDKind,
+			"apiVersion": AttestationRequestCRDApiVersion,
+			"kind":       AttestationRequestCRDKind,
 			"metadata": map[string]interface{}{
 				"name": attestationRequestName, // Unique name for the custom resource
 			},
 			"spec": map[string]interface{}{
 				"podName":   podName,
-				"podUid":    podUID,
+				"podUid":    podUid,
 				"tenantId":  tenantId,
 				"agentName": agentName,
 				"agentIP":   agentIP,
