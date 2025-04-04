@@ -3,12 +3,12 @@ module github.com/torsec/k8s-pod-attestation/pkg/worker_handler
 go 1.23.4
 
 require (
-	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250404153347-0be6ee71c3d4
+	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250404173651-f61ca7439997
 	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250404153347-0be6ee71c3d4
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250404153347-0be6ee71c3d4
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404153347-0be6ee71c3d4
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250404153347-0be6ee71c3d4
-	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250404153347-0be6ee71c3d4
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404173651-f61ca7439997
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250404173651-f61ca7439997
+	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250404173651-f61ca7439997
 	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250404153347-0be6ee71c3d4
 	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250404153347-0be6ee71c3d4
 	k8s.io/api v0.32.3

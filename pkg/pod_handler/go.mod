@@ -6,9 +6,9 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250404153347-0be6ee71c3d4
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250404153347-0be6ee71c3d4
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404153347-0be6ee71c3d4
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250404153347-0be6ee71c3d4
-	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250404153347-0be6ee71c3d4
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404173651-f61ca7439997
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250404173651-f61ca7439997
+	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250404173651-f61ca7439997
 )
 
 require (

@@ -183,7 +183,7 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		return nil, fmt.Errorf("invalid attestation response: %v", attestationResponse.Message)
 	}
 
-	evidenceRaw, err := json.Marshal(attestationResponse.AttestationEvidence)
+	evidenceRaw, err := json.Marshal(attestationResponse.AttestationEvidence.Evidence)
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize Evidence: %v", err)
 	}
@@ -262,7 +262,7 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		}, fmt.Errorf("error while validating Worker Quote")
 	}
 
-	imaPodEntries, imaContainerRuntimeEntries, err := ima.MeasurementLogValidation(attestationResponse.AttestationEvidence.MeasurementLog, pcr10Content, attestationRequest.PodUid)
+	imaPodEntries, imaContainerRuntimeEntries, err := ima.MeasurementLogValidation(attestationResponse.AttestationEvidence.Evidence.MeasurementLog, pcr10Content, attestationRequest.PodUid)
 	if err != nil {
 		return &model.AttestationResult{
 			Agent:      agentName,
