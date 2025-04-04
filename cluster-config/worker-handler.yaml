@@ -22,7 +22,7 @@ rules:
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
     verbs: ["get", "list", "watch", "create", "update", "delete"]
-  - apiGroups: ["example.com"]  # Change this to your specific CRD group
+  - apiGroups: ["attestation.com"]  # Change this to your specific CRD group
     resources: ["agents"]  # Add your CRD resources here
     verbs: ["get", "list", "watch", "create", "delete"]
 ---

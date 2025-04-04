@@ -16,7 +16,7 @@ rules:
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "watch", "delete"] 
-  - apiGroups: ["example.com"]  
+  - apiGroups: ["attestation.com"]
     resources: ["agents"]  
     verbs: ["get", "list", "watch"]
 ---
