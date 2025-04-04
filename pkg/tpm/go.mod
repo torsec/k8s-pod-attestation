@@ -6,7 +6,7 @@ require (
 	github.com/google/go-tpm v0.9.3
 	github.com/google/go-tpm-tools v0.4.5
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250404180516-0121e707d6ed
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404180516-0121e707d6ed
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404201118-c054ee26870b
 )
 
 require (

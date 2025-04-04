@@ -34,7 +34,7 @@ store_container_runtime_data = {
             "validDigests": {
                 "sha1": [],
                 "sha256": [
-                    "67bcdf1e6a7f280f165802f66e43d692c0d4b8692c0089b4a3018eacce74e0a2"
+                    "8741d0235613101b826c3babc1805f029335a559f2c3b5fffaab7ba1b3ee39c5"
                 ]
             }
         },
@@ -43,7 +43,7 @@ store_container_runtime_data = {
             "validDigests": {
                 "sha1": [],
                 "sha256": [
-                    "a477744bf3a96eba713b9047115ca21e596db59e085049b4a4ab2bdcc5410123"
+                    "b7c7e7f6527ac62d10670f4f0d15ce394d06bd4ade4845200a18b0a76f6f6a43"
                 ]
             }
         },
@@ -52,7 +52,7 @@ store_container_runtime_data = {
             "validDigests": {
                 "sha1": [],
                 "sha256": [
-                    "903bd0fc20e6f4ca3b3b360f948409ed40f777a975503ac40f1c534bd6122b66"
+                    "8e7fe8a9452ea49581ea0892c2b22181931899c827eb78eb5fb6729108988693"
                 ]
             }
         },
@@ -61,7 +61,7 @@ store_container_runtime_data = {
             "validDigests": {
                 "sha1": [],
                 "sha256": [
-                    "71a0abd36ee05823d3afbef6c9b49944f855ed5b865bce67ed5cacd9e34e2a69"
+                    "4c5bc4957c9a62d4b545483773f39bed173b7e448a16ce61041283cae5be57a9"
                 ]
             }
         },
