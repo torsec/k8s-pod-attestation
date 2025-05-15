@@ -113,7 +113,7 @@ func (c *ClusterInteraction) DeleteAttestationRequestCRDInstance(crdObj interfac
 	return true, nil
 }
 
-// getPodImageDataByUID retrieves the image and its digest of a pod given its UID
+// GetPodImageDataByUid retrieves the image and its digest of a pod given its UID
 func (c *ClusterInteraction) GetPodImageDataByUid(podUid string) (string, string, error) {
 	// List all pods in the cluster (you may want to filter by namespace in production)
 	pods, err := c.ClientSet.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
