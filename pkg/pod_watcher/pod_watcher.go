@@ -46,7 +46,7 @@ func (pw *PodWatcher) addPodHandling(obj interface{}) {
 	}
 
 	if isNodeControlPlane {
-		logger.Info("node '%s' is not a worker; skipping attestation tracking for pod '%s'", nodeName, podName)
+		logger.Info("node '%s' is control-plane; skipping attestation tracking for pod '%s'", nodeName, podName)
 		return
 	}
 
