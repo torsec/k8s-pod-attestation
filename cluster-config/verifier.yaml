@@ -57,7 +57,7 @@ spec:
       serviceAccountName: verifier-sa
       containers:
         - name: verifier
-          image: franczar/k8s-attestation-verifier:latest
+          image: franczar/k8s-attestation-verifier:eucnc
           env:
             - name: REGISTRAR_HOST
               value: "192.168.0.103"

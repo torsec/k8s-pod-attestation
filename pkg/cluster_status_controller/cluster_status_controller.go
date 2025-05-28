@@ -1,12 +1,15 @@
 package cluster_status_controller
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	clusterInteraction "github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -140,11 +143,22 @@ func (csc *ClusterStatusController) checkAgentStatus(obj interface{}) {
 
 		if status == clusterInteraction.UntrustedPodStatus {
 			logger.Warning("detected untrusted pod: '%s'", podName)
-			_, err := csc.clusterInteractor.DeletePod(podName)
-			if err != nil {
-				logger.Error("error deleting pod '%s': %v", podName, err)
+			payload := map[string]string{
+				"release": "grayscaler",
 			}
-			logger.Success("untrusted pod: '%s' successfully deleted", podName)
+
+			// Convert to JSON
+			jsonData, err := json.Marshal(payload)
+			if err != nil {
+				logger.Error("failed to send service remove request to service orchestrator", err)
+			}
+
+			// Create HTTP request for DEMO
+			_, err = http.Post("http://192.168.0.122:8090/undeploy", "application/json", bytes.NewBuffer(jsonData))
+			if err != nil {
+				logger.Error("failed to delete service remove request to service orchestrator", err)
+			}
+			logger.Success("untrusted pod: '%s' deletion request to service orchestrator", podName)
 		}
 	}
 }

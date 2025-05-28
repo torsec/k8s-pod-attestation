@@ -53,8 +53,10 @@ spec:
     spec:
       containers:
         - name: pod-handler
-          image: franczar/k8s-attestation-pod-handler:latest
+          image: franczar/k8s-attestation-pod-handler:eucnc
           env:
+            - name: ATTESTATION_NAMESPACES
+              value: '["it6-ns"]'
             - name: REGISTRAR_HOST
               value: "192.168.0.103"
             - name: REGISTRAR_PORT

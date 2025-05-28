@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: registrar
-          image: franczar/k8s-attestation-registrar:latest
+          image: franczar/k8s-attestation-registrar:eucnc
           env:
             - name: REGISTRAR_PORT
               value: "8080"
