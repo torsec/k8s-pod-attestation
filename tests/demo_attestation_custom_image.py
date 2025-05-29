@@ -78,7 +78,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: pod-to-attest
-  namespace: default
+  namespace: it6-ns
 spec:
   nodeName: worker
   containers:
