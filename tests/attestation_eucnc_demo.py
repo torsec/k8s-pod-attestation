@@ -22,7 +22,7 @@ def run_kubectl(args):
             capture_output=True,
             text=True
         )
-        return result.stdout
+        return result.stdout.replace("\"","")
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"kubectl error: {e.stderr.strip()}")
 
@@ -37,7 +37,7 @@ agent_ip = "192.168.0.122"
 def pod_attestation(pod_name):
     # get attestation secret hmac key
     pod_status = run_kubectl(["get", "pod", pod_name, "-n", "it6-ns", "-o", "jsonpath=\"{.status.phase}\""])
-
+    print(pod_status.replace("\"", ""))
     while pod_status != "Running":
         pod_status = run_kubectl(["get", "pod", pod_name, "-n", "it6-ns", "-o", "jsonpath=\"{.status.phase}\""])
 
@@ -46,7 +46,7 @@ def pod_attestation(pod_name):
     agent_name = f"agent-{node_name}"
 
     integrity_message = f"{pod_name}::{pod_uid}::::{agent_name}::{agent_ip}".encode()
-    attestation_request_hmac = base64.b64encode(compute_hmac(integrity_message, hmac_key))
+    attestation_request_hmac = base64.b64encode(compute_hmac(integrity_message, hmac_key)).decode()
 
     group = "attestation.com"
     version = "v1"
@@ -69,7 +69,7 @@ def pod_attestation(pod_name):
             "hmac": attestation_request_hmac,
             "issued": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "podName": pod_name,
-            "podUID": pod_uid,
+            "podUid": pod_uid,
             "tenantId": ""
         }
     }

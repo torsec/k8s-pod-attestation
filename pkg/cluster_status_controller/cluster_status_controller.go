@@ -154,7 +154,7 @@ func (csc *ClusterStatusController) checkAgentStatus(obj interface{}) {
 			}
 
 			// Create HTTP request for DEMO
-			_, err = http.Post("http://192.168.0.122:8090/undeploy", "application/json", bytes.NewBuffer(jsonData))
+			_, err = http.Post("http://192.168.0.103:8090/undeploy", "application/json", bytes.NewBuffer(jsonData))
 			if err != nil {
 				logger.Error("failed to delete service remove request to service orchestrator", err)
 			}
