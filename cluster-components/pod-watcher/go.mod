@@ -4,7 +4,7 @@ go 1.23.4
 
 require (
 	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404201118-c054ee26870b
-	github.com/torsec/k8s-pod-attestation/pkg/pod_watcher v0.0.0-20250404201118-c054ee26870b
+	github.com/torsec/k8s-pod-attestation/pkg/pod_watcher v0.0.0-20250530131938-275ba8c1e1dd
 )
 
 require (

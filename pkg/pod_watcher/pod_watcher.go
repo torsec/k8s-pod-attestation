@@ -30,10 +30,7 @@ func (pw *PodWatcher) addPodHandling(obj interface{}) {
 	podNamespace := pod.GetNamespace()
 	podName := pod.GetName()
 
-	nodeName := pod.Spec.NodeName
-	if nodeName == "" {
-		nodeName = "worker"
-	}
+	nodeName := "worker"
 
 	var podStatus string
 
