@@ -28,8 +28,12 @@ func (pw *PodWatcher) Init(attestationEnabledNamespaces []string, defaultResync 
 func (pw *PodWatcher) addPodHandling(obj interface{}) {
 	pod := obj.(*corev1.Pod)
 	podNamespace := pod.GetNamespace()
-	nodeName := pod.Spec.NodeName
 	podName := pod.GetName()
+
+	nodeName := pod.Spec.NodeName
+	if nodeName == "" {
+		nodeName = "worker"
+	}
 
 	var podStatus string
 
@@ -43,6 +47,7 @@ func (pw *PodWatcher) addPodHandling(obj interface{}) {
 	if err != nil {
 		logger.Error("error occurred while checking if node is control plane: %v; skipping attestation tracking for pod '%s'", err, podName)
 		podStatus = clusterInteraction.UnknownPodStatus
+		return
 	}
 
 	if isNodeControlPlane {
