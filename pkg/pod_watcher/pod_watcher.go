@@ -29,8 +29,11 @@ func (pw *PodWatcher) addPodHandling(obj interface{}) {
 	pod := obj.(*corev1.Pod)
 	podNamespace := pod.GetNamespace()
 	podName := pod.GetName()
+	nodeName := pod.Spec.NodeName
 
-	nodeName := "worker"
+	if nodeName == "" {
+		nodeName = "worker"
+	}
 
 	var podStatus string
 
@@ -75,6 +78,7 @@ func (pw *PodWatcher) deletePodHandling(obj interface{}) {
 		logger.Error("error occurred while checking if node is control plane: %v; skipping ending of pod attestation tracking", err)
 		// TODO: pod may need to be killed and rescheduled for security reason or retry x times before doing it
 		podStatus = clusterInteraction.UnknownPodStatus
+		return
 	}
 
 	if isNodeControlPlane {
