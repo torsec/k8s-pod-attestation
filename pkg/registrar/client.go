@@ -193,7 +193,39 @@ func (c *Client) GetWorkerIdByName(nodeName string) (*model.RegistrarResponse, e
 	return &registrarResponse, nil
 }
 
-// Get Tenant Info from Server
+func (c *Client) StoreTPMCaCertificate(certificate *model.TPMCACertificate) (*model.RegistrarResponse, error) {
+	registrarURL := fmt.Sprintf("http://%s:%d%s", c.registrarHost, c.registrarPort, StoreTPMCaCertificateUrl)
+	jsonData, err := json.Marshal(certificate)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal certificate data: %v", err)
+	}
+
+	resp, err := http.Post(registrarURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to send store TPM CA Certificate request: %v", err)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(resp.Body)
+
+	var registrarResponse model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&registrarResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode store TPM CA Certificate response: %v", err)
+	}
+	return &registrarResponse, nil
+}
+
+// GetTenantIdByName Get Tenant Info from Server
 func (c *Client) GetTenantIdByName(tenantName string) (*model.RegistrarResponse, error) {
 	registrarURL := fmt.Sprintf("http://%s:%d%s?name=%s", c.registrarHost, c.registrarPort, TenantGetIdByNameUrl, tenantName)
 	resp, err := http.Get(registrarURL)
@@ -235,7 +267,12 @@ func (c *Client) VerifyWorkerSignature(verifySignatureRequest *model.VerifySigna
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(resp.Body)
 
 	// Read response body
 	body, err := io.ReadAll(resp.Body)

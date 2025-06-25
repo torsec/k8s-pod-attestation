@@ -230,6 +230,21 @@ func VerifyEKCertificateChain(ekCert, intermediateCACert, rootCACert *x509.Certi
 	return nil
 }
 
+// VerifyIntermediateCaCertificateChain verifies the provided certificate chain
+func VerifyIntermediateCaCertificateChain(intermediateCACert, rootCACert *x509.Certificate) error {
+	roots := x509.NewCertPool()
+	roots.AddCert(rootCACert)
+
+	opts := x509.VerifyOptions{
+		Roots: roots,
+	}
+
+	if _, err := intermediateCACert.Verify(opts); err != nil {
+		return fmt.Errorf("TPM Intermediate CA Certificate verification failed: %v", err)
+	}
+	return nil
+}
+
 // Utility function: Verify a signature using provided public key
 func VerifySignature(publicKey *rsa.PublicKey, message, signature []byte) error {
 	hashed := sha256.Sum256(message)

@@ -8,6 +8,10 @@ type NewTenantRequest struct {
 	PublicKey string `json:"publicKey"`
 }
 
+type NewTPMCaCertRequest struct {
+	TPMCaCertificate string `json:"tpmCaCertificate"`
+}
+
 type WorkerCredentialsResponse struct {
 	UUID          string `json:"UUID"`
 	EKCert        string `json:"EKCert"`
