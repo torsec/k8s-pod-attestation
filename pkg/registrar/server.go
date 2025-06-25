@@ -116,12 +116,17 @@ func (s *Server) storeTPMCACertificate(c *gin.Context) {
 			return
 		}
 
-		err = cryptoUtils.VerifyIntermediateCaCertificateChain(decodedCert, rootCaCert)
+		rootCaCertDecoded, err := cryptoUtils.LoadCertificateFromPEM([]byte(rootCaCert.PEMCertificate))
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "TPM CA Certificate is intermediate and Root CA Certificate is not valid PEM", "status": model.Error})
+			return
+		}
+
+		err = cryptoUtils.VerifyIntermediateCaCertificateChain(tpmCaCert, rootCaCertDecoded)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"message": "TPM CA Certificate is intermediate and it is not signed by a valid Root CA", "status": model.Error})
 			return
 		}
-
 	}
 
 	newTpmCaCert := &model.TPMCACertificate{

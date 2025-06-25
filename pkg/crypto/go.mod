@@ -4,8 +4,8 @@ go 1.23.4
 
 require (
 	github.com/google/go-attestation v0.5.1
-	github.com/google/go-tpm v0.9.3
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250404180516-0121e707d6ed
+	github.com/google/go-tpm v0.9.5
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250515104439-f713fe636d77
 )
 
-require golang.org/x/sys v0.31.0 // indirect
+require golang.org/x/sys v0.33.0 // indirect
