@@ -193,6 +193,38 @@ func (c *Client) GetWorkerIdByName(nodeName string) (*model.RegistrarResponse, e
 	return &registrarResponse, nil
 }
 
+func (c *Client) StoreTPMVendor(tpmVendor *model.TPMVendor) (*model.RegistrarResponse, error) {
+	registrarURL := fmt.Sprintf("http://%s:%d%s", c.registrarHost, c.registrarPort, StoreTPMVendorUrl)
+	jsonData, err := json.Marshal(tpmVendor)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal TPM Vendor data: %v", err)
+	}
+
+	resp, err := http.Post(registrarURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to send store TPM Vendor request: %v", err)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(resp.Body)
+
+	var registrarResponse model.RegistrarResponse
+	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&registrarResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode store TPM Vendor response: %v", err)
+	}
+	return &registrarResponse, nil
+}
+
 func (c *Client) StoreTPMCaCertificate(certificate *model.TPMCACertificate) (*model.RegistrarResponse, error) {
 	registrarURL := fmt.Sprintf("http://%s:%d%s", c.registrarHost, c.registrarPort, StoreTPMCaCertificateUrl)
 	jsonData, err := json.Marshal(certificate)

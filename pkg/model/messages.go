@@ -12,6 +12,11 @@ type NewTPMCaCertRequest struct {
 	TPMCaCertificate string `json:"tpmCaCertificate"`
 }
 
+type NewTPMVendorRequest struct {
+	Name          string `json:"name"`
+	TCGIdentifier string `json:"TCGIdentifier"`
+}
+
 type WorkerCredentialsResponse struct {
 	UUID          string `json:"UUID"`
 	EKCert        string `json:"EKCert"`
