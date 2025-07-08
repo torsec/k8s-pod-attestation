@@ -458,7 +458,7 @@ func (v *Verifier) WatchAttestationRequestCRDs() {
 
 	// Keep running until stopped
 	<-stopStructCh
-	logger.Info("Stopping Attestation Request CRD watcher...")
+	logger.Info("Stopping Verifier...")
 }
 
 // setupSignalHandler sets up a signal handler for graceful termination.

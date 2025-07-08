@@ -100,7 +100,12 @@ func (s *Server) storeTPMVendor(c *gin.Context) {
 		return
 	}
 
-	err = s.insertTPMVendor(req.Name, req.TCGIdentifier)
+	newTPMVendor := &model.TPMVendor{
+		Name:          req.Name,
+		TCGIdentifier: req.TCGIdentifier,
+	}
+
+	err := s.insertTPMVendor(newTPMVendor)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to store new TPM vendor", "status": model.Error})
 		return

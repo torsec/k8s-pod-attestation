@@ -18,26 +18,26 @@ var (
 
 func Success(format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf(green.Sprintf("[%s] %s\n", time.Now().Format(timeFormat), message))
+	fmt.Printf(green.Sprintf("[SUCCESS] [%s] %s\n", time.Now().Format(timeFormat), message))
 }
 
 func Error(format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf(red.Sprintf("[%s] %s \n", time.Now().Format(timeFormat), message))
+	fmt.Printf(red.Sprintf("[ERROR] [%s] %s \n", time.Now().Format(timeFormat), message))
 }
 
 func Warning(format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf(yellow.Sprintf("[%s] %s \n", time.Now().Format(timeFormat), message))
+	fmt.Printf(yellow.Sprintf("[WARNING] [%s] %s \n", time.Now().Format(timeFormat), message))
 }
 
 func Info(format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf(cyan.Sprintf("[%s] %s \n", time.Now().Format(timeFormat), message))
+	fmt.Printf(cyan.Sprintf("[INFO] [%s] %s \n", time.Now().Format(timeFormat), message))
 }
 
 func Fatal(format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf(red.Sprintf("[%s] %s \n", time.Now().Format(timeFormat), message))
+	fmt.Printf(red.Sprintf("[FATAL] [%s] %s \n", time.Now().Format(timeFormat), message))
 	os.Exit(1)
 }
