@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: whitelist-provider
-          image: franczar/k8s-attestation-whitelist-provider:eucnc
+          image: franczar/k8s-attestation-whitelist-provider:latest
           env:
             - name: WHITELIST_PORT
               value: "8080"

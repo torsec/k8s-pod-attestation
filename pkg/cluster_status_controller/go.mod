@@ -6,7 +6,7 @@ toolchain go1.24.3
 
 require (
 	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250515104439-f713fe636d77
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250708142042-705da5a1bc3d
 	k8s.io/apimachinery v0.33.2
 	k8s.io/client-go v0.33.2
 )

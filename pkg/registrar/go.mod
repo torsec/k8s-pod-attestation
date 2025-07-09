@@ -6,7 +6,7 @@ require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/google/uuid v1.6.0
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250625105629-498535fd4e1e
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250515104439-f713fe636d77
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250708142042-705da5a1bc3d
 	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250626124157-12e983fe4403
 	modernc.org/sqlite v1.38.0
 )
@@ -45,7 +45,7 @@ require (
 	golang.org/x/text v0.26.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	modernc.org/libc v1.66.2 // indirect
+	modernc.org/libc v1.66.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )

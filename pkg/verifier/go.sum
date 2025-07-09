@@ -474,6 +474,8 @@ github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404201118-c054ee268
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250404201118-c054ee26870b/go.mod h1:ZFwzdtvry6L00T1EBbo3D1Sj3Ktj10VhtXqsuuBaQcI=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250515104439-f713fe636d77 h1:VPYQ9IESNC39uxtxnp60phKdxO5QHDgOT/wUCBvyEgI=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250515104439-f713fe636d77/go.mod h1:Xez5RlH5yANYH60V5+BMu+I8NQLZ01/cfLLv7m3pfuY=
+github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250708142042-705da5a1bc3d h1:aCOUbVng2zie1XaAYqy8ATH2tNjh3V2pRTF53nShiaI=
+github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250708142042-705da5a1bc3d/go.mod h1:m2oebs9Mho8WuXexeFXspFW3fjsM/tlTfFBPOCNjw8k=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250331133718-37f41103a12a h1:UV6A4IqOSlK3ZNotlHKLINo7rjtYvcKzJxdMrfAIH+o=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250331133718-37f41103a12a/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250331145240-2eeff6c67866 h1:/xzWwD/sxd1K4CdxEbl+WWNM8ivkS5EBdefpvPFTH+w=
@@ -948,6 +950,8 @@ modernc.org/libc v1.66.1 h1:4uQsntXbVyAgrV+j6NhKvDiUypoJL48BWQx6sy9y8ok=
 modernc.org/libc v1.66.1/go.mod h1:AiZxInURfEJx516LqEaFcrC+X38rt9G7+8ojIXQKHbo=
 modernc.org/libc v1.66.2 h1:JCBxlJzZOIwZY54fzjHN3Wsn8Ty5PUTPr/xioRkmecI=
 modernc.org/libc v1.66.2/go.mod h1:ceIGzvXxP+JV3pgVjP9avPZo6Chlsfof2egXBH3YT5Q=
+modernc.org/libc v1.66.3 h1:cfCbjTUcdsKyyZZfEUKfoHcP3S0Wkvz3jgSzByEWVCQ=
+modernc.org/libc v1.66.3/go.mod h1:XD9zO8kt59cANKvHPXpx7yS2ELPheAey0vjIuZOhOU8=
 modernc.org/mathutil v1.7.1 h1:GCZVGXdaN8gTqB1Mf/usp1Y/hSqgI2vAGGP4jZMCxOU=
 modernc.org/mathutil v1.7.1/go.mod h1:4p5IwJITfppl0G4sUEDtCr4DthTaT47/N3aT6MhfgJg=
 modernc.org/memory v1.8.2 h1:cL9L4bcoAObu4NkxOlKWBWtNHIsnnACGF/TbqQ6sbcI=

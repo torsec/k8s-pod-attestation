@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: agent
-          image: franczar/k8s-attestation-agent:eucnc
+          image: franczar/k8s-attestation-agent:latest
           env:
             - name: AGENT_PORT
               value: "8080"

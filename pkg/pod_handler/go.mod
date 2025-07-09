@@ -8,7 +8,7 @@ require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250515104439-f713fe636d77
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250515104439-f713fe636d77
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250708142042-705da5a1bc3d
 	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250515104439-f713fe636d77
 	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250515104439-f713fe636d77
 )
@@ -80,7 +80,7 @@ require (
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250701173324-9bd5c66d9911 // indirect
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397 // indirect
-	modernc.org/libc v1.66.2 // indirect
+	modernc.org/libc v1.66.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.38.0 // indirect
