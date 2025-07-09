@@ -7,7 +7,8 @@ for dir in */; do
     
     # Find any .sh file in the directory
     sh_file=$(ls *.sh 2>/dev/null | head -n 1)
-    
+
+    echo "------------------------------------------------------------------------------------"
     if [ -n "$sh_file" ]; then
         echo "Running $sh_file in $dir"
         chmod +x "$sh_file"  # Ensure it's executable
