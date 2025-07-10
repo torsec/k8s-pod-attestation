@@ -4,7 +4,7 @@ go 1.23.4
 
 require (
 	github.com/gin-gonic/gin v1.10.1
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250708142042-705da5a1bc3d
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250709113940-c45cdafb02c9
 	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250515104439-f713fe636d77
 	go.mongodb.org/mongo-driver v1.17.4
 )

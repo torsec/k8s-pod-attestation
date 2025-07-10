@@ -196,7 +196,7 @@ func (s *Server) checkPodWhitelist(c *gin.Context) {
 		return
 	}
 
-	// Query MongoDB for matching pod image
+	// Query for matching pod image
 	var imageWhitelist model.ImageWhitelist
 	err := s.podWhitelist.FindOne(context.TODO(), bson.M{"imageName": checkRequest.PodImageName}).Decode(&imageWhitelist)
 	if err != nil {
