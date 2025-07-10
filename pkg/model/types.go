@@ -103,21 +103,24 @@ type AttestationEvidence struct {
 
 // NotRunWhitelistEntry represents Whitelist Reference Values which where expected from the Evidence but actually not included
 type NotRunWhitelistEntry struct {
-	Id           string `json:"id"`
-	ExpectedHash string `json:"expectedHash"`
+	Id           string   `json:"id"`
+	HashAlg      string   `json:"hashAlg"`
+	ExpectedHash []string `json:"expectedHash"`
 }
 
 // AbsentWhitelistEntry represents Evidence entries not corresponding to existing Whitelist Reference Values
 type AbsentWhitelistEntry struct {
 	Id         string `json:"id"`
+	HashAlg    string `json:"hashAlg"`
 	ActualHash string `json:"actualHash"`
 }
 
 // MismatchingWhitelistEntry represents Evidence entries whose digest value do not match the actual value stored in the Whitelist Reference Value
 type MismatchingWhitelistEntry struct {
-	Id           string `json:"id"`
-	ExpectedHash string `json:"expectedHash"`
-	ActualHash   string `json:"actualHash"`
+	Id           string   `json:"id"`
+	HashAlg      string   `json:"hashAlg"`
+	ActualHash   string   `json:"actualHash"`
+	ExpectedHash []string `json:"expectedHash"`
 }
 
 // ErroredWhitelistEntries aggregate all entries that for their individual reason failed to be correctly evaluated with the Whitelist

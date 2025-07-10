@@ -96,10 +96,10 @@ func (s *Server) checkWorkerWhitelist(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			absentEntry := model.AbsentWhitelistEntry{
-				Filepath:     checkRequest.OsName,
-				ExpectedHash: "",
+				Id:         checkRequest.OsName,
+				ActualHash: checkRequest.BootAggregate,
 			}
-			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries)
+			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
 			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "OS whitelist not found"})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query worker whitelist"})
@@ -110,6 +110,11 @@ func (s *Server) checkWorkerWhitelist(c *gin.Context) {
 	// Check if the digest matches within the specified hash algorithm category
 	digests, exists := osWhitelist.ValidDigests[strings.ToLower(checkRequest.HashAlg)]
 	if !exists {
+		absentEntry := model.AbsentWhitelistEntry{
+			Id:         checkRequest.OsName,
+			ActualHash: checkRequest.BootAggregate,
+		}
+		erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
 		c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "No digests found for the specified hash algorithm"})
 		return
 	}
@@ -120,6 +125,13 @@ func (s *Server) checkWorkerWhitelist(c *gin.Context) {
 			return
 		}
 	}
+
+	mismatchedEntry := model.MismatchingWhitelistEntry{
+		Id:         checkRequest.OsName,
+		ActualHash: checkRequest.BootAggregate,
+		ExpectedHash: osWhitelist.ValidDigests[strings.ToLower(checkRequest.HashAlg)]
+	}
+	erroredEntries.MismatchingWhitelistEntries = append(erroredEntries.MismatchingWhitelistEntries)
 
 	c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Boot Aggregate does not match the stored whitelist"})
 	return
