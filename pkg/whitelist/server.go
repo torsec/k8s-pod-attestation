@@ -89,11 +89,17 @@ func (s *Server) checkWorkerWhitelist(c *gin.Context) {
 		return
 	}
 
+	var erroredEntries model.ErroredWhitelistEntries
 	// Query MongoDB for the document matching the requested OS name
 	var osWhitelist model.OsWhitelist
 	err := s.workerWhitelist.FindOne(context.TODO(), bson.M{"osName": checkRequest.OsName}).Decode(&osWhitelist)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
+			absentEntry := model.AbsentWhitelistEntry{
+				Filepath:     checkRequest.OsName,
+				ExpectedHash: "",
+			}
+			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries)
 			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "OS whitelist not found"})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query worker whitelist"})

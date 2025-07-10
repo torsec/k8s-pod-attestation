@@ -103,28 +103,28 @@ type AttestationEvidence struct {
 
 // NotRunWhitelistEntry represents Whitelist Reference Values which where expected from the Evidence but actually not included
 type NotRunWhitelistEntry struct {
-	Filepath   string `json:"filepath"`
-	ActualHash string `json:"actualHash"`
+	Id           string `json:"id"`
+	ExpectedHash string `json:"expectedHash"`
 }
 
-// AbsentWhitelistEntry represents Evidence entries not corresponding to Whitelist Reference Values
+// AbsentWhitelistEntry represents Evidence entries not corresponding to existing Whitelist Reference Values
 type AbsentWhitelistEntry struct {
-	Filepath     string `json:"filepath"`
-	ExpectedHash string `json:"expectedHash"`
+	Id         string `json:"id"`
+	ActualHash string `json:"actualHash"`
 }
 
 // MismatchingWhitelistEntry represents Evidence entries whose digest value do not match the actual value stored in the Whitelist Reference Value
 type MismatchingWhitelistEntry struct {
-	FilePath     string `json:"filePath"`
+	Id           string `json:"id"`
 	ExpectedHash string `json:"expectedHash"`
 	ActualHash   string `json:"actualHash"`
 }
 
 // ErroredWhitelistEntries aggregate all entries that for their individual reason failed to be correctly evaluated with the Whitelist
 type ErroredWhitelistEntries struct {
-	NotRunWhitelistEntries      []NotRunWhitelistEntry      `json:"notRunWhitelistEntries"`
-	AbsentWhitelistEntries      []AbsentWhitelistEntry      `json:"absentWhitelistEntries"`
-	MismatchingWhitelistEntries []MismatchingWhitelistEntry `json:"mismatchingWhitelistEntries"`
+	NotRunWhitelistEntries      []NotRunWhitelistEntry      `json:"notRunWhitelistEntries,omitempty"`
+	AbsentWhitelistEntries      []AbsentWhitelistEntry      `json:"absentWhitelistEntries,omitempty"`
+	MismatchingWhitelistEntries []MismatchingWhitelistEntry `json:"mismatchingWhitelistEntries,omitempty"`
 }
 
 /*
