@@ -119,6 +119,7 @@ type ContainerRuntimeCheckRequest struct {
 }
 
 type WhitelistResponse struct {
-	Message string `json:"message"`
-	Status  string `json:"status"`
+	Message        string                  `json:"message"`
+	Status         string                  `json:"status"`
+	ErroredEntries ErroredWhitelistEntries `json:"erroredEntries,omitempty"`
 }

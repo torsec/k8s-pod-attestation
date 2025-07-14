@@ -112,15 +112,15 @@ type NotRunWhitelistEntry struct {
 type AbsentWhitelistEntry struct {
 	Id         string `json:"id"`
 	HashAlg    string `json:"hashAlg"`
-	ActualHash string `json:"actualHash"`
+	ActualHash string `json:"actualHash,omitempty"`
 }
 
 // MismatchingWhitelistEntry represents Evidence entries whose digest value do not match the actual value stored in the Whitelist Reference Value
 type MismatchingWhitelistEntry struct {
 	Id           string   `json:"id"`
 	HashAlg      string   `json:"hashAlg"`
-	ActualHash   string   `json:"actualHash"`
-	ExpectedHash []string `json:"expectedHash"`
+	ActualHash   string   `json:"actualHash,omitempty"`
+	ExpectedHash []string `json:"expectedHash,omitempty"`
 }
 
 // ErroredWhitelistEntries aggregate all entries that for their individual reason failed to be correctly evaluated with the Whitelist

@@ -97,6 +97,7 @@ func (s *Server) checkWorkerWhitelist(c *gin.Context) {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			absentEntry := model.AbsentWhitelistEntry{
 				Id:         checkRequest.OsName,
+				HashAlg:    checkRequest.HashAlg,
 				ActualHash: checkRequest.BootAggregate,
 			}
 			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
@@ -108,10 +109,11 @@ func (s *Server) checkWorkerWhitelist(c *gin.Context) {
 	}
 
 	// Check if the digest matches within the specified hash algorithm category
-	digests, exists := osWhitelist.ValidDigests[strings.ToLower(checkRequest.HashAlg)]
+	validDigests, exists := osWhitelist.ValidDigests[strings.ToLower(checkRequest.HashAlg)]
 	if !exists {
 		absentEntry := model.AbsentWhitelistEntry{
 			Id:         checkRequest.OsName,
+			HashAlg:    checkRequest.HashAlg,
 			ActualHash: checkRequest.BootAggregate,
 		}
 		erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
@@ -119,22 +121,27 @@ func (s *Server) checkWorkerWhitelist(c *gin.Context) {
 		return
 	}
 
-	for _, digest := range digests {
+	matching := false
+	for _, digest := range validDigests {
 		if digest == checkRequest.BootAggregate {
-			c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "Boot Aggregate matches the stored whitelist"})
-			return
+			matching = true
+			break
 		}
 	}
 
-	mismatchedEntry := model.MismatchingWhitelistEntry{
-		Id:         checkRequest.OsName,
-		ActualHash: checkRequest.BootAggregate,
-		ExpectedHash: osWhitelist.ValidDigests[strings.ToLower(checkRequest.HashAlg)]
+	if !matching {
+		mismatchedEntry := model.MismatchingWhitelistEntry{
+			Id:           checkRequest.OsName,
+			HashAlg:      checkRequest.HashAlg,
+			ActualHash:   checkRequest.BootAggregate,
+			ExpectedHash: validDigests,
+		}
+		erroredEntries.MismatchingWhitelistEntries = append(erroredEntries.MismatchingWhitelistEntries, mismatchedEntry)
+		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Boot Aggregate does not match the stored whitelist"})
+		return
 	}
-	erroredEntries.MismatchingWhitelistEntries = append(erroredEntries.MismatchingWhitelistEntries)
 
-	c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Boot Aggregate does not match the stored whitelist"})
-	return
+	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "Boot Aggregate matches the stored whitelist"})
 }
 
 // appendToWorkerWhitelist handles the addition of a new valid OsWhitelist.
@@ -214,11 +221,17 @@ func (s *Server) checkPodWhitelist(c *gin.Context) {
 		return
 	}
 
+	var erroredEntries model.ErroredWhitelistEntries
 	// Query for matching pod image
 	var imageWhitelist model.ImageWhitelist
 	err := s.podWhitelist.FindOne(context.TODO(), bson.M{"imageName": checkRequest.PodImageName}).Decode(&imageWhitelist)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
+			absentEntry := model.AbsentWhitelistEntry{
+				Id:         checkRequest.PodImageName,
+				ActualHash: checkRequest.PodImageDigest,
+			}
+			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
 			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Pod image not found"})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query Pod whitelist"})
@@ -227,44 +240,95 @@ func (s *Server) checkPodWhitelist(c *gin.Context) {
 	}
 
 	if imageWhitelist.ImageDigest != checkRequest.PodImageDigest {
+		mismatchedEntry := model.MismatchingWhitelistEntry{
+			Id:           checkRequest.PodImageDigest,
+			ActualHash:   checkRequest.PodImageDigest,
+			ExpectedHash: []string{imageWhitelist.ImageDigest},
+		}
+		erroredEntries.MismatchingWhitelistEntries = append(erroredEntries.MismatchingWhitelistEntries, mismatchedEntry)
 		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Provided Pod image digest does not match stored image digest"})
 		return
+	}
+
+	for _, validFile := range imageWhitelist.ValidFiles {
+		found := false
+		for _, podFile := range checkRequest.PodFiles {
+			if validFile.FilePath == podFile.FilePath {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			notRunEntry := model.NotRunWhitelistEntry{
+				Id:           validFile.FilePath,
+				HashAlg:      checkRequest.HashAlg,
+				ExpectedHash: validFile.ValidDigests[strings.ToLower(checkRequest.HashAlg)],
+			}
+			erroredEntries.NotRunWhitelistEntries = append(erroredEntries.NotRunWhitelistEntries, notRunEntry)
+		}
 	}
 
 	// Iterate through the pod files to check if they match the stored whitelist
 	for _, podFile := range checkRequest.PodFiles {
 		found := false
+		exists := false
+		matching := false
+		var validDigests []string
+
 		for _, validFile := range imageWhitelist.ValidFiles {
 			// Check if the file paths match
 			if podFile.FilePath == validFile.FilePath {
-				digests, exists := validFile.ValidDigests[strings.ToLower(checkRequest.HashAlg)]
+				found = true
+				validDigests, exists = validFile.ValidDigests[strings.ToLower(checkRequest.HashAlg)]
+
 				if !exists {
-					c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "No digests found for the specified hash algorithm"})
-					return
+					absentEntry := model.AbsentWhitelistEntry{
+						Id:         podFile.FilePath,
+						HashAlg:    checkRequest.HashAlg,
+						ActualHash: podFile.FileHash,
+					}
+					erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
+					break
 				}
 
 				// Check if the file hash matches any of the valid digests
-				for _, digest := range digests {
+				for _, digest := range validDigests {
 					if digest == podFile.FileHash {
-						found = true
+						matching = true
 						break
 					}
 				}
-				if found {
-					break // Move on to the next pod file once a match is found
+
+				if !matching {
+					mismatchedEntry := model.MismatchingWhitelistEntry{
+						Id:           podFile.FilePath,
+						HashAlg:      checkRequest.HashAlg,
+						ActualHash:   podFile.FileHash,
+						ExpectedHash: validDigests,
+					}
+					erroredEntries.MismatchingWhitelistEntries = append(erroredEntries.MismatchingWhitelistEntries, mismatchedEntry)
 				}
 			}
 		}
 
-		// If no match is found for the current pod file
 		if !found {
-			c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "File hash does not match the stored whitelist"})
-			return
+			absentEntry := model.AbsentWhitelistEntry{
+				Id:         podFile.FilePath,
+				HashAlg:    checkRequest.HashAlg,
+				ActualHash: podFile.FileHash,
+			}
+			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
 		}
 	}
 
-	// If all pod files match
-	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "All pod files match the stored whitelist"})
+	// If no match is found for the current pod file
+	if len(erroredEntries.AbsentWhitelistEntries) > 0 || len(erroredEntries.NotRunWhitelistEntries) > 0 || len(erroredEntries.MismatchingWhitelistEntries) > 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "File hash does not match the stored whitelist"})
+	} else {
+		// If all pod files match
+		c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "All pod files match the stored whitelist"})
+	}
 }
 
 // appendNewImageToPodWhitelist adds a new ImageWhitelist with valid files to the pod whitelist if it doesn't exist
@@ -400,11 +464,17 @@ func (s *Server) checkContainerRuntimeWhitelist(c *gin.Context) {
 		return
 	}
 
+	var erroredEntries model.ErroredWhitelistEntries
 	// Query MongoDB for the document matching the requested Container Runtime name
 	var existingContainerRuntimeWhitelist model.ContainerRuntimeWhitelist
 	err := s.containerRuntimeWhitelist.FindOne(context.TODO(), bson.M{"containerRuntimeName": checkRequest.ContainerRuntimeName}).Decode(&existingContainerRuntimeWhitelist)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
+			absentEntry := model.AbsentWhitelistEntry{
+				Id:      checkRequest.ContainerRuntimeName,
+				HashAlg: checkRequest.HashAlg,
+			}
+			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
 			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Container Runtime whitelist not found"})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query Container Runtime whitelist"})
@@ -412,40 +482,83 @@ func (s *Server) checkContainerRuntimeWhitelist(c *gin.Context) {
 		return
 	}
 
+	for _, validFile := range existingContainerRuntimeWhitelist.ValidFiles {
+		found := false
+		for _, containerRuntimeDependency := range checkRequest.ContainerRuntimeDependencies {
+			if validFile.FilePath == containerRuntimeDependency.FilePath {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			notRunEntry := model.NotRunWhitelistEntry{
+				Id:           validFile.FilePath,
+				HashAlg:      checkRequest.HashAlg,
+				ExpectedHash: validFile.ValidDigests[strings.ToLower(checkRequest.HashAlg)],
+			}
+			erroredEntries.NotRunWhitelistEntries = append(erroredEntries.NotRunWhitelistEntries, notRunEntry)
+		}
+	}
+
 	// Iterate through the pod files to check if they match the stored whitelist
 	for _, containerRuntimeDependency := range checkRequest.ContainerRuntimeDependencies {
 		found := false
+		matching := false
+		exists := false
+		var validDigests []string
+
 		for _, validFile := range existingContainerRuntimeWhitelist.ValidFiles {
 			// Check if the file paths match
 			if containerRuntimeDependency.FilePath == validFile.FilePath {
-				digests, exists := validFile.ValidDigests[strings.ToLower(checkRequest.HashAlg)]
+				found = true
+				validDigests, exists = validFile.ValidDigests[strings.ToLower(checkRequest.HashAlg)]
+
 				if !exists {
-					c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "No digests found for the specified hash algorithm"})
-					return
+					absentEntry := model.AbsentWhitelistEntry{
+						Id:         containerRuntimeDependency.FilePath,
+						HashAlg:    checkRequest.HashAlg,
+						ActualHash: containerRuntimeDependency.FileHash,
+					}
+					erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
+					break
 				}
 
 				// Check if the file hash matches any of the valid digests
-				for _, digest := range digests {
+				for _, digest := range validDigests {
 					if digest == containerRuntimeDependency.FileHash {
-						found = true
+						matching = true
 						break
 					}
 				}
-				if found {
-					break // Move on to the next container runtime dependency file once a match is found
+
+				if !matching {
+					mismatchedEntry := model.MismatchingWhitelistEntry{
+						Id:           containerRuntimeDependency.FilePath,
+						HashAlg:      checkRequest.HashAlg,
+						ActualHash:   containerRuntimeDependency.FileHash,
+						ExpectedHash: validDigests,
+					}
+					erroredEntries.MismatchingWhitelistEntries = append(erroredEntries.MismatchingWhitelistEntries, mismatchedEntry)
 				}
 			}
 		}
 
-		// If no match is found for the current container dependency file
 		if !found {
-			c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "File hash does not match the stored whitelist"})
-			return
+			absentEntry := model.AbsentWhitelistEntry{
+				Id:         containerRuntimeDependency.FilePath,
+				HashAlg:    checkRequest.HashAlg,
+				ActualHash: containerRuntimeDependency.FileHash,
+			}
+			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "All Container Runtime depdencency files match the stored whitelist"})
-	return
+	if len(erroredEntries.MismatchingWhitelistEntries) > 0 || len(erroredEntries.AbsentWhitelistEntries) > 0 || len(erroredEntries.NotRunWhitelistEntries) > 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "File hash does not match the stored whitelist"})
+	} else {
+		c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "All Container Runtime depdencency files match the stored whitelist"})
+	}
 }
 
 // appendToContainerRuntimeWhitelist handles the addition of a new valid ContainerRuntimeWhitelist.
