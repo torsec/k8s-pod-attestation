@@ -101,7 +101,7 @@ func (s *Server) checkWorkerWhitelist(c *gin.Context) {
 				ActualHash: checkRequest.BootAggregate,
 			}
 			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
-			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "OS whitelist not found"})
+			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "OS whitelist not found", "erroredEntries": erroredEntries})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query worker whitelist"})
 		}
@@ -137,7 +137,7 @@ func (s *Server) checkWorkerWhitelist(c *gin.Context) {
 			ExpectedHash: validDigests,
 		}
 		erroredEntries.MismatchingWhitelistEntries = append(erroredEntries.MismatchingWhitelistEntries, mismatchedEntry)
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Boot Aggregate does not match the stored whitelist"})
+		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Boot Aggregate does not match the stored whitelist", "erroredEntries": erroredEntries})
 		return
 	}
 
@@ -232,7 +232,7 @@ func (s *Server) checkPodWhitelist(c *gin.Context) {
 				ActualHash: checkRequest.PodImageDigest,
 			}
 			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
-			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Pod image not found"})
+			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Pod image not found", "erroredEntries": erroredEntries})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query Pod whitelist"})
 		}
@@ -246,7 +246,7 @@ func (s *Server) checkPodWhitelist(c *gin.Context) {
 			ExpectedHash: []string{imageWhitelist.ImageDigest},
 		}
 		erroredEntries.MismatchingWhitelistEntries = append(erroredEntries.MismatchingWhitelistEntries, mismatchedEntry)
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Provided Pod image digest does not match stored image digest"})
+		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Provided Pod image digest does not match stored image digest", "erroredEntries": erroredEntries})
 		return
 	}
 
@@ -324,9 +324,8 @@ func (s *Server) checkPodWhitelist(c *gin.Context) {
 
 	// If no match is found for the current pod file
 	if len(erroredEntries.AbsentWhitelistEntries) > 0 || len(erroredEntries.NotRunWhitelistEntries) > 0 || len(erroredEntries.MismatchingWhitelistEntries) > 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "File hash does not match the stored whitelist"})
+		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "File hash does not match the stored whitelist", "erroredEntries": erroredEntries})
 	} else {
-		// If all pod files match
 		c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "All pod files match the stored whitelist"})
 	}
 }
@@ -475,7 +474,7 @@ func (s *Server) checkContainerRuntimeWhitelist(c *gin.Context) {
 				HashAlg: checkRequest.HashAlg,
 			}
 			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
-			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Container Runtime whitelist not found"})
+			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Container Runtime whitelist not found", "erroredEntries": erroredEntries})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query Container Runtime whitelist"})
 		}
@@ -555,9 +554,9 @@ func (s *Server) checkContainerRuntimeWhitelist(c *gin.Context) {
 	}
 
 	if len(erroredEntries.MismatchingWhitelistEntries) > 0 || len(erroredEntries.AbsentWhitelistEntries) > 0 || len(erroredEntries.NotRunWhitelistEntries) > 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "File hash does not match the stored whitelist"})
+		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "File hash does not match the stored whitelist", "erroredEntries": erroredEntries})
 	} else {
-		c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "All Container Runtime depdencency files match the stored whitelist"})
+		c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "All Container Runtime dependency files match the stored whitelist"})
 	}
 }
 

@@ -5,7 +5,7 @@ go 1.23.4
 require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250709113940-c45cdafb02c9
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250710160635-2e266f651e3d
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250714095722-f9a4b0269eda
 	go.mongodb.org/mongo-driver v1.17.4
 )
 
@@ -24,7 +24,7 @@ require (
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
+	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
