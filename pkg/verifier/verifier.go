@@ -312,14 +312,17 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 	}
 
 	if containerRuntimeValidationResponse.Status != model.Success {
+		logger.Info("Untrusted Container Runtime on Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", workerName, containerRuntimeValidationResponse.ErroredEntries.AbsentWhitelistEntries, containerRuntimeValidationResponse.ErroredEntries.NotRunWhitelistEntries, containerRuntimeValidationResponse.ErroredEntries.MismatchingWhitelistEntries)
 		return &model.AttestationResult{
 			Agent:      agentName,
 			Target:     workerName,
 			TargetType: "Node",
 			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     "Untrusted Container Runtime",
+			Reason:     fmt.Sprintf("Untrusted Container Runtime: %s", containerRuntimeValidationResponse.Message),
 		}, fmt.Errorf("untrusted Container Runtime")
 	}
+
+	logger.Success("Container Runtime attestation of Worker node '%s' completed with success; Successfully attested dependencies: %s", workerName, imaContainerRuntimeEntries)
 
 	podValidationResponse, err := v.whitelistClient.CheckPodWhitelist(podCheckRequest)
 	if err != nil {
@@ -333,14 +336,18 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 	}
 
 	if podValidationResponse.Status != model.Success {
+		logger.Info("Untrusted Pod '%s' executed over Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", attestationRequest.PodName, workerName, podValidationResponse.ErroredEntries.AbsentWhitelistEntries, podValidationResponse.ErroredEntries.NotRunWhitelistEntries, podValidationResponse.ErroredEntries.MismatchingWhitelistEntries)
+
 		return &model.AttestationResult{
 			Agent:      agentName,
 			Target:     attestationRequest.PodName,
 			TargetType: "Pod",
 			Result:     cluster_interaction.UntrustedPodStatus,
-			Reason:     "Untrusted Pod",
+			Reason:     fmt.Sprintf("Untrusted Pod: %s", podValidationResponse.Message),
 		}, fmt.Errorf("untrusted Pod")
 	}
+
+	logger.Success("Attestation of Pod '%s' executed over Worker node '%s' completed with success; Successfully attested dependencies: %s", attestationRequest.PodName, workerName, imaPodEntries)
 
 	return &model.AttestationResult{
 		Agent:      agentName,
@@ -423,7 +430,7 @@ func (v *Verifier) deleteAttestationRequestCRDHandling(obj interface{}) {
 	logger.Info("Attestation Request for pod: '%s' deleted", attestationRequest["podName"])
 }
 
-// watchAttestationRequestCRDs starts watching for changes to the AttestationRequest CRD
+// WatchAttestationRequestCRDs starts watching for changes to the AttestationRequest CRD
 // and processes added, modified, and deleted events.
 func (v *Verifier) WatchAttestationRequestCRDs() {
 	stopCh := setupSignalHandler()
