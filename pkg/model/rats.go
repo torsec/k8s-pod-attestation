@@ -21,16 +21,16 @@ const (
 	IMAPcrQuoteClaimKey       = "imaPcrQuote"
 )
 
-type Evidence struct {
+type RatsEvidence struct {
 	claims *cmw.CMW
 }
 
-func NewEvidence(cmwCollectionType string) (*Evidence, error) {
+func NewEvidence(cmwCollectionType string) (*RatsEvidence, error) {
 	claims, err := cmw.NewCollection(cmwCollectionType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize attestation evidence: %w", err)
 	}
-	return &Evidence{claims: claims}, nil
+	return &RatsEvidence{claims: claims}, nil
 }
 
 func NewClaim(mediaType any, value []byte, indicators ...cmw.Indicator) (*cmw.CMW, error) {
@@ -41,7 +41,7 @@ func NewClaim(mediaType any, value []byte, indicators ...cmw.Indicator) (*cmw.CM
 	return claim, nil
 }
 
-func (e *Evidence) AddClaim(key any, claim *cmw.CMW) error {
+func (e *RatsEvidence) AddClaim(key any, claim *cmw.CMW) error {
 	err := e.claims.AddCollectionItem(key, claim)
 	if err != nil {
 		return fmt.Errorf("failed to add claim to attestation evidence: %w", err)
@@ -49,7 +49,7 @@ func (e *Evidence) AddClaim(key any, claim *cmw.CMW) error {
 	return nil
 }
 
-func (e *Evidence) GetClaim(key any) (*cmw.CMW, error) {
+func (e *RatsEvidence) GetClaim(key any) (*cmw.CMW, error) {
 	claim, err := e.claims.GetCollectionItem(key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get claim from attestation evidence: %w", err)
@@ -57,7 +57,7 @@ func (e *Evidence) GetClaim(key any) (*cmw.CMW, error) {
 	return claim, nil
 }
 
-func (e *Evidence) ToJSON() ([]byte, error) {
+func (e *RatsEvidence) ToJSON() ([]byte, error) {
 	evidenceJSON, err := e.claims.MarshalJSON()
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal claims of attestation evidence: %w", err)
@@ -65,7 +65,7 @@ func (e *Evidence) ToJSON() ([]byte, error) {
 	return evidenceJSON, nil
 }
 
-func (e *Evidence) FromJSON(jsonEvidence []byte) error {
+func (e *RatsEvidence) FromJSON(jsonEvidence []byte) error {
 	err := e.claims.UnmarshalJSON(jsonEvidence)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal claims into attestation evidence: %w", err)
