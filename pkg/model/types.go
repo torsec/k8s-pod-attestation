@@ -49,7 +49,7 @@ type AgentConfig struct {
 
 type Evidence struct {
 	PodName        string `json:"podName"`
-	Poduid         string `json:"podUID"`
+	PodUid         string `json:"podUid"`
 	TenantId       string `json:"tenantId"`
 	Quote          string `json:"quote"`
 	MeasurementLog string `json:"measurementLog"`
