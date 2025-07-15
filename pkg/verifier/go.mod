@@ -1,19 +1,19 @@
 module github.com/torsec/k8s-pod-attestation/pkg/verifier
 
-go 1.24.0
+go 1.24.3
 
-toolchain go1.24.3
+replace sigs.k8s.io/structured-merge-diff/v6 => sigs.k8s.io/structured-merge-diff/v4 v4.6.0
 
 require (
-	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250709113940-c45cdafb02c9
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250714095722-f9a4b0269eda
-	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250515104439-f713fe636d77
+	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250714140509-bcafc8f40e19
+	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250714140509-bcafc8f40e19
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250714140509-bcafc8f40e19
+	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250714140509-bcafc8f40e19
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250714140509-bcafc8f40e19
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250714140509-bcafc8f40e19
+	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250714140509-bcafc8f40e19
+	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250714140509-bcafc8f40e19
+	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250714140509-bcafc8f40e19
 	k8s.io/apimachinery v0.33.2
 	k8s.io/client-go v0.33.2
 )
@@ -39,7 +39,6 @@ require (
 	github.com/go-playground/validator/v10 v10.27.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-attestation v0.5.1 // indirect
@@ -49,7 +48,6 @@ require (
 	github.com/google/go-tdx-guest v0.3.2-0.20241009005452-097ee70d0843 // indirect
 	github.com/google/go-tpm v0.9.5 // indirect
 	github.com/google/go-tpm-tools v0.4.5 // indirect
-	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/logger v1.1.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect

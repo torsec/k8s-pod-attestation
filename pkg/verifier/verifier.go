@@ -297,9 +297,6 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		HashAlg:                      pcrHashAlg,
 	}
 
-	logger.Info("pod entries: %s", imaPodEntries)
-	logger.Info("container runtime entries: %s", imaContainerRuntimeEntries)
-
 	containerRuntimeValidationResponse, err := v.whitelistClient.CheckContainerRuntimeWhitelist(containerRuntimeCheckRequest)
 	if err != nil {
 		return &model.AttestationResult{
