@@ -12,7 +12,7 @@ func TestMarshalEvidenceJSON(t *testing.T) {
 	evidence, err := NewEvidence()
 	assert.NoError(t, err, "Expected no error when creating new evidence")
 
-	claim, err := NewClaim(EatJsonClaimMediaType, []byte("test claim"))
+	claim, err := NewCmwItem(EatJsonClaimMediaType, []byte("test claim"))
 	assert.NoError(t, err, "Expected no error when creating new claim")
 
 	err = evidence.AddClaim("testClaimKey", claim)
