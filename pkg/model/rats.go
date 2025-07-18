@@ -54,30 +54,6 @@ func (sl StatusLabel) String() string {
 	}
 }
 
-type ConceptualMessageType int
-
-const (
-	CmReferenceValues ConceptualMessageType = iota
-	CmEndorsements
-	CmEvidence
-	CmAttestationResults
-)
-
-func (cm ConceptualMessageType) String() string {
-	switch cm {
-	case CmReferenceValues:
-		return "ReferenceValues"
-	case CmEndorsements:
-		return "Endorsements"
-	case CmEvidence:
-		return "Evidence"
-	case CmAttestationResults:
-		return "AttestationResults"
-	default:
-		return "Unknown"
-	}
-}
-
 type IndividualResultType int
 
 const (
@@ -147,7 +123,7 @@ func NewEAR(eat *EAT, verifierId string, submods map[string]EARAppraisal) (*EAR,
 	}, nil
 }
 
-func (ar *RatsAttestationResult) toJWT(signingMethod jwt.SigningMethod, signingKey any, issuer string, minuteExp int) (string, error) {
+func (ar *RatsAttestationResult) ToJWT(signingMethod jwt.SigningMethod, signingKey any, issuer string, minuteExp int) (string, error) {
 	rawCmw, err := ar.ToJSON()
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal cmw: %w", err)
