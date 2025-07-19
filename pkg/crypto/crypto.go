@@ -150,6 +150,32 @@ func VerifyTPMSignature(rsaPubKey *rsa.PublicKey, message []byte, signature tpmu
 	return err
 }
 
+func DecodePrivateKeyFromPEM(privateKeyPEM string) (*rsa.PrivateKey, error) {
+	block, _ := pem.Decode([]byte(privateKeyPEM))
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block containing private key")
+	}
+
+	switch block.Type {
+	case "RSA PRIVATE KEY":
+		// PKCS#1 format
+		return x509.ParsePKCS1PrivateKey(block.Bytes)
+	case "PRIVATE KEY":
+		// PKCS#8 format
+		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		rsaKey, ok := key.(*rsa.PrivateKey)
+		if !ok {
+			return nil, fmt.Errorf("not an RSA private key")
+		}
+		return rsaKey, nil
+	default:
+		return nil, fmt.Errorf("unsupported key type: " + block.Type)
+	}
+}
+
 // LoadCertificateFromPEM loads a certificate from a PEM string
 func LoadCertificateFromPEM(pemCert []byte) (*x509.Certificate, error) {
 	block, _ := pem.Decode(pemCert)
