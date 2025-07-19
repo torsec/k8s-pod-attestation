@@ -367,11 +367,12 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 	if err != nil {
 		logger.Error("Failed to marshal ima pod entries as json")
 	}
+	logger.Success("Attestation of Pod '%s' executed over Worker node '%s' completed with success; Successfully attested dependencies: %s", attestationRequest.PodName, workerName, attestedPodDependencies)
 
 	trustedContainerRuntimeDependencies := filterTrustedDependencies(imaContainerRuntimeEntries, &containerRuntimeValidationResponse.ErroredEntries)
 	trustedPodDependencies := filterTrustedDependencies(imaPodEntries, &podValidationResponse.ErroredEntries)
 
-	attestationResultJWT, err := v.createAttestationResult(attestationRequest.PodUid, trustedContainerRuntimeDependencies, trustedPodDependencies, &containerRuntimeValidationResponse.ErroredEntries, &podValidationResponse.ErroredEntries)
+	attestationResultJWT, isContainerRuntimeTrusted, isPodTrusted, err := v.createAttestationResult(attestationRequest.PodUid, trustedContainerRuntimeDependencies, trustedPodDependencies, &containerRuntimeValidationResponse.ErroredEntries, &podValidationResponse.ErroredEntries)
 	if err != nil {
 		logger.Error("Failed to create attestation result: %s", err)
 		return &model.AttestationResult{
@@ -386,7 +387,26 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 	// send to RabbitMQ topic
 	logger.Info("Attestation result: %s", attestationResultJWT)
 
-	logger.Success("Attestation of Pod '%s' executed over Worker node '%s' completed with success; Successfully attested dependencies: %s", attestationRequest.PodName, workerName, attestedPodDependencies)
+	if !isContainerRuntimeTrusted {
+		return &model.AttestationResult{
+			Agent:      agentName,
+			Target:     workerName,
+			TargetType: "Node",
+			Result:     cluster_interaction.UntrustedNodeStatus,
+			Reason:     "Untrusted Container Runtime",
+		}, fmt.Errorf("untrusted container runtime")
+	}
+
+	if !isPodTrusted {
+		return &model.AttestationResult{
+			Agent:      agentName,
+			Target:     attestationRequest.PodName,
+			TargetType: "Pod",
+			Result:     cluster_interaction.UntrustedPodStatus,
+			Reason:     "Untrusted Pod",
+		}, fmt.Errorf("untrusted pod")
+	}
+
 	return &model.AttestationResult{
 		Agent:      agentName,
 		Target:     attestationRequest.PodName,
@@ -413,11 +433,13 @@ func filterTrustedDependencies(attestedEntries []model.IMAEntry, erroredEntries 
 	return trustedEntries
 }
 
-func (v *Verifier) createAttestationResult(podUid string, trustedContainerRuntimeEntries []model.IndividualResult, trustedPodEntries []model.IndividualResult, containerRuntimeErroredEntries *model.ErroredWhitelistEntries, podErroredEntries *model.ErroredWhitelistEntries) (string, error) {
+func (v *Verifier) createAttestationResult(podUid string, trustedContainerRuntimeEntries []model.IndividualResult, trustedPodEntries []model.IndividualResult, containerRuntimeErroredEntries *model.ErroredWhitelistEntries, podErroredEntries *model.ErroredWhitelistEntries) (string, bool, bool, error) {
+	isTrusted := map[string]bool{"containerRuntime": false, "pod": false}
+
 	eatNonce, err := cryptoUtils.GenerateHexNonce(8)
 	if err != nil {
 		logger.Error("Failed to generate eat nonce")
-		return "", fmt.Errorf("failed to generate eat nonce")
+		return "", false, false, fmt.Errorf("failed to generate eat nonce")
 	}
 	var measres []model.IndividualResult
 
@@ -434,7 +456,7 @@ func (v *Verifier) createAttestationResult(podUid string, trustedContainerRuntim
 	for _, erroredEntry := range containerRuntimeErroredEntries.NotRunWhitelistEntries {
 		newResult := model.IndividualResult{
 			Id:     erroredEntry.Id,
-			Result: model.IrAbsent,
+			Result: model.IrNotRun,
 		}
 		measres = append(measres, newResult)
 	}
@@ -460,7 +482,7 @@ func (v *Verifier) createAttestationResult(podUid string, trustedContainerRuntim
 	for _, erroredEntry := range podErroredEntries.NotRunWhitelistEntries {
 		newResult := model.IndividualResult{
 			Id:     erroredEntry.Id,
-			Result: model.IrAbsent,
+			Result: model.IrNotRun,
 		}
 		measres = append(measres, newResult)
 	}
@@ -480,23 +502,25 @@ func (v *Verifier) createAttestationResult(podUid string, trustedContainerRuntim
 	}
 
 	var containerizationStatus model.StatusLabel
-
-	if len(containerRuntimeErroredEntries.AbsentWhitelistEntries) > 0 || len(containerRuntimeErroredEntries.MismatchingWhitelistEntries) > 0 {
+	switch {
+	case len(containerRuntimeErroredEntries.AbsentWhitelistEntries) > 0 || len(containerRuntimeErroredEntries.MismatchingWhitelistEntries) > 0:
 		containerizationStatus = model.SlContraindicated
-	} else if len(containerRuntimeErroredEntries.NotRunWhitelistEntries) > 0 {
+	case len(containerRuntimeErroredEntries.NotRunWhitelistEntries) > 0:
 		containerizationStatus = model.SlWarning
-	} else {
+	default:
 		containerizationStatus = model.SlAffirming
+		isTrusted["containerRuntime"] = true
 	}
 
 	var podStatus model.StatusLabel
-
-	if len(containerRuntimeErroredEntries.AbsentWhitelistEntries) > 0 || len(containerRuntimeErroredEntries.MismatchingWhitelistEntries) > 0 {
+	switch {
+	case len(podErroredEntries.AbsentWhitelistEntries) > 0 || len(podErroredEntries.MismatchingWhitelistEntries) > 0:
 		podStatus = model.SlContraindicated
-	} else if len(containerRuntimeErroredEntries.NotRunWhitelistEntries) > 0 {
+	case len(podErroredEntries.NotRunWhitelistEntries) > 0:
 		podStatus = model.SlWarning
-	} else {
+	default:
 		podStatus = model.SlAffirming
+		isTrusted["pod"] = true
 	}
 
 	submods := map[string]model.EARAppraisal{
@@ -513,47 +537,47 @@ func (v *Verifier) createAttestationResult(podUid string, trustedContainerRuntim
 
 	verifierId, err := os.Hostname()
 	if err != nil {
-		return "", fmt.Errorf("error getting verifier id: %v", err)
+		return "", false, false, fmt.Errorf("error getting verifier id: %v", err)
 
 	}
 
 	ear, err := model.NewEAR(eat, verifierId, submods)
 	if err != nil {
-		return "", fmt.Errorf("failed to create EAR: %v", err)
+		return "", false, false, fmt.Errorf("failed to create EAR: %v", err)
 	}
 
 	attestationResult, err := model.NewAttestationResult()
 	if err != nil {
-		return "", fmt.Errorf("failed to create attestation result: %v", err)
+		return "", false, false, fmt.Errorf("failed to create attestation result: %v", err)
 	}
 
 	earRaw, err := json.Marshal(ear)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal EAR: %v", err)
+		return "", false, false, fmt.Errorf("failed to marshal EAR: %v", err)
 	}
 
 	earEncoded := make([]byte, base64.URLEncoding.EncodedLen(len(earRaw)))
 	base64.URLEncoding.Encode(earEncoded, earRaw)
 	result, err := model.NewCmwItem(model.EatJWTMediaType, earEncoded, cmw.AttestationResults)
 	if err != nil {
-		return "", fmt.Errorf("failed to create cmw item from EAR: %v", err)
+		return "", false, false, fmt.Errorf("failed to create cmw item from EAR: %v", err)
 	}
 
 	err = attestationResult.AddResult("ear", result)
 	if err != nil {
-		return "", err
+		return "", false, false, err
 	}
 
 	loadedPrivKey, err := cryptoUtils.DecodePrivateKeyFromPEM(v.privateKey)
 	if err != nil {
-		return "", fmt.Errorf("failed to decode verifier private key: %v", err)
+		return "", false, false, fmt.Errorf("failed to decode verifier private key: %v", err)
 	}
 
 	attestationResultJWT, err := attestationResult.ToJWT(jwt.SigningMethodRS256, loadedPrivKey, attestationResultIssuer, 5)
 	if err != nil {
-		return "", fmt.Errorf("failed to create attestation result JWT: %v", err)
+		return "", false, false, fmt.Errorf("failed to create attestation result JWT: %v", err)
 	}
-	return attestationResultJWT, nil
+	return attestationResultJWT, isTrusted["containerRuntime"], isTrusted["pod"], nil
 }
 
 func extractNodeName(agentName string) (string, error) {
