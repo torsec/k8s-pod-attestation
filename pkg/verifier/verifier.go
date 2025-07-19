@@ -544,7 +544,7 @@ func (v *Verifier) createAttestationResult(podUid string, trustedContainerRuntim
 		return "", err
 	}
 
-	loadedPrivKey, err := cryptoUtils.DecodePublicKeyFromPEM([]byte(v.privateKey))
+	loadedPrivKey, err := cryptoUtils.DecodePrivateKeyFromPEM(v.privateKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode verifier private key: %v", err)
 	}
