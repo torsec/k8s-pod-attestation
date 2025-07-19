@@ -3,7 +3,7 @@ module github.com/torsec/k8s-pod-attestation/pkg/verifier
 go 1.24.3
 
 require (
-	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250515104439-f713fe636d77
+	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250719081606-83b9763b3c57
 	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250515104439-f713fe636d77
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250515104439-f713fe636d77
 	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250515104439-f713fe636d77

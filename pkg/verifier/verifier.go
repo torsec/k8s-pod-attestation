@@ -533,7 +533,7 @@ func (v *Verifier) createAttestationResult(podUid string, trustedContainerRuntim
 	}
 
 	var earEncoded []byte
-	base64.URLEncoding.Encode(earRaw, earEncoded)
+	base64.URLEncoding.Encode(earEncoded, earRaw)
 	result, err := model.NewCmwItem(model.EatJWTMediaType, earEncoded, cmw.AttestationResults)
 	if err != nil {
 		return "", fmt.Errorf("failed to create cmw item from EAR: %v", err)

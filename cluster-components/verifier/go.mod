@@ -3,10 +3,10 @@ module main
 go 1.24.3
 
 require (
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250709113940-c45cdafb02c9
-	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250715131941-4a7901930741
-	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250715131941-4a7901930741
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250719081606-83b9763b3c57
+	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250719081606-83b9763b3c57
+	github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250719081606-83b9763b3c57
+	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250719081606-83b9763b3c57
 )
 
 require (
@@ -30,6 +30,7 @@ require (
 	github.com/go-playground/validator/v10 v10.27.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.3 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/gnostic-models v0.6.9 // indirect
@@ -60,15 +61,16 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250515104439-f713fe636d77 // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250719081606-83b9763b3c57 // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250515104439-f713fe636d77 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250515104439-f713fe636d77 // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250625105629-498535fd4e1e // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250515104439-f713fe636d77 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250714095722-f9a4b0269eda // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250718152706-2480687d506e // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250515104439-f713fe636d77 // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250515104439-f713fe636d77 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
+	github.com/veraison/cmw v0.2.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect

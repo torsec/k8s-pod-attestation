@@ -150,6 +150,8 @@ github.com/stretchr/testify v1.10.0 h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOf
 github.com/stretchr/testify v1.10.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250515104439-f713fe636d77 h1:JgyWanL+izRZnYKn2GMRXiIdy+zB9GYR/N/ZldmqxOY=
 github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250515104439-f713fe636d77/go.mod h1:7SC7YghD7oFrpWnYR5mbnfEwj0mqXf/fg5mImfs/SbU=
+github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250719081606-83b9763b3c57 h1:lwGkHaTCKS7Dt8Avm2Bv6R/b7sap8SnsEMF/IHx7gXo=
+github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250719081606-83b9763b3c57/go.mod h1:gVkuykIH9Z+VynFqTTf5it9aHkjVReCnzi2j4TpDtvA=
 github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250515104439-f713fe636d77 h1:SI7mI079M7t/8j2zIoflIVyiq10CSWsOU/ZhozZ92mc=
 github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250515104439-f713fe636d77/go.mod h1:T0LAwaPoJ2UnhMwDynxAUV9KVrgQSyixfNiIoO0XHaM=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250515104439-f713fe636d77 h1:KI0u99SQFxPUI5vxVciMCDUU6jLKFsDfjJBhU18J6og=
