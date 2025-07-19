@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/torsec/k8s-pod-attestation/pkg/agent"
 	"github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
 	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
@@ -14,6 +15,7 @@ import (
 	"github.com/torsec/k8s-pod-attestation/pkg/registrar"
 	"github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation"
 	"github.com/torsec/k8s-pod-attestation/pkg/whitelist"
+	"github.com/veraison/cmw"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
@@ -24,6 +26,7 @@ import (
 )
 
 const attestationNonceSize = 16
+const attestationResultIssuer = "RA-Engine"
 
 type Verifier struct {
 	clusterInteractor cluster_interaction.ClusterInteraction
@@ -309,17 +312,28 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 	}
 
 	if containerRuntimeValidationResponse.Status != model.Success {
-		logger.Info("Untrusted Container Runtime on Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", workerName, containerRuntimeValidationResponse.ErroredEntries.AbsentWhitelistEntries, containerRuntimeValidationResponse.ErroredEntries.NotRunWhitelistEntries, containerRuntimeValidationResponse.ErroredEntries.MismatchingWhitelistEntries)
-		return &model.AttestationResult{
-			Agent:      agentName,
-			Target:     workerName,
-			TargetType: "Node",
-			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     fmt.Sprintf("Untrusted Container Runtime: %s", containerRuntimeValidationResponse.Message),
-		}, fmt.Errorf("untrusted Container Runtime")
+
+		absentEntries, err := json.Marshal(containerRuntimeValidationResponse.ErroredEntries.AbsentWhitelistEntries)
+		if err != nil {
+			logger.Error("Failed to marshal absent entries as json")
+		}
+		notRunEntries, err := json.Marshal(containerRuntimeValidationResponse.ErroredEntries.NotRunWhitelistEntries)
+		if err != nil {
+			logger.Error("Failed to marshal notRun entries as json")
+		}
+		mismatchingEntries, err := json.Marshal(containerRuntimeValidationResponse.ErroredEntries.MismatchingWhitelistEntries)
+		if err != nil {
+			logger.Error("Failed to marshal mismatching entries as json")
+		}
+		logger.Error("Untrusted Container Runtime on Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", workerName, absentEntries, notRunEntries, mismatchingEntries)
 	}
 
-	logger.Success("Container Runtime attestation of Worker node '%s' completed with success; Successfully attested dependencies: %s", workerName, imaContainerRuntimeEntries)
+	attestedContainerRuntimeDependencies, err := json.Marshal(imaContainerRuntimeEntries)
+	if err != nil {
+		logger.Error("Failed to marshal ima container runtime dependencies as json")
+	}
+
+	logger.Success("Container Runtime attestation of Worker node '%s' completed with success; Successfully attested dependencies: %s", workerName, attestedContainerRuntimeDependencies)
 
 	podValidationResponse, err := v.whitelistClient.CheckPodWhitelist(podCheckRequest)
 	if err != nil {
@@ -333,19 +347,46 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 	}
 
 	if podValidationResponse.Status != model.Success {
-		logger.Info("Untrusted Pod '%s' executed over Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", attestationRequest.PodName, workerName, podValidationResponse.ErroredEntries.AbsentWhitelistEntries, podValidationResponse.ErroredEntries.NotRunWhitelistEntries, podValidationResponse.ErroredEntries.MismatchingWhitelistEntries)
 
+		absentEntries, err := json.Marshal(podValidationResponse.ErroredEntries.AbsentWhitelistEntries)
+		if err != nil {
+			logger.Error("Failed to marshal absent entries as json")
+		}
+		notRunEntries, err := json.Marshal(podValidationResponse.ErroredEntries.NotRunWhitelistEntries)
+		if err != nil {
+			logger.Error("Failed to marshal notRun entries as json")
+		}
+		mismatchingEntries, err := json.Marshal(podValidationResponse.ErroredEntries.MismatchingWhitelistEntries)
+		if err != nil {
+			logger.Error("Failed to marshal mismatching entries as json")
+		}
+		logger.Error("Untrusted Pod '%s' executed over Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", attestationRequest.PodName, workerName, absentEntries, notRunEntries, mismatchingEntries)
+	}
+
+	attestedPodDependencies, err := json.Marshal(imaPodEntries)
+	if err != nil {
+		logger.Error("Failed to marshal ima pod entries as json")
+	}
+
+	trustedContainerRuntimeDependencies := filterTrustedDependencies(imaContainerRuntimeEntries, &containerRuntimeValidationResponse.ErroredEntries)
+	trustedPodDependencies := filterTrustedDependencies(imaPodEntries, &podValidationResponse.ErroredEntries)
+
+	attestationResultJWT, err := v.createAttestationResult(attestationRequest.PodUid, trustedContainerRuntimeDependencies, trustedPodDependencies, &containerRuntimeValidationResponse.ErroredEntries, &podValidationResponse.ErroredEntries)
+	if err != nil {
+		logger.Error("Failed to create attestation result: %s", err)
 		return &model.AttestationResult{
 			Agent:      agentName,
 			Target:     attestationRequest.PodName,
 			TargetType: "Pod",
 			Result:     cluster_interaction.UntrustedPodStatus,
-			Reason:     fmt.Sprintf("Untrusted Pod: %s", podValidationResponse.Message),
-		}, fmt.Errorf("untrusted Pod")
+			Reason:     "Failed to create attestation result",
+		}, fmt.Errorf("failed to create attestation result")
 	}
 
-	logger.Success("Attestation of Pod '%s' executed over Worker node '%s' completed with success; Successfully attested dependencies: %s", attestationRequest.PodName, workerName, imaPodEntries)
+	// send to RabbitMQ topic
+	logger.Info("Attestation result: %s", attestationResultJWT)
 
+	logger.Success("Attestation of Pod '%s' executed over Worker node '%s' completed with success; Successfully attested dependencies: %s", attestationRequest.PodName, workerName, attestedPodDependencies)
 	return &model.AttestationResult{
 		Agent:      agentName,
 		Target:     attestationRequest.PodName,
@@ -353,6 +394,166 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		Result:     cluster_interaction.TrustedPodStatus,
 		Reason:     "Pod Attestation ended with success",
 	}, nil
+}
+
+func filterTrustedDependencies(attestedEntries []model.IMAEntry, erroredEntries *model.ErroredWhitelistEntries) []model.IndividualResult {
+	var trustedEntries []model.IndividualResult
+	for _, entry := range attestedEntries {
+		for _, erroredEntry := range erroredEntries.AbsentWhitelistEntries {
+			if entry.FilePath == erroredEntry.Id {
+				continue
+			}
+			newResult := model.IndividualResult{
+				Id:     entry.FilePath,
+				Result: model.IrSuccess,
+			}
+			trustedEntries = append(trustedEntries, newResult)
+		}
+	}
+	return trustedEntries
+}
+
+func (v *Verifier) createAttestationResult(podUid string, trustedContainerRuntimeEntries []model.IndividualResult, trustedPodEntries []model.IndividualResult, containerRuntimeErroredEntries *model.ErroredWhitelistEntries, podErroredEntries *model.ErroredWhitelistEntries) (string, error) {
+	eatNonce, err := cryptoUtils.GenerateHexNonce(8)
+	if err != nil {
+		logger.Error("Failed to generate eat nonce")
+		return "", fmt.Errorf("failed to generate eat nonce")
+	}
+	var measres []model.IndividualResult
+
+	measres = append(measres, trustedContainerRuntimeEntries...)
+
+	for _, erroredEntry := range containerRuntimeErroredEntries.AbsentWhitelistEntries {
+		newResult := model.IndividualResult{
+			Id:     erroredEntry.Id,
+			Result: model.IrAbsent,
+		}
+		measres = append(measres, newResult)
+	}
+
+	for _, erroredEntry := range containerRuntimeErroredEntries.NotRunWhitelistEntries {
+		newResult := model.IndividualResult{
+			Id:     erroredEntry.Id,
+			Result: model.IrAbsent,
+		}
+		measres = append(measres, newResult)
+	}
+
+	for _, erroredEntry := range containerRuntimeErroredEntries.MismatchingWhitelistEntries {
+		newResult := model.IndividualResult{
+			Id:     erroredEntry.Id,
+			Result: model.IrFail,
+		}
+		measres = append(measres, newResult)
+	}
+
+	measres = append(measres, trustedPodEntries...)
+
+	for _, erroredEntry := range podErroredEntries.AbsentWhitelistEntries {
+		newResult := model.IndividualResult{
+			Id:     erroredEntry.Id,
+			Result: model.IrAbsent,
+		}
+		measres = append(measres, newResult)
+	}
+
+	for _, erroredEntry := range podErroredEntries.NotRunWhitelistEntries {
+		newResult := model.IndividualResult{
+			Id:     erroredEntry.Id,
+			Result: model.IrAbsent,
+		}
+		measres = append(measres, newResult)
+	}
+
+	for _, erroredEntry := range podErroredEntries.MismatchingWhitelistEntries {
+		newResult := model.IndividualResult{
+			Id:     erroredEntry.Id,
+			Result: model.IrFail,
+		}
+		measres = append(measres, newResult)
+	}
+
+	// create EAT and EAR
+	eat := &model.EAT{
+		Nonce:   eatNonce,
+		Measres: measres,
+	}
+
+	var containerizationStatus model.StatusLabel
+
+	if len(containerRuntimeErroredEntries.AbsentWhitelistEntries) > 0 || len(containerRuntimeErroredEntries.MismatchingWhitelistEntries) > 0 {
+		containerizationStatus = model.SlContraindicated
+	} else if len(containerRuntimeErroredEntries.NotRunWhitelistEntries) > 0 {
+		containerizationStatus = model.SlWarning
+	} else {
+		containerizationStatus = model.SlAffirming
+	}
+
+	var podStatus model.StatusLabel
+
+	if len(containerRuntimeErroredEntries.AbsentWhitelistEntries) > 0 || len(containerRuntimeErroredEntries.MismatchingWhitelistEntries) > 0 {
+		podStatus = model.SlContraindicated
+	} else if len(containerRuntimeErroredEntries.NotRunWhitelistEntries) > 0 {
+		podStatus = model.SlWarning
+	} else {
+		podStatus = model.SlAffirming
+	}
+
+	submods := map[string]model.EARAppraisal{
+		"system-boot": {
+			Status: model.SlAffirming,
+		},
+		"containerization-dependencies": {
+			Status: containerizationStatus,
+		},
+		fmt.Sprintf("pod-id:%s", podUid): {
+			Status: podStatus,
+		},
+	}
+
+	verifierId, err := os.Hostname()
+	if err != nil {
+		return "", fmt.Errorf("error getting verifier id: %v", err)
+
+	}
+
+	ear, err := model.NewEAR(eat, verifierId, submods)
+	if err != nil {
+		return "", fmt.Errorf("failed to create EAR: %v", err)
+	}
+
+	attestationResult, err := model.NewAttestationResult()
+	if err != nil {
+		return "", fmt.Errorf("failed to create attestation result: %v", err)
+	}
+
+	earRaw, err := json.Marshal(ear)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal EAR: %v", err)
+	}
+
+	var earEncoded []byte
+	base64.URLEncoding.Encode(earRaw, earEncoded)
+	result, err := model.NewCmwItem(model.EatJWTMediaType, earEncoded, cmw.AttestationResults)
+	if err != nil {
+		return "", fmt.Errorf("failed to create cmw item from EAR: %v", err)
+	}
+
+	err = attestationResult.AddResult("ear", result)
+	if err != nil {
+		return "", err
+	}
+
+	loadedPrivKey, err := cryptoUtils.DecodePublicKeyFromPEM([]byte(v.privateKey))
+	if err != nil {
+		return "", fmt.Errorf("failed to decode verifier private key: %v", err)
+	}
+
+	attestationResultJWT, err := attestationResult.ToJWT(jwt.SigningMethodRS256, loadedPrivKey, attestationResultIssuer, 5)
+	if err != nil {
+		return "", fmt.Errorf("failed to create attestation result JWT: %v", err)
+	}
+	return attestationResultJWT, nil
 }
 
 func extractNodeName(agentName string) (string, error) {
