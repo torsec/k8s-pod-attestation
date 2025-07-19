@@ -312,7 +312,6 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 	}
 
 	if containerRuntimeValidationResponse.Status != model.Success {
-
 		absentEntries, err := json.Marshal(containerRuntimeValidationResponse.ErroredEntries.AbsentWhitelistEntries)
 		if err != nil {
 			logger.Error("Failed to marshal absent entries as json")
@@ -326,14 +325,13 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 			logger.Error("Failed to marshal mismatching entries as json")
 		}
 		logger.Error("Untrusted Container Runtime on Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", workerName, absentEntries, notRunEntries, mismatchingEntries)
+	} else {
+		attestedContainerRuntimeDependencies, err := json.Marshal(imaContainerRuntimeEntries)
+		if err != nil {
+			logger.Error("Failed to marshal ima container runtime dependencies as json")
+		}
+		logger.Success("Container Runtime attestation of Worker node '%s' completed with success; Successfully attested dependencies: %s", workerName, attestedContainerRuntimeDependencies)
 	}
-
-	attestedContainerRuntimeDependencies, err := json.Marshal(imaContainerRuntimeEntries)
-	if err != nil {
-		logger.Error("Failed to marshal ima container runtime dependencies as json")
-	}
-
-	logger.Success("Container Runtime attestation of Worker node '%s' completed with success; Successfully attested dependencies: %s", workerName, attestedContainerRuntimeDependencies)
 
 	podValidationResponse, err := v.whitelistClient.CheckPodWhitelist(podCheckRequest)
 	if err != nil {
@@ -347,7 +345,6 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 	}
 
 	if podValidationResponse.Status != model.Success {
-
 		absentEntries, err := json.Marshal(podValidationResponse.ErroredEntries.AbsentWhitelistEntries)
 		if err != nil {
 			logger.Error("Failed to marshal absent entries as json")
@@ -361,14 +358,13 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 			logger.Error("Failed to marshal mismatching entries as json")
 		}
 		logger.Error("Untrusted Pod '%s' executed over Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", attestationRequest.PodName, workerName, absentEntries, notRunEntries, mismatchingEntries)
+	} else {
+		attestedPodDependencies, err := json.Marshal(imaPodEntries)
+		if err != nil {
+			logger.Error("Failed to marshal ima pod entries as json")
+		}
+		logger.Success("Attestation of Pod '%s' executed over Worker node '%s' completed with success; Successfully attested dependencies: %s", attestationRequest.PodName, workerName, attestedPodDependencies)
 	}
-
-	attestedPodDependencies, err := json.Marshal(imaPodEntries)
-	if err != nil {
-		logger.Error("Failed to marshal ima pod entries as json")
-	}
-	logger.Success("Attestation of Pod '%s' executed over Worker node '%s' completed with success; Successfully attested dependencies: %s", attestationRequest.PodName, workerName, attestedPodDependencies)
-
 	trustedContainerRuntimeDependencies := filterTrustedDependencies(imaContainerRuntimeEntries, &containerRuntimeValidationResponse.ErroredEntries)
 	trustedPodDependencies := filterTrustedDependencies(imaPodEntries, &podValidationResponse.ErroredEntries)
 
@@ -419,10 +415,14 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 func filterTrustedDependencies(attestedEntries []model.IMAEntry, erroredEntries *model.ErroredWhitelistEntries) []model.IndividualResult {
 	var trustedEntries []model.IndividualResult
 	for _, entry := range attestedEntries {
+		isTrusted := true
 		for _, erroredEntry := range erroredEntries.AbsentWhitelistEntries {
 			if entry.FilePath == erroredEntry.Id {
-				continue
+				isTrusted = false
+				break
 			}
+		}
+		if isTrusted {
 			newResult := model.IndividualResult{
 				Id:     entry.FilePath,
 				Result: model.IrSuccess,
@@ -556,9 +556,7 @@ func (v *Verifier) createAttestationResult(podUid string, trustedContainerRuntim
 		return "", false, false, fmt.Errorf("failed to marshal EAR: %v", err)
 	}
 
-	earEncoded := make([]byte, base64.URLEncoding.EncodedLen(len(earRaw)))
-	base64.URLEncoding.Encode(earEncoded, earRaw)
-	result, err := model.NewCmwItem(model.EatJWTMediaType, earEncoded, cmw.AttestationResults)
+	result, err := model.NewCmwItem(model.EatJWTMediaType, earRaw, cmw.AttestationResults)
 	if err != nil {
 		return "", false, false, fmt.Errorf("failed to create cmw item from EAR: %v", err)
 	}
