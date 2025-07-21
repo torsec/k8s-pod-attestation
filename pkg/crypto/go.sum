@@ -10,6 +10,8 @@ github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250515104439-f713fe636d
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250515104439-f713fe636d77/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250721122813-31cf43b6c2dc h1:ek01S1taIStCdw+TqnDwXSb2r6L9oW9mN5PkHiUi8ik=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250721122813-31cf43b6c2dc/go.mod h1:BBgRJxkLIW5WghFJ+4OSRZkjMQ4P7NJyKnPHBrpo7vc=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250721130358-07a5329dc3d0 h1:QabJXKi3idVUsNTvDkiJk+ArAkt3gmg9QRNcYXPieD8=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250721130358-07a5329dc3d0/go.mod h1:BBgRJxkLIW5WghFJ+4OSRZkjMQ4P7NJyKnPHBrpo7vc=
 github.com/veraison/cmw v0.2.0 h1:BWEvwZnD4nn5osq6XwQpTRcGxwV+Su4t6ytdAbVXAJY=
 github.com/veraison/cmw v0.2.0/go.mod h1:OiYKk1t6/Fmmg30ZpSMzi4nKr5kt3374sNTkgxC5BDs=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
