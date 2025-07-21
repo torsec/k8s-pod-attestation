@@ -3,8 +3,8 @@ module github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction
 go 1.24.3
 
 require (
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250715230348-f1c656b5cbd9
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250721122813-31cf43b6c2dc
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250721122813-31cf43b6c2dc
 	k8s.io/api v0.33.3
 	k8s.io/apiextensions-apiserver v0.33.3
 	k8s.io/apimachinery v0.33.3
@@ -22,6 +22,7 @@ require (
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.3 // indirect
 	github.com/google/gnostic-models v0.6.9 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -40,7 +41,7 @@ require (
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
-	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/term v0.30.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.9.0 // indirect

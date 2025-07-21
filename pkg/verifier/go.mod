@@ -3,17 +3,17 @@ module github.com/torsec/k8s-pod-attestation/pkg/verifier
 go 1.24.3
 
 require (
-	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250719081606-83b9763b3c57
-	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250719114614-82703c58f978
-	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250709113940-c45cdafb02c9
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250718152706-2480687d506e
+	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250721122813-31cf43b6c2dc
+	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250721122813-31cf43b6c2dc
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250721122813-31cf43b6c2dc
+	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250721122813-31cf43b6c2dc
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250721122813-31cf43b6c2dc
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250721122813-31cf43b6c2dc
 	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250515104439-f713fe636d77
 	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250715104719-91dab7bec1da
-	k8s.io/apimachinery v0.32.3
-	k8s.io/client-go v0.32.3
+	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250721122813-31cf43b6c2dc
+	k8s.io/apimachinery v0.33.3
+	k8s.io/client-go v0.33.3
 )
 
 require (
@@ -79,6 +79,7 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	go.mongodb.org/mongo-driver v1.17.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
+	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/arch v0.19.0 // indirect
 	golang.org/x/crypto v0.40.0 // indirect
 	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc // indirect
@@ -93,8 +94,8 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.32.3 // indirect
-	k8s.io/apiextensions-apiserver v0.32.3 // indirect
+	k8s.io/api v0.33.3 // indirect
+	k8s.io/apiextensions-apiserver v0.33.3 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397 // indirect
@@ -105,5 +106,5 @@ require (
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect
-	sigs.k8s.io/yaml v1.4.0 // indirect
+	sigs.k8s.io/yaml v1.5.0 // indirect
 )

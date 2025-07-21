@@ -7,11 +7,11 @@ toolchain go1.24.3
 require (
 	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250715230348-f1c656b5cbd9
 	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250515104439-f713fe636d77
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250625105629-498535fd4e1e
 	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250515104439-f713fe636d77
 	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250709113940-c45cdafb02c9
 	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250714095722-f9a4b0269eda
-	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250515104439-f713fe636d77
+	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250721122813-31cf43b6c2dc
 	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250515104439-f713fe636d77
 	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250714140509-bcafc8f40e19
 	k8s.io/apimachinery v0.33.2
@@ -79,7 +79,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.19.0 // indirect
 	golang.org/x/crypto v0.40.0 // indirect
-	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
+	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc // indirect
 	golang.org/x/net v0.42.0 // indirect
 	golang.org/x/oauth2 v0.29.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
@@ -96,10 +96,10 @@ require (
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
 	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e // indirect
-	modernc.org/libc v1.62.1 // indirect
+	modernc.org/libc v1.66.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
-	modernc.org/memory v1.9.1 // indirect
-	modernc.org/sqlite v1.37.0 // indirect
+	modernc.org/memory v1.11.0 // indirect
+	modernc.org/sqlite v1.38.0 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect

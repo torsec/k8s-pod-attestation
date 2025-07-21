@@ -24,6 +24,8 @@ github.com/go-task/slim-sprig/v3 v3.0.0 h1:sUs3vkvUymDpBKi3qH1YSqBQk9+9D/8M2mN1v
 github.com/go-task/slim-sprig/v3 v3.0.0/go.mod h1:W848ghGpv3Qj3dhTPRyJypKRiqCdHZiAzKg9hl15HA8=
 github.com/gogo/protobuf v1.3.2 h1:Ov1cvc58UF3b5XjBnZv7+opcTcQFZebYjWzi34vdm4Q=
 github.com/gogo/protobuf v1.3.2/go.mod h1:P1XiOD3dCwIKUDQYPy72D8LYyHL2YPYrpS2s69NZV8Q=
+github.com/golang-jwt/jwt/v5 v5.2.3 h1:kkGXqQOBSDDWRhWNXTFpqGSCMyh/PLnqUvMGJPDJDs0=
+github.com/golang-jwt/jwt/v5 v5.2.3/go.mod h1:pqrtFR0X4osieyHYxtmOUWsAWrfe1Q5UVIyoH402zdk=
 github.com/google/gnostic-models v0.6.9 h1:MU/8wDLif2qCXZmzncUQ/BOfxWfthHi63KqpoNbWqVw=
 github.com/google/gnostic-models v0.6.9/go.mod h1:CiWsm0s6BSQd1hRn8/QmxqB6BesYcbSZxsz9b0KuDBw=
 github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
@@ -85,10 +87,14 @@ github.com/stretchr/testify v1.10.0 h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOf
 github.com/stretchr/testify v1.10.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250515104439-f713fe636d77 h1:VPYQ9IESNC39uxtxnp60phKdxO5QHDgOT/wUCBvyEgI=
 github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250515104439-f713fe636d77/go.mod h1:Xez5RlH5yANYH60V5+BMu+I8NQLZ01/cfLLv7m3pfuY=
+github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250721122813-31cf43b6c2dc h1:mB1tKtlUcgGN3EwSXCNMYqfO+ToIDWxcEcLdUPydaJY=
+github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250721122813-31cf43b6c2dc/go.mod h1:s4lA7NH73YkXsPa9ZXD54y5WTJa3bcSRrLGKYyBt0Qs=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250515104439-f713fe636d77 h1:iQpX3LHQS9VisXsYoKuYlBeG2Ha59gOLm9HtHINLtY8=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250515104439-f713fe636d77/go.mod h1:xuCsD8+9JfcbUVeXbd0KS9hnVMJA0ZB3Az3/33zRxDA=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250715230348-f1c656b5cbd9 h1:eCofq+fqL34OVBFLkLZJ8XA0fQZQd1k4/M6G0YpSQ2s=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250715230348-f1c656b5cbd9/go.mod h1:wi+5UfVTgRBFS0RxJMCBTTFu5T4pMUt2ojdZ43DqFUA=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250721122813-31cf43b6c2dc h1:ek01S1taIStCdw+TqnDwXSb2r6L9oW9mN5PkHiUi8ik=
+github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250721122813-31cf43b6c2dc/go.mod h1:BBgRJxkLIW5WghFJ+4OSRZkjMQ4P7NJyKnPHBrpo7vc=
 github.com/veraison/cmw v0.2.0 h1:BWEvwZnD4nn5osq6XwQpTRcGxwV+Su4t6ytdAbVXAJY=
 github.com/veraison/cmw v0.2.0/go.mod h1:OiYKk1t6/Fmmg30ZpSMzi4nKr5kt3374sNTkgxC5BDs=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
@@ -121,6 +127,8 @@ golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.6.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.32.0 h1:s77OFDvIQeibCmezSnk/q6iAfkdiQaJi4VzroCFrN20=
 golang.org/x/sys v0.32.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
+golang.org/x/sys v0.34.0 h1:H5Y5sJ2L2JRdyv7ROF1he/lPdvFsd0mJHFw2ThKHxLA=
+golang.org/x/sys v0.34.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
 golang.org/x/term v0.30.0 h1:PQ39fJZ+mfadBm0y5WlL4vlM7Sx1Hgf13sMIY2+QS9Y=
 golang.org/x/term v0.30.0/go.mod h1:NYYFdzHoI5wRh/h5tDMdMqCqPJZEuNqVR5xJLd/n67g=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=

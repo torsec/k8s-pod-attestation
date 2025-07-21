@@ -5,10 +5,10 @@ go 1.23.4
 require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/google/uuid v1.6.0
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250515104439-f713fe636d77
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250709113940-c45cdafb02c9
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250715230348-f1c656b5cbd9
-	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250515104439-f713fe636d77
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250721122813-31cf43b6c2dc
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250721122813-31cf43b6c2dc
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250721122813-31cf43b6c2dc
+	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250721122813-31cf43b6c2dc
 )
 
 require (
@@ -24,6 +24,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.27.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.3 // indirect
 	github.com/google/go-attestation v0.5.1 // indirect
 	github.com/google/go-configfs-tsm v0.3.3 // indirect
 	github.com/google/go-sev-guest v0.13.0 // indirect
