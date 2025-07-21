@@ -291,9 +291,29 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	}
 
 	if whitelistResponse.Status != model.Success {
-		logger.Error("Invalid Worker Boot measurements: %v", whitelistResponse.Message)
+		absentEntries, err := json.Marshal(whitelistResponse.ErroredEntries.AbsentWhitelistEntries)
+		if err != nil {
+			logger.Error("Failed to marshal absent entries as json")
+		}
+		notRunEntries, err := json.Marshal(whitelistResponse.ErroredEntries.NotRunWhitelistEntries)
+		if err != nil {
+			logger.Error("Failed to marshal notRun entries as json")
+		}
+		mismatchingEntries, err := json.Marshal(whitelistResponse.ErroredEntries.MismatchingWhitelistEntries)
+		if err != nil {
+			logger.Error("Failed to marshal mismatching entries as json")
+		}
+
+		logger.Error("Untrusted Boot measurements for Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", newWorker.GetName(), absentEntries, notRunEntries, mismatchingEntries)
 		return false
 	}
+
+	attestedDependencies, err := json.Marshal(workerWhitelistCheckRequest)
+	if err != nil {
+		logger.Error("Failed to marshal attested entries as json")
+	}
+
+	logger.Success("Attestation of Worker node '%s' completed with success; Successfully attested dependencies: %s", newWorker.GetName(), attestedDependencies)
 
 	aikPublicPem := cryptoUtils.EncodePublicKeyToPEM(aikPublicKey)
 	if aikPublicPem == nil {

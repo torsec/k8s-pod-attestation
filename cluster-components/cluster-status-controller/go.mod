@@ -3,8 +3,8 @@ module main
 go 1.24.3
 
 require (
+	github.com/torsec/k8s-pod-attestation/pkg/cluster_status_controller v0.0.0-20250515104439-f713fe636d77
 	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250715230348-f1c656b5cbd9
-	github.com/torsec/k8s-pod-attestation/pkg/pod_watcher v0.0.0-20250515104439-f713fe636d77
 )
 
 require (

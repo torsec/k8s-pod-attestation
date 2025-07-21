@@ -191,11 +191,11 @@ func (ar *RatsAttestationResult) AddResult(key any, result *cmw.CMW) error {
 }
 
 func (ar *RatsAttestationResult) GetResult(key any) (*cmw.CMW, error) {
-	claim, err := ar.results.GetCollectionItem(key)
+	result, err := ar.results.GetCollectionItem(key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get result from attestation result: %w", err)
 	}
-	return claim, nil
+	return result, nil
 }
 
 func NewAttestationResult() (*RatsAttestationResult, error) {
@@ -215,11 +215,11 @@ func NewEvidence() (*RatsEvidence, error) {
 }
 
 func NewCmwItem(mediaType any, value []byte, indicators ...cmw.Indicator) (*cmw.CMW, error) {
-	claim, err := cmw.NewMonad(mediaType, value, indicators...)
+	cmw, err := cmw.NewMonad(mediaType, value, indicators...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create claim: %w", err)
+		return nil, fmt.Errorf("failed to create cmw: %w", err)
 	}
-	return claim, nil
+	return cmw, nil
 }
 
 func (e *RatsEvidence) AddClaim(key any, claim *cmw.CMW) error {
