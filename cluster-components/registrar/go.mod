@@ -1,10 +1,10 @@
 module main
 
-go 1.23.4
+go 1.24.5
 
 require (
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250709113940-c45cdafb02c9
-	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250515104439-f713fe636d77
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250721122813-31cf43b6c2dc
+	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250721122813-31cf43b6c2dc
 )
 
 require (
@@ -33,9 +33,8 @@ require (
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/torsec/k8s-pod-attestation v0.0.0-20250221150223-2648ced8d69f // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250515104439-f713fe636d77 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250515104439-f713fe636d77 // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250625105629-498535fd4e1e // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250626124157-12e983fe4403 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	golang.org/x/arch v0.19.0 // indirect

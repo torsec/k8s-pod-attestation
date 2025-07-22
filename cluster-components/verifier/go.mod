@@ -1,6 +1,13 @@
 module main
 
-go 1.24.3
+go 1.24.5
+
+require (
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250721122813-31cf43b6c2dc
+	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250721122813-31cf43b6c2dc
+	github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250721122813-31cf43b6c2dc
+	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250721122813-31cf43b6c2dc
+)
 
 require (
 	github.com/bytedance/sonic v1.13.3 // indirect
@@ -58,13 +65,9 @@ require (
 	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250515104439-f713fe636d77 // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250719114614-82703c58f978 // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250515104439-f713fe636d77 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250719081606-83b9763b3c57 // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250718152706-2480687d506e // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250719081606-83b9763b3c57 // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250515104439-f713fe636d77 // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250515104439-f713fe636d77 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250719144617-31f12df596bd // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250719081606-83b9763b3c57 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	github.com/veraison/cmw v0.2.0 // indirect
