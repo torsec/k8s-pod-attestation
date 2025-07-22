@@ -141,29 +141,34 @@ func (ar *RatsAttestationResult) ToJWT(signingMethod jwt.SigningMethod, signingK
 	return signedToken, nil
 }
 
-func (ar *RatsAttestationResult) FromJWT(jwtString string, signingMethod jwt.SigningMethod, signingKey any) error {
+func AttestationResultFromJWT(jwtString string, signingMethod jwt.SigningMethod, publicKey any) (*RatsAttestationResult, error) {
 	token, err := jwt.Parse(jwtString, func(token *jwt.Token) (interface{}, error) {
 		if token.Method != signingMethod {
 			return nil, fmt.Errorf("failed to parse attestation result jwt; unexpected signing method: %v", token.Header["alg"])
 		}
-		return signingKey, nil
+		return publicKey, nil
 	})
 
 	if err != nil {
-		return fmt.Errorf("failed to parse attestation result jwt: %w", err)
+		return nil, fmt.Errorf("failed to parse attestation result jwt: %w", err)
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		if _, exists := claims["cmw"]; !exists {
-			return fmt.Errorf("failed to parse attestation result jwt; claims missing 'cmw'")
+			return nil, fmt.Errorf("failed to parse attestation result jwt; claims missing 'cmw'")
 		}
-		err = ar.FromJSON(claims["cmw"].([]byte))
+		decodedCmw, err := base64.StdEncoding.DecodeString(claims["cmw"].(string))
 		if err != nil {
-			return fmt.Errorf("failed to parse attestation result jwt: %w", err)
+			return nil, fmt.Errorf("failed to decode evidence jwt; failed to parse 'cmw' claim from base64: %w", err)
 		}
-		return nil
+
+		ar, err := AttestationResultFromJSON(decodedCmw)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse attestation result jwt: %w", err)
+		}
+		return ar, nil
 	}
-	return fmt.Errorf("failed to parse attestation result jwt: token invalid")
+	return nil, fmt.Errorf("failed to parse attestation result jwt: token invalid")
 }
 
 func (ar *RatsAttestationResult) ToJSON() ([]byte, error) {
@@ -174,12 +179,13 @@ func (ar *RatsAttestationResult) ToJSON() ([]byte, error) {
 	return attestationResultJSON, nil
 }
 
-func (ar *RatsAttestationResult) FromJSON(attestationResultJSON []byte) error {
-	err := ar.results.UnmarshalJSON(attestationResultJSON)
+func AttestationResultFromJSON(attestationResultJSON []byte) (*RatsAttestationResult, error) {
+	results := &cmw.CMW{}
+	err := results.UnmarshalJSON(attestationResultJSON)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal results into attestation result: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal results into attestation result: %w", err)
 	}
-	return nil
+	return &RatsAttestationResult{results: results}, nil
 }
 
 func (ar *RatsAttestationResult) AddResult(key any, result *cmw.CMW) error {
@@ -206,8 +212,8 @@ func NewAttestationResult() (*RatsAttestationResult, error) {
 	return &RatsAttestationResult{results: results}, nil
 }
 
-func NewEvidence() (*RatsEvidence, error) {
-	claims, err := cmw.NewCollection(CmwCollectionTypeAttestationEvidence)
+func NewEvidence(evidenceType string) (*RatsEvidence, error) {
+	claims, err := cmw.NewCollection(evidenceType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize attestation evidence: %w", err)
 	}
@@ -215,11 +221,11 @@ func NewEvidence() (*RatsEvidence, error) {
 }
 
 func NewCmwItem(mediaType any, value []byte, indicators ...cmw.Indicator) (*cmw.CMW, error) {
-	cmw, err := cmw.NewMonad(mediaType, value, indicators...)
+	cmwItem, err := cmw.NewMonad(mediaType, value, indicators...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cmw: %w", err)
 	}
-	return cmw, nil
+	return cmwItem, nil
 }
 
 func (e *RatsEvidence) AddClaim(key any, claim *cmw.CMW) error {
@@ -246,10 +252,58 @@ func (e *RatsEvidence) ToJSON() ([]byte, error) {
 	return evidenceJSON, nil
 }
 
-func (e *RatsEvidence) FromJSON(jsonEvidence []byte) error {
-	err := e.claims.UnmarshalJSON(jsonEvidence)
+func EvidenceFromJSON(jsonEvidence []byte) (*RatsEvidence, error) {
+	claims := &cmw.CMW{}
+	err := claims.UnmarshalJSON(jsonEvidence)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal claims into attestation evidence: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal claims into attestation evidence: %w", err)
 	}
-	return nil
+	return &RatsEvidence{claims: claims}, nil
+}
+
+func (e *RatsEvidence) ToJWT(signingMethod jwt.SigningMethod, signingKey any, issuer string, minuteExp int) (string, error) {
+	rawCmw, err := e.ToJSON()
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal cmw: %w", err)
+	}
+	token := jwt.NewWithClaims(signingMethod, jwt.MapClaims{
+		"cmw": rawCmw,
+		"iss": issuer,
+		"exp": time.Now().Add(time.Minute * time.Duration(minuteExp)).Unix(),
+		"nbf": time.Now().Unix(),
+	})
+	signedToken, err := token.SignedString(signingKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign evidence jwt: %w", err)
+	}
+	return signedToken, nil
+}
+
+func EvidenceFromJWT(jwtString string, signingMethod jwt.SigningMethod, publicKey any) (*RatsEvidence, error) {
+	token, err := jwt.Parse(jwtString, func(token *jwt.Token) (interface{}, error) {
+		if token.Method != signingMethod {
+			return nil, fmt.Errorf("failed to parse evidence jwt; unexpected signing method: %v", token.Header["alg"])
+		}
+		return publicKey, nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse evidence jwt: %w", err)
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		if _, exists := claims["cmw"]; !exists {
+			return nil, fmt.Errorf("failed to parse evidence jwt; claims missing 'cmw'")
+		}
+		decodedCmw, err := base64.StdEncoding.DecodeString(claims["cmw"].(string))
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode evidence jwt; failed to parse 'cmw' claim from base64: %w", err)
+		}
+		e, err := EvidenceFromJSON(decodedCmw)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse evidence jwt: %w", err)
+		}
+		return e, nil
+	}
+	return nil, fmt.Errorf("failed to parse evidence jwt: token invalid")
 }
