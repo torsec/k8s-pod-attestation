@@ -28,6 +28,11 @@ import (
 const attestationNonceSize = 16
 const attestationResultIssuer = "RA-Engine"
 
+type lastMLValidation struct {
+	IMAMlOffset       int64
+	PreviousAggregate []byte
+}
+
 type Verifier struct {
 	clusterInteractor cluster_interaction.ClusterInteraction
 	informerFactory   dynamicinformer.DynamicSharedInformerFactory
@@ -36,6 +41,7 @@ type Verifier struct {
 	whitelistClient   *whitelist.Client
 	attestationSecret []byte
 	privateKey        string
+	lastAttested      map[string]lastMLValidation
 }
 
 func (v *Verifier) Init(defaultResync int, attestationSecret []byte, privateKey string, registrarClient *registrar.Client, whitelistClient *whitelist.Client) {
@@ -265,7 +271,14 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		}, fmt.Errorf("error while validating Worker Quote")
 	}
 
-	imaPodEntries, imaContainerRuntimeEntries, err := ima.MeasurementLogValidation(attestationResponse.AttestationEvidence.Evidence.MeasurementLog, pcr10Content, attestationRequest.PodUid)
+	if _, exists = v.lastAttested[attestationRequest.PodUid]; !exists {
+		v.lastAttested[attestationRequest.PodUid] = lastMLValidation{
+			IMAMlOffset:       0,
+			PreviousAggregate: nil,
+		}
+	}
+
+	lastCheckedOffset, imaPodEntries, imaContainerRuntimeEntries, err := ima.MeasurementLogValidation(attestationResponse.AttestationEvidence.Evidence.MeasurementLog, pcr10Content, attestationRequest.PodUid, v.lastAttested[attestationRequest.PodUid].PreviousAggregate)
 	if err != nil {
 		return &model.AttestationResult{
 			Agent:      agentName,
@@ -402,6 +415,16 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 			Reason:     "Untrusted Pod",
 		}, fmt.Errorf("untrusted pod")
 	}
+
+	entry := v.lastAttested[attestationRequest.PodUid]
+
+	entry.IMAMlOffset += lastCheckedOffset
+	previousAggregate, err := hex.DecodeString(pcr10Content)
+	if err != nil {
+		logger.Error("Failed to decode from hex previous aggregate: %s", err)
+	}
+	entry.PreviousAggregate = previousAggregate
+	v.lastAttested[attestationRequest.PodUid] = entry
 
 	return &model.AttestationResult{
 		Agent:      agentName,

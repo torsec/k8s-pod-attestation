@@ -191,10 +191,11 @@ func (s *Server) podAttestation(c *gin.Context) {
 	}
 
 	receivedAttestationRequest := model.AttestationRequest{
-		Nonce:    attestationRequest.Nonce,
-		PodName:  attestationRequest.PodName,
-		PodUid:   attestationRequest.PodUid,
-		TenantId: attestationRequest.TenantId,
+		Nonce:       attestationRequest.Nonce,
+		PodName:     attestationRequest.PodName,
+		PodUid:      attestationRequest.PodUid,
+		IMAMlOffset: attestationRequest.IMAMlOffset,
+		TenantId:    attestationRequest.TenantId,
 	}
 
 	receivedAttestationRequestJSON, err := json.Marshal(receivedAttestationRequest)
@@ -244,8 +245,7 @@ func (s *Server) podAttestation(c *gin.Context) {
 	}
 
 	encodedQuote := base64.StdEncoding.EncodeToString(workerQuote)
-
-	measurementLog, err := s.getWorkerMeasurementLog()
+	measurementLog, err := s.getWorkerMeasurementLog(attestationRequest.IMAMlOffset)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"message": err.Error(),
@@ -304,24 +304,31 @@ func (s *Server) podAttestation(c *gin.Context) {
 	return
 }
 
-func (s *Server) getWorkerMeasurementLog() (string, error) {
+func (s *Server) getWorkerMeasurementLog(offset int64) (string, error) {
 	// Open the file
-	imaMeasurementLog, err := os.Open(s.imaMeasurementLogPath)
+	f, err := os.Open(s.imaMeasurementLogPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open IMA measurement log: %v", err)
 	}
-	defer func(IMAMeasurementLog *os.File) {
-		err := IMAMeasurementLog.Close()
+	defer func(f *os.File) {
+		err := f.Close()
 		if err != nil {
-			return
+			logger.Error("failed to close IMA measurement log: %v", err)
 		}
-	}(imaMeasurementLog)
+	}(f)
 
-	// Read the file content
-	fileContent, err := io.ReadAll(imaMeasurementLog)
+	// Seek to the given offset
+	_, err = f.Seek(offset, io.SeekStart)
 	if err != nil {
-		return "", fmt.Errorf("failed to read file: %v", err)
+		return "", fmt.Errorf("failed to seek to offset in IMA measurement log: %v", err)
 	}
+
+	// Read the file content from offset to EOF
+	fileContent, err := io.ReadAll(f)
+	if err != nil {
+		return "", fmt.Errorf("failed to read IMA measurement log: %v", err)
+	}
+
 	// Encode the file content into Base64
 	base64Encoded := base64.StdEncoding.EncodeToString(fileContent)
 	return base64Encoded, nil
