@@ -55,6 +55,7 @@ func (v *Verifier) Init(defaultResync int, attestationSecret []byte, privateKey 
 	v.privateKey = privateKey
 	v.registrarClient = registrarClient
 	v.whitelistClient = whitelistClient
+	v.lastAttested = make(map[string]lastMLValidation)
 }
 
 func (v *Verifier) parseAttestationRequestFromCRD(spec map[string]interface{}) (*model.AttestationRequest, error) {
