@@ -82,11 +82,12 @@ type PodAttestationRequest struct {
 }
 
 type AttestationRequest struct {
-	Nonce     string `json:"nonce"`
-	PodName   string `json:"podName"`
-	PodUid    string `json:"podUid"`
-	TenantId  string `json:"tenantId"`
-	Signature string `json:"signature,omitempty"`
+	Nonce       string `json:"nonce"`
+	PodName     string `json:"podName"`
+	PodUid      string `json:"podUid"`
+	TenantId    string `json:"tenantId"`
+	IMAMlOffset int64  `json:"imaMlOffset"`
+	Signature   string `json:"signature,omitempty"`
 }
 
 type AttestationResponse struct {
