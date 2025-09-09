@@ -54,15 +54,16 @@ func extendEntry(previousHash []byte, templateHash string) ([]byte, error) {
 	return hash.Sum(nil), nil
 }
 
-// MeasurementLogValidation IMAVerification checks the integrity of the IMA measurement logger against the received Quote and returns the entries related to the pod being attested for statical analysis of executed software and the AttestationResult
-func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string, previousAggregate []byte) (string, []model.IMAEntry, []model.IMAEntry, error) {
+// MeasurementLogValidation checks the integrity of the IMA measurement logger against the received Quote and returns the entries related to the pod being attested for statical analysis of executed software and the AttestationResult
+func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string, previousAggregate []byte) (int64, []model.IMAEntry, []model.IMAEntry, error) {
 	isMeasurementLogValid := false
-	lastCheckedEntry := ""
 
 	decodedLog, err := base64.StdEncoding.DecodeString(imaMeasurementLog)
 	if err != nil {
-		return "", nil, nil, fmt.Errorf("failed to decode IMA measurement logger: %v", err)
+		return -1, nil, nil, fmt.Errorf("failed to decode IMA measurement logger: %v", err)
 	}
+
+	offset := int64(len(decodedLog))
 
 	logLines := strings.Split(string(decodedLog), "\n")
 	if len(logLines) > 0 && logLines[len(logLines)-1] == "" {
@@ -83,7 +84,7 @@ func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string, pre
 		// Split the line by whitespace
 		IMAFields := strings.Fields(imaLine)
 		if len(IMAFields) < CgpathTemplateEntryFields {
-			return "", nil, nil, fmt.Errorf("IMA measurement log integrity check failed: entry %d not compliant with template: %s", idx, imaLine)
+			return -1, nil, nil, fmt.Errorf("IMA measurement log integrity check failed: entry %d not compliant with template: %s", idx, imaLine)
 		}
 
 		templateHashField := IMAFields[1]
@@ -94,25 +95,24 @@ func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string, pre
 
 		hashAlgo, fileHash, err := extractShaDigest(fileHashField)
 		if err != nil {
-			return "", nil, nil, fmt.Errorf("IMA measurement log integrity check failed: entry: %d file hash is invalid: %s", idx, imaLine)
+			return -1, nil, nil, fmt.Errorf("IMA measurement log integrity check failed: entry: %d file hash is invalid: %s", idx, imaLine)
 		}
 
 		extendValue, err := validateEntry(templateHashField, depField, cgroupPathField, hashAlgo, fileHash, filePathField)
 		if err != nil {
-			return "", nil, nil, fmt.Errorf("IMA measurement log integrity check failed: entry: %d is invalid: %s", idx, imaLine)
+			return -1, nil, nil, fmt.Errorf("IMA measurement log integrity check failed: entry: %d is invalid: %s", idx, imaLine)
 		}
 
 		// Use the helper function to extend ML cumulative hash with the newly computed template hash
 		extendedHash, err := extendEntry(previousHash, extendValue)
 		if err != nil {
-			return "", nil, nil, fmt.Errorf("error computing hash at index %d: %v\n", idx, err)
+			return -1, nil, nil, fmt.Errorf("error computing hash at index %d: %v\n", idx, err)
 		}
 
 		// Update the previous hash for the next iteration
 		previousHash = extendedHash
 		if !isMeasurementLogValid && hex.EncodeToString(extendedHash) == pcr10Digest {
 			isMeasurementLogValid = true
-			lastCheckedEntry = filePathField
 		}
 
 		// check if entry belongs to container or is pure a host measurement, otherwise after having computed the extend hash, go to next entry in IMA ML
@@ -155,7 +155,7 @@ func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string, pre
 	cumulativeHashHex := hex.EncodeToString(previousHash)
 	// Compare the computed hash with the provided PCR10Digest
 	if cumulativeHashHex != pcr10Digest {
-		return "", nil, nil, fmt.Errorf("IMA measurement log integrity check failed: computed hash does not match quote value")
+		return -1, nil, nil, fmt.Errorf("IMA measurement log integrity check failed: computed hash does not match quote value")
 	}
 
 	// Convert the unique entries back to a slice
@@ -170,7 +170,7 @@ func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string, pre
 	}
 
 	// Return the collected IMA pod entries
-	return lastCheckedEntry, podEntries, containerRuntimeEntries, nil
+	return offset, podEntries, containerRuntimeEntries, nil
 }
 
 func checkPodUidMatch(path, podUid string) bool {
