@@ -608,7 +608,7 @@ test_custom_pod_data = {
             "validDigests": {
                 "sha1": [],
                 "sha256": [
-                    "a3905f456410f615a54e2ad9664c9d2b9afc3fb9839c154e7ccd2a94ca86d128"
+                    "b3905f456410f615a54e2ad9664c9d2b9afc3fb9839c154e7ccd2a94ca86d128"
                 ]
             }
         },

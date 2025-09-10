@@ -7,7 +7,7 @@ import rsa
 from datetime import datetime
 
 # Define API endpoints
-REGISTRAR_BASE_URL = 'http://localhost:30000'  # Ensure this matches your pod-handler URL
+REGISTRAR_BASE_URL = 'http://localhost:30000' 
 POD_HANDLER_BASE_URL = 'http://localhost:30001'
 CREATE_TENANT_URL = f'{REGISTRAR_BASE_URL}/tenant/create'
 VERIFY_SIGNATURE_URL = f'{REGISTRAR_BASE_URL}/tenant/verify'
@@ -78,8 +78,9 @@ tenant_name = f'Tenant-{random.randint(0, 500)}'
 create_tenant(tenant_name, public_key)
 
 pods_to_attest = []
+n_pods = 1
 
-for i in range(0, 20):
+for i in range(0, n_pods):
     # Usage
     pod_name = f'redis-pod-{random.randint(0, 2000000)}'
 
@@ -87,23 +88,17 @@ for i in range(0, 20):
 apiVersion: v1
 kind: Pod
 metadata:
-  namespace: default
+  namespace: it6-ns
   name: {pod_name}
   labels:
-    app: redis
+    app: nginx
 spec:
   nodeName: worker  # Specify the node where you want to deploy the pod
   containers:
-    - name: redis1
-      image: redis:latest
-      command: ["redis-server", "--port", "6380"]  # Override the default port
+    - name: nginx
+      image: nginx:latest
       ports:
-        - containerPort: 6380
-    - name: redis2
-      image: redis:latest
-      command: ["redis-server", "--port", "6381"]  # Override the second Redis container's port
-      ports:
-        - containerPort: 6381
+        - containerPort: 80
 '''
     to_sign = message
 
@@ -116,7 +111,7 @@ spec:
 
 current_time = datetime.now().strftime("%H:%M:%S.%f")[:-3]
 print(f"start: {current_time}")
-for i in range(0, 20):
+for i in range(0, n_pods):
     signature = sign_message(pods_to_attest[i])
     pod_attestation(tenant_name, pods_to_attest[i], signature)
 current_time = datetime.now().strftime("%H:%M:%S.%f")[:-3]
