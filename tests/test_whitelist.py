@@ -65,17 +65,6 @@ store_container_runtime_data = {
                 ]
             }
         },
-        {
-            "filePath": "/usr/bin/unpigz",
-            "validDigests": {
-                "sha1": [],
-                "sha256": [
-                    "ffdb0ad613a9d22b02816d1c67765f611c90fa98047b83917abe2c4677d0f4b3"
-                ]
-            }
-        }
-
-
     ]
 }
 
