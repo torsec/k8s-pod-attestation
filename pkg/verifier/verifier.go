@@ -245,50 +245,69 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		}, fmt.Errorf("invalid evidence signature")
 	}
 
-	quoteJson, err := base64.StdEncoding.DecodeString(attestationResponse.AttestationEvidence.Evidence.Quote)
-	if err != nil {
-		return &model.AttestationResult{
-			Agent:      agentName,
-			Target:     workerName,
-			TargetType: "Node",
-			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     "failed to decode Evidence Quote from base64",
-		}, fmt.Errorf("failed to process evidence quote")
-	}
+	var lastCheckedOffset int64
+	var imaPodEntries []model.IMAEntry
+	var imaContainerRuntimeEntries []model.IMAEntry
+	pcrHashAlg := "sha256"
+	var pcr10Content string
 
-	// Parse inputQuote JSON
-	var inputQuote *model.InputQuote
-	err = json.Unmarshal(quoteJson, &inputQuote)
-	if err != nil {
-		return &model.AttestationResult{
-			Agent:      agentName,
-			Target:     workerName,
-			TargetType: "Node",
-			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     "failed to parse Evidence Quote",
-		}, fmt.Errorf("failed to process evidence quote")
-	}
+	if attestationResponse.AttestationEvidence.Evidence.Quote != "" {
+		quoteJson, err := base64.StdEncoding.DecodeString(attestationResponse.AttestationEvidence.Evidence.Quote)
+		if err != nil {
+			return &model.AttestationResult{
+				Agent:      agentName,
+				Target:     workerName,
+				TargetType: "Node",
+				Result:     cluster_interaction.UntrustedNodeStatus,
+				Reason:     "failed to decode Evidence Quote from base64",
+			}, fmt.Errorf("failed to process evidence quote")
+		}
 
-	pcr10Content, pcrHashAlg, err := v.validatePodAttestationQuote(workerName, inputQuote, attestationRequest.Nonce)
-	if err != nil {
-		return &model.AttestationResult{
-			Agent:      agentName,
-			Target:     workerName,
-			TargetType: "Node",
-			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     "Error while validating Worker Quote",
-		}, fmt.Errorf("error while validating Worker Quote")
-	}
+		// Parse inputQuote JSON
+		var inputQuote *model.InputQuote
+		err = json.Unmarshal(quoteJson, &inputQuote)
+		if err != nil {
+			return &model.AttestationResult{
+				Agent:      agentName,
+				Target:     workerName,
+				TargetType: "Node",
+				Result:     cluster_interaction.UntrustedNodeStatus,
+				Reason:     "failed to parse Evidence Quote",
+			}, fmt.Errorf("failed to process evidence quote")
+		}
 
-	lastCheckedOffset, imaPodEntries, imaContainerRuntimeEntries, err := ima.MeasurementLogValidation(attestationResponse.AttestationEvidence.Evidence.MeasurementLog, pcr10Content, attestationRequest.PodUid, v.lastAttested[attestationRequest.PodUid].PreviousAggregate)
-	if err != nil {
-		return &model.AttestationResult{
-			Agent:      agentName,
-			Target:     workerName,
-			TargetType: "Node",
-			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     fmt.Sprintf("Failed to validate IMA Measurement log: %s", err),
-		}, fmt.Errorf("failed to validate IMA Measurement log")
+		pcr10Content, pcrHashAlg, err = v.validatePodAttestationQuote(workerName, inputQuote, attestationRequest.Nonce)
+		if err != nil {
+			return &model.AttestationResult{
+				Agent:      agentName,
+				Target:     workerName,
+				TargetType: "Node",
+				Result:     cluster_interaction.UntrustedNodeStatus,
+				Reason:     "Error while validating Worker Quote",
+			}, fmt.Errorf("error while validating Worker Quote")
+		}
+
+		lastCheckedOffset, imaPodEntries, imaContainerRuntimeEntries, err = ima.MeasurementLogValidation(attestationResponse.AttestationEvidence.Evidence.MeasurementLog, pcr10Content, attestationRequest.PodUid, v.lastAttested[attestationRequest.PodUid].PreviousAggregate)
+		if err != nil {
+			return &model.AttestationResult{
+				Agent:      agentName,
+				Target:     workerName,
+				TargetType: "Node",
+				Result:     cluster_interaction.UntrustedNodeStatus,
+				Reason:     fmt.Sprintf("Failed to validate IMA Measurement log: %s", err),
+			}, fmt.Errorf("failed to validate IMA Measurement log")
+		}
+	} else {
+		imaPodEntries, imaContainerRuntimeEntries, err = ima.ExtractPodAndContainerRuntimeEntries(attestationResponse.AttestationEvidence.Evidence.MeasurementLog, attestationRequest.PodUid)
+		if err != nil {
+			return &model.AttestationResult{
+				Agent:      agentName,
+				Target:     workerName,
+				TargetType: "Node",
+				Result:     cluster_interaction.UntrustedNodeStatus,
+				Reason:     fmt.Sprintf("Failed to extract IMA entries from Measurement log: %s", err),
+			}, fmt.Errorf("failed to extract IMA entries from Measurement log")
+		}
 	}
 
 	podImageName, podImageDigest, err := v.clusterInteractor.GetPodImageDataByUid(attestationRequest.PodUid)
@@ -374,7 +393,7 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 			logger.Error("Failed to marshal mismatching entries as json")
 		}
 
-		logger.Error("Pod '%s' executed over Worker node '%s' dependencies; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", attestationRequest.PodName, workerName, absentEntries, notRunEntries, mismatchingEntries)
+		logger.Warning("Pod '%s' executed over Worker node '%s' dependencies; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", attestationRequest.PodName, workerName, absentEntries, notRunEntries, mismatchingEntries)
 	} else {
 		attestedPodDependencies, err := json.Marshal(imaPodEntries)
 		if err != nil {
@@ -421,15 +440,17 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		}, fmt.Errorf("untrusted pod")
 	}
 
-	entry := v.lastAttested[attestationRequest.PodUid]
+	if attestationResponse.AttestationEvidence.Evidence.Quote != "" {
+		entry := v.lastAttested[attestationRequest.PodUid]
 
-	entry.IMAMlOffset += lastCheckedOffset
-	previousAggregate, err := hex.DecodeString(pcr10Content)
-	if err != nil {
-		logger.Error("Failed to decode from hex previous aggregate: %s", err)
+		entry.IMAMlOffset += lastCheckedOffset
+		previousAggregate, err := hex.DecodeString(pcr10Content)
+		if err != nil {
+			logger.Error("Failed to decode from hex previous aggregate: %s", err)
+		}
+		entry.PreviousAggregate = previousAggregate
+		v.lastAttested[attestationRequest.PodUid] = entry
 	}
-	entry.PreviousAggregate = previousAggregate
-	v.lastAttested[attestationRequest.PodUid] = entry
 
 	return &model.AttestationResult{
 		Agent:      agentName,
