@@ -7,7 +7,7 @@ require (
 	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250722091327-ad82fb00ad6b
 	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250722091327-ad82fb00ad6b
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250722091327-ad82fb00ad6b
-	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250909164430-faf2aa078704
+	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250910095935-12a63db83f48
 	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250722091327-ad82fb00ad6b
 	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250910092054-3f8d24503b22
 	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250722091327-ad82fb00ad6b
