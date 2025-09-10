@@ -201,48 +201,10 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		return nil, fmt.Errorf("invalid attestation response: %v", attestationResponse.Message)
 	}
 
-	evidenceRaw, err := json.Marshal(attestationResponse.AttestationEvidence.Evidence)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize Evidence: %v", err)
-	}
-
-	evidenceDigest, err := cryptoUtils.Hash(evidenceRaw)
-	if err != nil {
-		return nil, fmt.Errorf("error computing Attestation Evidence digest")
-	}
-
 	// Serialize Evidence struct to JSON
 	workerName, err := extractNodeName(agentName)
 	if err != nil {
 		return nil, fmt.Errorf("error while verifying Attestation Evidence: invalid Worker name")
-	}
-
-	verifyWorkerSignatureRequest := &model.VerifySignatureRequest{
-		Name:      workerName,
-		Message:   base64.StdEncoding.EncodeToString(evidenceDigest),
-		Signature: attestationResponse.AttestationEvidence.Signature,
-	}
-
-	// process Evidence
-	workerSignatureVerificationResponse, err := v.registrarClient.VerifyWorkerSignature(verifyWorkerSignatureRequest)
-	if err != nil {
-		return &model.AttestationResult{
-			Agent:      agentName,
-			Target:     workerName,
-			TargetType: "Node",
-			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     "Evidence signature verification failed",
-		}, fmt.Errorf("evidence signature verification failed")
-	}
-
-	if workerSignatureVerificationResponse.Status != model.Success {
-		return &model.AttestationResult{
-			Agent:      agentName,
-			Target:     workerName,
-			TargetType: "Node",
-			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     "Invalid Evidence signature",
-		}, fmt.Errorf("invalid evidence signature")
 	}
 
 	var lastCheckedOffset int64
