@@ -60,10 +60,10 @@ func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string, pre
 
 	decodedLog, err := base64.StdEncoding.DecodeString(imaMeasurementLog)
 	if err != nil {
-		return -1, nil, nil, fmt.Errorf("failed to decode IMA measurement logger: %v", err)
+		return -1, nil, nil, fmt.Errorf("failed to decode IMA measurement log: %v", err)
 	}
 
-	offset := int64(len(decodedLog))
+	offset := int64(1)
 
 	logLines := strings.Split(string(decodedLog), "\n")
 	if len(logLines) > 0 && logLines[len(logLines)-1] == "" {
@@ -81,6 +81,11 @@ func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string, pre
 
 	// Iterate through each line and extract relevant fields
 	for idx, imaLine := range logLines {
+
+		if !isMeasurementLogValid {
+			offset += int64(len(imaLine) + 1) // +1 for the newline character
+		}
+
 		// Split the line by whitespace
 		IMAFields := strings.Fields(imaLine)
 		if len(IMAFields) < CgpathTemplateEntryFields {
