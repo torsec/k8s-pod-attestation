@@ -110,8 +110,8 @@ func (v *Verifier) parseAttestationRequestFromCRD(spec map[string]interface{}) (
 		Nonce:       nonce,
 		PodName:     podName,
 		PodUid:      podUid,
-		TenantId:    tenantId,
 		IMAMlOffset: v.lastAttested[podUid].IMAMlOffset,
+		TenantId:    tenantId,
 	}
 
 	attestationRequestJSON, err := json.Marshal(attestationRequest)
@@ -331,6 +331,7 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		if err != nil {
 			logger.Error("Failed to marshal absent entries as json")
 		}
+		// not run entries are not critical
 		notRunEntries, err := json.Marshal(containerRuntimeValidationResponse.ErroredEntries.NotRunWhitelistEntries)
 		if err != nil {
 			logger.Error("Failed to marshal notRun entries as json")
@@ -339,7 +340,7 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		if err != nil {
 			logger.Error("Failed to marshal mismatching entries as json")
 		}
-		logger.Error("Untrusted Container Runtime on Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", workerName, absentEntries, notRunEntries, mismatchingEntries)
+		logger.Warning("Container Runtime dependencies on Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", workerName, absentEntries, notRunEntries, mismatchingEntries)
 	} else {
 		attestedContainerRuntimeDependencies, err := json.Marshal(imaContainerRuntimeEntries)
 		if err != nil {
@@ -372,7 +373,8 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		if err != nil {
 			logger.Error("Failed to marshal mismatching entries as json")
 		}
-		logger.Error("Untrusted Pod '%s' executed over Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", attestationRequest.PodName, workerName, absentEntries, notRunEntries, mismatchingEntries)
+
+		logger.Error("Pod '%s' executed over Worker node '%s' dependencies; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", attestationRequest.PodName, workerName, absentEntries, notRunEntries, mismatchingEntries)
 	} else {
 		attestedPodDependencies, err := json.Marshal(imaPodEntries)
 		if err != nil {
@@ -380,6 +382,7 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		}
 		logger.Success("Attestation of Pod '%s' executed over Worker node '%s' completed with success; Successfully attested dependencies: %s", attestationRequest.PodName, workerName, attestedPodDependencies)
 	}
+
 	trustedContainerRuntimeDependencies := filterTrustedDependencies(imaContainerRuntimeEntries, &containerRuntimeValidationResponse.ErroredEntries)
 	trustedPodDependencies := filterTrustedDependencies(imaPodEntries, &podValidationResponse.ErroredEntries)
 
@@ -532,6 +535,7 @@ func (v *Verifier) createAttestationResult(podUid string, trustedContainerRuntim
 		containerizationStatus = model.SlContraindicated
 	case len(containerRuntimeErroredEntries.NotRunWhitelistEntries) > 0:
 		containerizationStatus = model.SlWarning
+		isTrusted["containerRuntime"] = true
 	default:
 		containerizationStatus = model.SlAffirming
 		isTrusted["containerRuntime"] = true
@@ -543,6 +547,7 @@ func (v *Verifier) createAttestationResult(podUid string, trustedContainerRuntim
 		podStatus = model.SlContraindicated
 	case len(podErroredEntries.NotRunWhitelistEntries) > 0:
 		podStatus = model.SlWarning
+		isTrusted["pod"] = true
 	default:
 		podStatus = model.SlAffirming
 		isTrusted["pod"] = true
