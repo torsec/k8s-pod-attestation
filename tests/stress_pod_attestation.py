@@ -47,7 +47,7 @@ def verify_signature(name, message, signature):
     headers = {'Content-Type': 'application/json'}
     data = {
         'tenantName': name,
-        'manifest': base64.b64encode(message).decode(),  # Send the entire YAML content as the message
+        'manifest': base64.b64encode(message.encode()).decode(),  # Send the entire YAML content as the message
         'signature': signature
     }
     response = requests.post(POD_DEPLOYMENT_URL, headers=headers, data=json.dumps(data))
@@ -88,7 +88,7 @@ for i in range(0, n_pods):
 apiVersion: v1
 kind: Pod
 metadata:
-  name: pod-to-attest
+  name: {pod_name}
   namespace: it6-ns
 spec:
   nodeName: worker
