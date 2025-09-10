@@ -49,7 +49,7 @@ func (s *Server) Init(agentHost string, agentPort int, tlsCertificate *x509.Cert
 	s.tlsCertificate = tlsCertificate
 	s.imaMeasurementLogPath = imaMeasurementLog
 	s.tpm = tpm
-	s.attestWorkerInterval = 5
+	s.attestWorkerInterval = 0
 }
 
 func (s *Server) SetHost(host string) {
@@ -276,37 +276,8 @@ func (s *Server) podAttestation(c *gin.Context) {
 		MeasurementLog: measurementLog,
 	}
 
-	// Serialize Evidence struct to JSON
-	evidenceRaw, err := json.Marshal(evidence)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed to marshal Evidence",
-			"status":  model.Error,
-		})
-		return
-	}
-
-	evidenceDigest, err := cryptoUtils.Hash(evidenceRaw)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed to compute Evidence digest",
-			"status":  model.Error,
-		})
-		return
-	}
-
-	signedEvidence, err := s.tpm.SignWithAIK(evidenceDigest)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed to sign Evidence",
-			"status":  model.Error,
-		})
-		return
-	}
-
 	attestationEvidence := &model.AttestationEvidence{
-		Evidence:  evidence,
-		Signature: base64.StdEncoding.EncodeToString(signedEvidence),
+		Evidence: evidence,
 	}
 
 	c.JSON(http.StatusOK, gin.H{
