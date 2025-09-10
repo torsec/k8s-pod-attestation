@@ -25,7 +25,7 @@ store_container_runtime_data = {
             "validDigests": {
                 "sha1": [],
                 "sha256": [
-                    "ce9f5c5940530c40e47218af3405107b9acc0465b8c193492bd6a00db16991ad"
+                    "74cc9274df40f375864dfd0e3fc3d6d3b898faec7abb4b82218ca3c3c43e75e6"
                 ]
             }
         },
@@ -608,7 +608,7 @@ test_custom_pod_data = {
             "validDigests": {
                 "sha1": [],
                 "sha256": [
-                    "b3905f456410f615a54e2ad9664c9d2b9afc3fb9839c154e7ccd2a94ca86d128"
+                    "a3905f456410f615a54e2ad9664c9d2b9afc3fb9839c154e7ccd2a94ca86d128"
                 ]
             }
         },
