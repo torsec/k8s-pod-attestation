@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 )
 
 type Server struct {
@@ -27,8 +28,8 @@ type Server struct {
 	imaMeasurementLogPath string
 	verifierPublicKey     *rsa.PublicKey
 	tpm                   *tpm.TPM
-
-	router *gin.Engine
+	attestWorkerInterval  int
+	router                *gin.Engine
 }
 
 const (
@@ -38,12 +39,17 @@ const (
 	PodAttestationUrl                   = "/agent/pod/attest"
 )
 
+var (
+	firstIntervalAttestation = time.Now().Add(-10 * time.Minute) // 10 minutes ago
+)
+
 func (s *Server) Init(agentHost string, agentPort int, tlsCertificate *x509.Certificate, imaMeasurementLog string, tpm *tpm.TPM) {
 	s.agentHost = agentHost
 	s.agentPort = agentPort
 	s.tlsCertificate = tlsCertificate
 	s.imaMeasurementLogPath = imaMeasurementLog
 	s.tpm = tpm
+	s.attestWorkerInterval = 5
 }
 
 func (s *Server) SetHost(host string) {
@@ -225,26 +231,32 @@ func (s *Server) podAttestation(c *gin.Context) {
 		return
 	}
 
-	nonceBytes, err := hex.DecodeString(attestationRequest.Nonce)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Failed to decode nonce",
-			"status":  model.Error,
-		})
-		return
+	encodedQuote := ""
+
+	if time.Since(firstIntervalAttestation) < time.Duration(s.attestWorkerInterval)*time.Minute {
+
+		nonceBytes, err := hex.DecodeString(attestationRequest.Nonce)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"message": "Failed to decode nonce",
+				"status":  model.Error,
+			})
+			return
+		}
+
+		quotePcrs := []int{10}
+		workerQuote, err := s.tpm.QuoteGeneralPurposePCRs(nonceBytes, quotePcrs)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"message": err.Error(),
+				"status":  model.Error,
+			})
+			return
+		}
+
+		encodedQuote = base64.StdEncoding.EncodeToString(workerQuote)
 	}
 
-	quotePcrs := []int{10}
-	workerQuote, err := s.tpm.QuoteGeneralPurposePCRs(nonceBytes, quotePcrs)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": err.Error(),
-			"status":  model.Error,
-		})
-		return
-	}
-
-	encodedQuote := base64.StdEncoding.EncodeToString(workerQuote)
 	measurementLog, err := s.getWorkerMeasurementLog(attestationRequest.IMAMlOffset)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
