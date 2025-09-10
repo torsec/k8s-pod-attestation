@@ -255,6 +255,7 @@ func (s *Server) podAttestation(c *gin.Context) {
 		}
 
 		encodedQuote = base64.StdEncoding.EncodeToString(workerQuote)
+		firstIntervalAttestation = time.Now()
 	}
 
 	measurementLog, err := s.getWorkerMeasurementLog(attestationRequest.IMAMlOffset)
