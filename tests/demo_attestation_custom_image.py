@@ -103,7 +103,7 @@ signature = sign_message(pod_name)
 
 time.sleep(20)
 
-n = sys.argv[1] if len(sys.argv) > 1 else 1
+n = int(sys.argv[1]) if len(sys.argv) > 1 else 1
 avg = 0.0
 for i in range(0, n):
     start_time = datetime.now()
