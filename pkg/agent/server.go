@@ -233,7 +233,7 @@ func (s *Server) podAttestation(c *gin.Context) {
 
 	encodedQuote := ""
 
-	if time.Since(firstIntervalAttestation) < time.Duration(s.attestWorkerInterval)*time.Minute {
+	if time.Since(firstIntervalAttestation) > time.Duration(s.attestWorkerInterval)*time.Minute {
 
 		nonceBytes, err := hex.DecodeString(attestationRequest.Nonce)
 		if err != nil {
