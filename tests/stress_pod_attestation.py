@@ -4,6 +4,7 @@ import random
 import requests
 import rsa
 import sys
+import time
 from datetime import datetime
 
 # Define API endpoints
@@ -93,7 +94,10 @@ metadata:
 spec:
   nodeName: worker
   containers:
-  - name: alpine-container
+  - name: alpine-container1
+    image: franczar/app-to-attest:latest
+    command: ["sh", "-c", "echo Hello Kubernetes! && sleep 3600"]
+  - name: alpine-container2
     image: franczar/app-to-attest:latest
     command: ["sh", "-c", "echo Hello Kubernetes! && sleep 3600"]
 '''
