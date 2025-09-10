@@ -99,11 +99,19 @@ func (v *Verifier) parseAttestationRequestFromCRD(spec map[string]interface{}) (
 		return nil, fmt.Errorf("failed to generate nonce for Attestation Request")
 	}
 
+	if _, exists = v.lastAttested[podUid]; !exists {
+		v.lastAttested[podUid] = lastMLValidation{
+			IMAMlOffset:       0,
+			PreviousAggregate: nil,
+		}
+	}
+
 	attestationRequest := &model.AttestationRequest{
-		Nonce:    nonce,
-		PodName:  podName,
-		PodUid:   podUid,
-		TenantId: tenantId,
+		Nonce:       nonce,
+		PodName:     podName,
+		PodUid:      podUid,
+		TenantId:    tenantId,
+		IMAMlOffset: v.lastAttested[podUid].IMAMlOffset,
 	}
 
 	attestationRequestJSON, err := json.Marshal(attestationRequest)
@@ -272,13 +280,6 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		}, fmt.Errorf("error while validating Worker Quote")
 	}
 
-	if _, exists = v.lastAttested[attestationRequest.PodUid]; !exists {
-		v.lastAttested[attestationRequest.PodUid] = lastMLValidation{
-			IMAMlOffset:       0,
-			PreviousAggregate: nil,
-		}
-	}
-
 	lastCheckedOffset, imaPodEntries, imaContainerRuntimeEntries, err := ima.MeasurementLogValidation(attestationResponse.AttestationEvidence.Evidence.MeasurementLog, pcr10Content, attestationRequest.PodUid, v.lastAttested[attestationRequest.PodUid].PreviousAggregate)
 	if err != nil {
 		return &model.AttestationResult{
@@ -286,7 +287,7 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 			Target:     workerName,
 			TargetType: "Node",
 			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     "Failed to validate IMA Measurement log",
+			Reason:     fmt.Sprintf("Failed to validate IMA Measurement log: %s", err),
 		}, fmt.Errorf("failed to validate IMA Measurement log")
 	}
 

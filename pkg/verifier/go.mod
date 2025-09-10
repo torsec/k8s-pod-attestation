@@ -9,7 +9,7 @@ require (
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250722091327-ad82fb00ad6b
 	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250909164430-faf2aa078704
 	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250722091327-ad82fb00ad6b
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250722091327-ad82fb00ad6b
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250910092054-3f8d24503b22
 	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250722091327-ad82fb00ad6b
 	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250722091327-ad82fb00ad6b
 	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250722091327-ad82fb00ad6b
