@@ -112,6 +112,8 @@ for pod_name in pods_to_attest:
     signatures.append(signature)
 
 # Step 2: Measure only attestation time
+sleep(20)
+
 start_time = datetime.now()
 print(f"start: {start_time.strftime('%H:%M:%S.%f')[:-3]}")
 for i, pod_name in enumerate(pods_to_attest):
