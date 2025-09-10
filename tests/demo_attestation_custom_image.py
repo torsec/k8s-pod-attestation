@@ -108,14 +108,4 @@ avg = 0.0
 for i in range(0, n):
     start_time = datetime.now()
     print(f"start: {start_time.strftime('%H:%M:%S.%f')[:-3]}")
-
     pod_attestation(tenant_name, pod_name, signature)
-
-    end_time = datetime.now()
-    print(f"end: {end_time.strftime('%H:%M:%S.%f')[:-3]}")
-
-    elapsed = (end_time - start_time).total_seconds()
-    avg += elapsed
-    print(f"attestation time: {elapsed:.3f} seconds")
-    time.sleep(10)
-print(f"average attestation time over {n} runs: {avg/n:.3f} seconds")

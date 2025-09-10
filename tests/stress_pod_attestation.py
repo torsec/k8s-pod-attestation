@@ -1,9 +1,9 @@
 import base64
 import json
 import random
-import time
 import requests
 import rsa
+import sys
 from datetime import datetime
 
 # Define API endpoints
@@ -78,27 +78,24 @@ tenant_name = f'Tenant-{random.randint(0, 500)}'
 create_tenant(tenant_name, public_key)
 
 pods_to_attest = []
-n_pods = 1
+n_pods = int(sys.argv[1]) if len(sys.argv) > 1 else 1
 
 for i in range(0, n_pods):
     # Usage
-    pod_name = f'redis-pod-{random.randint(0, 2000000)}'
+    pod_name = f'pod-{random.randint(0, 2000000)}'
 
     message = f'''
 apiVersion: v1
 kind: Pod
 metadata:
+  name: pod-to-attest
   namespace: it6-ns
-  name: {pod_name}
-  labels:
-    app: nginx
 spec:
-  nodeName: worker  # Specify the node where you want to deploy the pod
+  nodeName: worker
   containers:
-    - name: nginx
-      image: nginx:latest
-      ports:
-        - containerPort: 80
+  - name: alpine-container
+    image: franczar/app-to-attest:latest
+    command: ["sh", "-c", "echo Hello Kubernetes! && sleep 3600"]
 '''
     to_sign = message
 
@@ -109,10 +106,21 @@ spec:
     if verify_signature(tenant_name, to_sign, signature):
         pods_to_attest.append(pod_name)
 
-current_time = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-print(f"start: {current_time}")
-for i in range(0, n_pods):
-    signature = sign_message(pods_to_attest[i])
-    pod_attestation(tenant_name, pods_to_attest[i], signature)
-current_time = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-print(f"end: {current_time}")
+signatures = []
+for pod_name in pods_to_attest:
+    signature = sign_message(pod_name)   # or sign_message(to_sign) if you want to sign the YAML
+    signatures.append(signature)
+
+# Step 2: Measure only attestation time
+start_time = datetime.now()
+print(f"start: {start_time.strftime('%H:%M:%S.%f')[:-3]}")
+
+for i, pod_name in enumerate(pods_to_attest):
+    pod_attestation(tenant_name, pod_name, signatures[i])
+
+end_time = datetime.now()
+print(f"end: {end_time.strftime('%H:%M:%S.%f')[:-3]}")
+
+elapsed = (end_time - start_time).total_seconds()
+print(f"Total attestation time for {len(pods_to_attest)} pods: {elapsed:.3f} seconds")
+print(f"Average per pod: {elapsed/len(pods_to_attest):.3f} seconds")
