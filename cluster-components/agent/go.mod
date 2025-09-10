@@ -1,11 +1,11 @@
 module main
 
-go 1.23.4
+go 1.24.5
 
 require (
-	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250719081606-83b9763b3c57
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250709113940-c45cdafb02c9
-	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250515104439-f713fe636d77
+	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250910184529-3b3219fe2954
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250722091327-ad82fb00ad6b
+	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250722091327-ad82fb00ad6b
 )
 
 require (
@@ -21,6 +21,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.27.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.3 // indirect
 	github.com/google/go-attestation v0.5.1 // indirect
 	github.com/google/go-configfs-tsm v0.3.3 // indirect
 	github.com/google/go-sev-guest v0.13.0 // indirect
@@ -37,8 +38,8 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250515104439-f713fe636d77 // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250715230348-f1c656b5cbd9 // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250722091327-ad82fb00ad6b // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250909164430-faf2aa078704 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	github.com/veraison/cmw v0.2.0 // indirect
