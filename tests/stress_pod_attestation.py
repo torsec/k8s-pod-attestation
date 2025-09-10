@@ -47,7 +47,7 @@ def verify_signature(name, message, signature):
     headers = {'Content-Type': 'application/json'}
     data = {
         'tenantName': name,
-        'manifest': message,  # Send the entire YAML content as the message
+        'manifest': base64.b64encode(message).decode(),  # Send the entire YAML content as the message
         'signature': signature
     }
     response = requests.post(POD_DEPLOYMENT_URL, headers=headers, data=json.dumps(data))
@@ -62,7 +62,7 @@ def pod_attestation(name, podName, signature):
     headers = {'Content-Type': 'application/json'}
     data = {
         'tenantName': name,
-        'podName': podName,  # Send the entire YAML content as the message
+        'podName': podName,
         'signature': signature
     }
     print(data)
@@ -114,13 +114,7 @@ for pod_name in pods_to_attest:
 # Step 2: Measure only attestation time
 start_time = datetime.now()
 print(f"start: {start_time.strftime('%H:%M:%S.%f')[:-3]}")
-
 for i, pod_name in enumerate(pods_to_attest):
     pod_attestation(tenant_name, pod_name, signatures[i])
-
 end_time = datetime.now()
 print(f"end: {end_time.strftime('%H:%M:%S.%f')[:-3]}")
-
-elapsed = (end_time - start_time).total_seconds()
-print(f"Total attestation time for {len(pods_to_attest)} pods: {elapsed:.3f} seconds")
-print(f"Average per pod: {elapsed/len(pods_to_attest):.3f} seconds")
