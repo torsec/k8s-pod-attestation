@@ -324,7 +324,7 @@ spec:
           image: "franczar/k8s-attestation-pod-handler:latest"
           env:
             - name: ATTESTATION_NAMESPACES
-              value: "['it6-ns']"
+              value: "[\"it6-ns\"]"
             - name: REGISTRAR_HOST
               value: "192.168.0.103"
             - name: REGISTRAR_PORT
@@ -370,7 +370,7 @@ spec:
           image: "franczar/k8s-attestation-pod-watcher:latest"
           env:
             - name: ATTESTATION_NAMESPACES
-              value: "['it6-ns']"
+              value: "[\"it6-ns\"]"
           volumeMounts:
             - name: kube-config
               mountPath: /root/.kube
@@ -447,7 +447,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: attestation-secrets
-                  key: map[key:attestationSecretHmac value:dGhpc19pc19hXzMyX2J5dGVfbG9uZ19zZWNyZXRfaw==]
+                  key: attestationSecretHmac
           volumeMounts:
             - name: kube-config
               mountPath: /root/.kube
@@ -539,7 +539,7 @@ spec:
           image: "franczar/k8s-attestation-worker-handler:latest"
           env:
             - name: ATTESTATION_NAMESPACES
-              value: "['it6-ns']"
+              value: "[\"it6-ns\"]"
             - name: REGISTRAR_HOST
               value: "192.168.0.103"
             - name: REGISTRAR_PORT
