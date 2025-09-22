@@ -62,7 +62,7 @@ spec:
             - name: REGISTRAR_PORT
               value: {{ .Values.registrar.service.nodePort | quote }}
             - name: POD_HANDLER_PORT
-              value: {{ .Values.podHandler.service.nodePort | quote}}
+              value: {{ .Values.podHandler.container.port | quote}}
             - name: ATTESTATION_SECRET
               valueFrom:
                 secretKeyRef:

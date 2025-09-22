@@ -18,7 +18,7 @@ spec:
           image: "{{ .Values.registrar.image.repository }}:{{ .Values.registrar.image.tag }}"
           env:
             - name: REGISTRAR_PORT
-              value: {{ .Values.registrar.service.nodePort | quote }}
+              value: {{ .Values.registrar.container.port | quote }}
           ports:
             - containerPort: {{ .Values.registrar.container.port }}
       nodeSelector:
