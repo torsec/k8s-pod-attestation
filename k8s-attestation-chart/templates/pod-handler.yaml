@@ -1,0 +1,97 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.podHandler.serviceAccount.name }}
+  namespace: {{ .Values.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.podHandler.rbac.roleName }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["attestation.com"]
+    resources: ["agents"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["attestation.com"]
+    resources: ["attestationrequests"]
+    verbs: ["get", "list", "watch", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.podHandler.rbac.roleBindingName }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.podHandler.rbac.roleName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.podHandler.serviceAccount.name }}
+    namespace: {{ .Values.namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.podHandler.deployment.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.podHandler.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.podHandler.deployment.appLabel }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.podHandler.deployment.appLabel }}
+    spec:
+      containers:
+        - name: {{ .Values.podHandler.container.name }}
+          image: "{{ .Values.podHandler.image.repository }}:{{ .Values.podHandler.image.tag }}"
+          env:
+            - name: ATTESTATION_NAMESPACES
+              value: {{ .Values.attestationNamespaces | quote}}
+            - name: REGISTRAR_HOST
+              value: {{ .Values.registrar.env.host | quote }}
+            - name: REGISTRAR_PORT
+              value: {{ .Values.registrar.service.nodePort | quote }}
+            - name: POD_HANDLER_PORT
+              value: {{ .Values.podHandler.service.nodePort | quote}}
+            - name: ATTESTATION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secret.name }}
+                  key: {{ .Values.secret.hmac }}
+          ports:
+            - containerPort: {{ .Values.podHandler.container.port }}
+          volumeMounts:
+            - name: {{ .Values.kubernetesConfigVolume.name }}
+              mountPath: {{ .Values.kubernetesConfigVolume.mountPath }}
+      volumes:
+        - name: {{ .Values.kubernetesConfigVolume.name }}
+          hostPath:
+            path: {{ .Values.kubernetesConfigVolume.hostPath }}
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+      serviceAccountName: {{ .Values.podHandler.serviceAccount.name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.podHandler.service.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: {{ .Values.podHandler.deployment.appLabel }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.podHandler.service.port }}
+      targetPort: {{ .Values.podHandler.container.port }}
+      nodePort: {{ .Values.podHandler.service.nodePort }}
+  type: NodePort

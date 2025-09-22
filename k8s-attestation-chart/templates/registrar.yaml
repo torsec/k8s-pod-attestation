@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.registrar.deployment.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.registrar.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.registrar.deployment.appLabel }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.registrar.deployment.appLabel }}
+    spec:
+      containers:
+        - name: {{ .Values.registrar.container.name }}
+          image: "{{ .Values.registrar.image.repository }}:{{ .Values.registrar.image.tag }}"
+          env:
+            - name: REGISTRAR_PORT
+              value: {{ .Values.registrar.service.nodePort | quote }}
+          ports:
+            - containerPort: {{ .Values.registrar.container.port }}
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.registrar.deployment.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: {{ .Values.registrar.deployment.appLabel }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.registrar.service.port }}
+      targetPort: {{ .Values.registrar.container.port }}
+      nodePort: {{ .Values.registrar.service.nodePort }}
+  type: NodePort

@@ -62,7 +62,7 @@ require (
 	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250722091327-ad82fb00ad6b // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250721122813-31cf43b6c2dc // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250722091327-ad82fb00ad6b // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250910175314-9114ae5ad9c6 // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250910204448-c2e175d38e37 // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250722091327-ad82fb00ad6b // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect

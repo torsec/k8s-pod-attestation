@@ -1,0 +1,86 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.workerHandler.serviceAccount.name }}
+  namespace: {{ .Values.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.workerHandler.rbac.roleName }}
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch", "delete"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: ["attestation.com"]  # Change this to your specific CRD group
+    resources: ["agents"]  # Add your CRD resources here
+    verbs: ["get", "list", "watch", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.workerHandler.rbac.roleBindingName }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.workerHandler.rbac.roleName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.workerHandler.serviceAccount.name }}
+    namespace: {{ .Values.namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.workerHandler.deployment.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.workerHandler.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.workerHandler.deployment.appLabel }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.workerHandler.deployment.appLabel }}
+    spec:
+      serviceAccountName: {{ .Values.workerHandler.serviceAccount.name }}
+      containers:
+        - name: {{ .Values.workerHandler.container.name }}
+          image: "{{ .Values.workerHandler.image.repository }}:{{ .Values.workerHandler.image.tag }}"
+          env:
+            - name: ATTESTATION_NAMESPACES
+              value: {{ .Values.attestationNamespaces | quote}}
+            - name: REGISTRAR_HOST
+              value: {{ .Values.registrar.env.host | quote }}
+            - name: REGISTRAR_PORT
+              value: {{ .Values.registrar.service.nodePort | quote }}
+            - name: WHITELIST_HOST
+              value: {{ .Values.whitelistProvider.env.host | quote }}
+            - name: WHITELIST_PORT
+              value: {{ .Values.whitelistProvider.service.nodePort | quote }}
+            - name: IMA_MOUNT_PATH
+              value: {{ .Values.imaMountPath | quote }}
+            - name: IMA_ML_PATH
+              value: {{ .Values.imaMlPath | quote }}
+            - name: TPM_PATH
+              value: {{ .Values.tpmPath | quote }}
+            - name: VERIFIER_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secret.name }}
+                  key: {{ .Values.secret.publicKey }}
+          ports:
+            - containerPort: {{ .Values.workerHandler.container.port }}
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"

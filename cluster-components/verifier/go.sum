@@ -161,6 +161,8 @@ github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250910123600-2ddfb1b
 github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250910123600-2ddfb1b50754/go.mod h1:f0h4i+bTucqQ7ck/wcQNnxP5vmuobipmz7ImMl9kLkk=
 github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250910175314-9114ae5ad9c6 h1:G2HSmEMZtNQQ7GLy6unIouuyuQ10WseZbgr93c7ykPo=
 github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250910175314-9114ae5ad9c6/go.mod h1:OpCP154SzpQGadt31C0qWPK8BhRqt/U6Sly5PhjyFoA=
+github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250910204448-c2e175d38e37 h1:Hn+lPiMgCXC5fUUlO4eN6YF36t2xSDaPGRaUP44t1vY=
+github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250910204448-c2e175d38e37/go.mod h1:OpCP154SzpQGadt31C0qWPK8BhRqt/U6Sly5PhjyFoA=
 github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250722091327-ad82fb00ad6b h1:dXUUwq1/PITo2aFVfDKVfxkLe4dr5hb+fNQm+o46iB0=
 github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250722091327-ad82fb00ad6b/go.mod h1:+RAvASgpLrX9UCiMk3ePiWJVAkhU1t54HPTnIVGczG8=
 github.com/twitchyliquid64/golang-asm v0.15.1 h1:SU5vSMR7hnwNxj24w34ZyCi/FmDZTkS4MhqMhdFk5YI=

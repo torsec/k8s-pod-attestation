@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.whitelistProvider.deployment.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.whitelistProvider.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.whitelistProvider.deployment.appLabel }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.whitelistProvider.deployment.appLabel }}
+    spec:
+      containers:
+        - name: {{ .Values.whitelistProvider.container.name }}
+          image: "{{ .Values.whitelistProvider.image.repository }}:{{ .Values.whitelistProvider.image.tag }}"
+          env:
+            - name: WHITELIST_PORT
+              value: {{ .Values.whitelistProvider.container.port | quote }}
+            - name: WHITELIST_DB_URI
+              value: {{ .Values.whitelistProvider.env.dbUri | quote }}
+          ports:
+            - containerPort: {{ .Values.whitelistProvider.container.port }}
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.whitelistProvider.service.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: {{ .Values.whitelistProvider.deployment.appLabel }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.whitelistProvider.service.port }}
+      targetPort: {{ .Values.whitelistProvider.container.port }}
+      nodePort: {{ .Values.whitelistProvider.service.nodePort }}
+  type: NodePort
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.whitelistDb.deployment.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.whitelistDb.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.whitelistDb.deployment.appLabel }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.whitelistDb.deployment.appLabel }}
+    spec:
+      containers:
+        - name: {{ .Values.whitelistDb.container.name }}
+          image: "{{ .Values.whitelistDb.image.repository }}:{{ .Values.whitelistDb.image.tag }}"
+          ports:
+            - containerPort: {{ .Values.whitelistDb.container.port }}
+          volumeMounts:
+            - mountPath: {{ .Values.whitelistDb.volume.mountPath }}
+              name: {{ .Values.whitelistDb.volume.name }}
+      volumes:
+        - name: {{ .Values.whitelistDb.volume.name }}
+          emptyDir: {}
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.whitelistDb.service.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  ports:
+    - port: {{ .Values.whitelistDb.service.port }}
+      targetPort: {{ .Values.whitelistDb.container.port }}
+      protocol: TCP
+  selector:
+    app: {{ .Values.whitelistDb.deployment.appLabel }}

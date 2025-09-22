@@ -99,6 +99,8 @@ github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250722091327-ad82fb00ad
 github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250722091327-ad82fb00ad6b/go.mod h1:HdAMkxcBq1AteN2QNsWUOvpvj/IZ0pKXFhZam4t8iFI=
 github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250910184529-3b3219fe2954 h1:Oq4YHHr5xDUPEXkTQEVPHvV7KPpVuC5dk3/D2L7+zHU=
 github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250910184529-3b3219fe2954/go.mod h1:8Hpn0dxoX8G7ZQn+YhULatEIY/N1mA7WVpn8IaZN2nM=
+github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250910204448-c2e175d38e37 h1:lZRZ3Dmmh3eFYYzcfcWiDpUtBDjJ489UCcHT6APrG4Q=
+github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250910204448-c2e175d38e37/go.mod h1:8Hpn0dxoX8G7ZQn+YhULatEIY/N1mA7WVpn8IaZN2nM=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250721122813-31cf43b6c2dc h1:7i4ijhxXSwCqzDcQ09xfHwepfxDMjsNzmbQNsd3j1Jk=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250721122813-31cf43b6c2dc/go.mod h1:qQUsIDe7Oddr3CwOl52RpSiQNKL5Wuakujq5EpKhGnQ=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250722091327-ad82fb00ad6b h1:UK51wAh477uI71VLHPmR63SuuOmRX4fvgA5s5noB54Y=

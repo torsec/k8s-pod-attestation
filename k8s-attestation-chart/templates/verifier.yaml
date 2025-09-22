@@ -1,0 +1,88 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.verifier.serviceAccount.name }}
+  namespace: {{ .Values.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.verifier.rbac.roleName }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: ["attestation.com"]  # Change this to your specific CRD group
+    resources: ["attestationrequests"]  # Add your CRD resources here
+    verbs: ["get", "list", "watch", "update", "delete"]
+  - apiGroups: ["attestation.com"]
+    resources: ["agents"]
+    verbs: ["get", "list", "watch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.verifier.rbac.roleBindingName }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.verifier.rbac.roleName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.verifier.serviceAccount.name }}
+    namespace: {{ .Values.namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.verifier.deployment.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.verifier.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.verifier.deployment.appLabel }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.verifier.deployment.appLabel }}
+    spec:
+      serviceAccountName: {{ .Values.verifier.serviceAccount.name }}
+      containers:
+        - name: {{ .Values.verifier.container.name }}
+          image: "{{ .Values.verifier.image.repository }}:{{ .Values.verifier.image.tag }}"
+          env:
+            - name: REGISTRAR_HOST
+              value: {{ .Values.registrar.env.host }}
+            - name: REGISTRAR_PORT
+              value: {{ .Values.registrar.service.nodePort | quote }}
+            - name: WHITELIST_HOST
+              value: {{ .Values.whitelistProvider.env.host }}
+            - name: WHITELIST_PORT
+              value: {{ .Values.whitelistProvider.service.nodePort | quote }}
+            - name: VERIFIER_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secret.name }}
+                  key: {{ .Values.secret.privateKey }}
+            - name: ATTESTATION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secret.name }}
+                  key: {{ .Values.secret.hmac }}
+          volumeMounts:
+            - name: {{ .Values.kubernetesConfigVolume.name }}
+              mountPath: {{ .Values.kubernetesConfigVolume.mountPath }}
+      volumes:
+        - name: {{ .Values.kubernetesConfigVolume.name }}
+          hostPath:
+            path: {{ .Values.kubernetesConfigVolume.hostPath }}
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
