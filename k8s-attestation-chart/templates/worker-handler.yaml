@@ -79,7 +79,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secret.name }}
-                  key: {{ .Values.secret.publicKey }}
+                  key: {{ .Values.secret.verifierPublicKey.key }}
           ports:
             - containerPort: {{ .Values.workerHandler.container.port }}
       nodeSelector:

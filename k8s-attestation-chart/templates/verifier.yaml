@@ -71,7 +71,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secret.name }}
-                  key: {{ .Values.secret.privateKey }}
+                  key: {{ .Values.secret.verifierPrivateKey.key }}
             - name: ATTESTATION_SECRET
               valueFrom:
                 secretKeyRef:

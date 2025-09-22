@@ -67,7 +67,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secret.name }}
-                  key: {{ .Values.secret.hmac }}
+                  key: {{ .Values.secret.hmac.key }}
           ports:
             - containerPort: {{ .Values.podHandler.container.port }}
           volumeMounts:
