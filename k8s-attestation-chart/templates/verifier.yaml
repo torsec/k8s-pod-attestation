@@ -76,7 +76,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secret.name }}
-                  key: {{ .Values.secret.hmac }}
+                  key: {{ .Values.secret.hmac.key }}
           volumeMounts:
             - name: {{ .Values.kubernetesConfigVolume.name }}
               mountPath: {{ .Values.kubernetesConfigVolume.mountPath }}
