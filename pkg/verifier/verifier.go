@@ -699,6 +699,11 @@ func (v *Verifier) WatchAttestationRequestCRDs() {
 	// Keep running until stopped
 	<-stopStructCh
 	logger.Info("Stopping Verifier...")
+
+	err = v.clusterInteractor.DeleteAttestationRequestCRD()
+	if err != nil {
+		logger.Error("Failed to delete Attestation Request CRD: %v", err)
+	}
 }
 
 // setupSignalHandler sets up a signal handler for graceful termination.
