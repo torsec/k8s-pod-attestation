@@ -392,8 +392,12 @@ func (wh *WorkerHandler) WatchNodes() {
 
 	// Keep running until stopped
 	<-stopStructCh
-	logger.Info("stopping NodeWatcher...")
+	logger.Info("stopping Worker Handler...")
 
+	err = wh.clusterInteractor.DeleteAgentCRD()
+	if err != nil {
+		logger.Error("Failed to delete Agent CRD: %v", err)
+	}
 }
 
 // setupSignalHandler sets up a signal handler for graceful termination.

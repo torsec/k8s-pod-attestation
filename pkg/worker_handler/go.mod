@@ -4,7 +4,7 @@ go 1.24.5
 
 require (
 	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250722091327-ad82fb00ad6b
-	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250722091327-ad82fb00ad6b
+	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250923083540-0f7a61d7da0a
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250722091327-ad82fb00ad6b
 	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250722091327-ad82fb00ad6b
 	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250722091327-ad82fb00ad6b
@@ -93,7 +93,7 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.32.3 // indirect
+	k8s.io/apiextensions-apiserver v0.34.0 // indirect
 	k8s.io/apimachinery v0.34.0 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // indirect
