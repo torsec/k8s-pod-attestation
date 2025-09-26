@@ -3,9 +3,9 @@ module main
 go 1.24.5
 
 require (
-	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250721130358-07a5329dc3d0
-	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250721130358-07a5329dc3d0
-	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250721130358-07a5329dc3d0
+	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250926112749-5518c4299ce4
+	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250926112749-5518c4299ce4
+	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250926112749-5518c4299ce4
 )
 
 require (

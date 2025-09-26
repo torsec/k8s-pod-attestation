@@ -1,5 +1,7 @@
 #!/bin/bash
 
+tag=${1:-latest}
+
 # Loop through all directories in the current directory
 for dir in */; do
     # Enter the directory
@@ -12,7 +14,7 @@ for dir in */; do
     if [ -n "$sh_file" ]; then
         echo "Running $sh_file in $dir"
         chmod +x "$sh_file"  # Ensure it's executable
-        ./$sh_file
+        ./$sh_file "$tag"
     else
         echo "Skipping $dir (no .sh file found)"
     fi
