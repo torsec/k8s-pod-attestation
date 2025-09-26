@@ -92,7 +92,7 @@ func (pw *PodWatcher) deletePodHandling(obj interface{}) {
 }
 
 func (pw *PodWatcher) WatchPods() {
-	stopCh := setupSignalHandler()
+	ctx := setupSignalHandler()
 	podInformer := pw.informerFactory.Core().V1().Pods().Informer()
 
 	podEventHandler := cache.ResourceEventHandlerFuncs{
@@ -107,24 +107,17 @@ func (pw *PodWatcher) WatchPods() {
 		logger.Fatal("failed to create pod event handler: %v", err)
 	}
 
-	// Convert `chan os.Signal` to `<-chan struct{}`
-	stopStructCh := make(chan struct{})
-	go func() {
-		<-stopCh // Wait for signal
-		close(stopStructCh)
-	}()
-
 	// Start the informer
-	go podInformer.Run(stopStructCh)
+	go podInformer.Run(ctx.Done())
 
 	// Wait for the informer to sync
-	if !cache.WaitForCacheSync(stopStructCh, podInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), podInformer.HasSynced) {
 		logger.Warning("timed out waiting for caches to sync")
 		return
 	}
 
 	// Keep running until stopped
-	<-stopStructCh
+	<-ctx.Done()
 	logger.Info("stopping PodWatcher...")
 }
 
@@ -182,8 +175,14 @@ func (pw *PodWatcher) updateAgentCRDWithPodStatus(nodeName, podName, tenantId, s
 }
 
 // setupSignalHandler sets up a signal handler for graceful termination.
-func setupSignalHandler() chan os.Signal {
-	stopCh := make(chan os.Signal, 1)
-	signal.Notify(stopCh, syscall.SIGINT, syscall.SIGTERM)
-	return stopCh
+func setupSignalHandler() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		cancel()
+	}()
+	return ctx
 }

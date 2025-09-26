@@ -1,6 +1,7 @@
 package verifier
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -666,7 +667,7 @@ func (v *Verifier) deleteAttestationRequestCRDHandling(obj interface{}) {
 // WatchAttestationRequestCRDs starts watching for changes to the AttestationRequest CRD
 // and processes added, modified, and deleted events.
 func (v *Verifier) WatchAttestationRequestCRDs() {
-	stopCh := setupSignalHandler()
+	ctx := setupSignalHandler()
 	// Get the informer for the AttestationRequest CRD
 	attestationRequestInformer := v.informerFactory.ForResource(cluster_interaction.AttestationRequestGVR).Informer()
 
@@ -680,35 +681,28 @@ func (v *Verifier) WatchAttestationRequestCRDs() {
 		logger.Fatal("failed to create Attestation Request CRD event handler: %v", err)
 	}
 
-	// Convert `chan os.Signal` to `<-chan struct{}`
-	stopStructCh := make(chan struct{})
-	go func() {
-		<-stopCh // Wait for signal
-		close(stopStructCh)
-	}()
-
 	// Start the informer
-	go attestationRequestInformer.Run(stopStructCh)
+	go attestationRequestInformer.Run(ctx.Done())
 
 	// Wait for the informer to sync
-	if !cache.WaitForCacheSync(stopStructCh, attestationRequestInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), attestationRequestInformer.HasSynced) {
 		logger.Error("Timed out waiting for caches to sync")
 		return
 	}
 
 	// Keep running until stopped
-	<-stopStructCh
+	<-ctx.Done()
 	logger.Info("Stopping Verifier...")
-
-	err = v.clusterInteractor.DeleteAttestationRequestCRD()
-	if err != nil {
-		logger.Error("Failed to delete Attestation Request CRD: %v", err)
-	}
 }
 
-// setupSignalHandler sets up a signal handler for graceful termination.
-func setupSignalHandler() chan os.Signal {
-	stopCh := make(chan os.Signal, 1)
-	signal.Notify(stopCh, syscall.SIGINT, syscall.SIGTERM)
-	return stopCh
+func setupSignalHandler() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		cancel()
+	}()
+	return ctx
 }

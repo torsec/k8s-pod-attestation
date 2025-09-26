@@ -1,6 +1,7 @@
 package worker_handler
 
 import (
+	"context"
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
@@ -359,7 +360,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 }
 
 func (wh *WorkerHandler) WatchNodes() {
-	stopCh := setupSignalHandler()
+	ctx := setupSignalHandler()
 	nodeInformer := wh.informerFactory.Core().V1().Nodes().Informer()
 
 	nodeEventHandler := cache.ResourceEventHandlerFuncs{
@@ -374,35 +375,29 @@ func (wh *WorkerHandler) WatchNodes() {
 		logger.Fatal("failed to create node event handler: %v", err)
 	}
 
-	// Convert `chan os.Signal` to `<-chan struct{}`
-	stopStructCh := make(chan struct{})
-	go func() {
-		<-stopCh // Wait for signal
-		close(stopStructCh)
-	}()
-
 	// Start the informer
-	go nodeInformer.Run(stopStructCh)
+	go nodeInformer.Run(ctx.Done())
 
 	// Wait for the informer to sync
-	if !cache.WaitForCacheSync(stopStructCh, nodeInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), nodeInformer.HasSynced) {
 		logger.Warning("Timed out waiting for caches to sync")
 		return
 	}
 
 	// Keep running until stopped
-	<-stopStructCh
+	<-ctx.Done()
 	logger.Info("stopping Worker Handler...")
-
-	err = wh.clusterInteractor.DeleteAgentCRD()
-	if err != nil {
-		logger.Error("Failed to delete Agent CRD: %v", err)
-	}
 }
 
 // setupSignalHandler sets up a signal handler for graceful termination.
-func setupSignalHandler() chan os.Signal {
-	stopCh := make(chan os.Signal, 1)
-	signal.Notify(stopCh, syscall.SIGINT, syscall.SIGTERM)
-	return stopCh
+func setupSignalHandler() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		cancel()
+	}()
+	return ctx
 }

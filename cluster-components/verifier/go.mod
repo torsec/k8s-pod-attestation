@@ -54,7 +54,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/agent v0.0.0-20250722091327-ad82fb00ad6b // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250722091327-ad82fb00ad6b // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20250923083540-0f7a61d7da0a // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250722091327-ad82fb00ad6b // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20250910173952-d2f799861d56 // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250722091327-ad82fb00ad6b // indirect
@@ -62,7 +62,7 @@ require (
 	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250722091327-ad82fb00ad6b // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/tpm v0.0.0-20250721122813-31cf43b6c2dc // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation v0.0.0-20250722091327-ad82fb00ad6b // indirect
-	github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250910204448-c2e175d38e37 // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/verifier v0.0.0-20250923085457-223a36ec8f40 // indirect
 	github.com/torsec/k8s-pod-attestation/pkg/whitelist v0.0.0-20250722091327-ad82fb00ad6b // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
@@ -91,7 +91,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.34.0 // indirect
-	k8s.io/apiextensions-apiserver v0.32.3 // indirect
+	k8s.io/apiextensions-apiserver v0.34.0 // indirect
 	k8s.io/apimachinery v0.34.0 // indirect
 	k8s.io/client-go v0.34.0 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
