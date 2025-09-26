@@ -683,6 +683,24 @@ func (c *ClusterInteraction) CreateAgentCRDInstance(nodeName string) (bool, erro
 	return true, nil
 }
 
+func (c *ClusterInteraction) DeleteAttestationRequestCRD() error {
+	// Delete the CRD
+	err := c.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Delete(context.TODO(), AttestationRequestCRDName, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete Attestation Request CRD: %v", err)
+	}
+	return nil
+}
+
+func (c *ClusterInteraction) DeleteAgentCRD() error {
+	// Delete the CRD
+	err := c.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Delete(context.TODO(), AgentCRDName, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete Agent CRD: %v", err)
+	}
+	return nil
+}
+
 func (c *ClusterInteraction) DefineAgentCRD() error {
 	// Define the CustomResourceDefinition
 	agentCRD := &apiextensionsv1.CustomResourceDefinition{

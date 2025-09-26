@@ -1,6 +1,7 @@
 package cluster_status_controller
 
 import (
+	"context"
 	"fmt"
 	clusterInteraction "github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
@@ -52,7 +53,7 @@ func extractNodeName(agentName string) (string, error) {
 }
 
 func (csc *ClusterStatusController) WatchAgentCRDs() {
-	stopCh := setupSignalHandler()
+	ctx := setupSignalHandler()
 
 	// Get the informer for the CRD
 	agentInformer := csc.informerFactory.ForResource(clusterInteraction.AgentGVR).Informer()
@@ -68,25 +69,18 @@ func (csc *ClusterStatusController) WatchAgentCRDs() {
 		logger.Fatal("failed to create Agent CRD event handler: %v", err)
 	}
 
-	// Convert `chan os.Signal` to `<-chan struct{}`
-	stopStructCh := make(chan struct{})
-	go func() {
-		<-stopCh // Wait for signal
-		close(stopStructCh)
-	}()
-
 	// Start the informer
-	go agentInformer.Run(stopStructCh)
+	go agentInformer.Run(ctx.Done())
 
 	// Wait for the informer to sync
-	if !cache.WaitForCacheSync(stopStructCh, agentInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), agentInformer.HasSynced) {
 		logger.Error("timed out waiting for caches to sync")
 		return
 	}
 
 	// Keep running until stopped
-	<-stopStructCh
-	logger.Info("stopping cluster status controller...")
+	<-ctx.Done()
+	logger.Info("stopping Cluster Status Controller...")
 }
 
 func (csc *ClusterStatusController) checkAgentStatus(obj interface{}) {
@@ -165,8 +159,14 @@ func formatAgentCRD(obj interface{}) map[string]interface{} {
 }
 
 // setupSignalHandler sets up a signal handler for graceful termination.
-func setupSignalHandler() chan os.Signal {
-	stopCh := make(chan os.Signal, 1)
-	signal.Notify(stopCh, syscall.SIGINT, syscall.SIGTERM)
-	return stopCh
+func setupSignalHandler() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		cancel()
+	}()
+	return ctx
 }

@@ -51,7 +51,7 @@ type Evidence struct {
 	PodName        string `json:"podName"`
 	PodUid         string `json:"podUid"`
 	TenantId       string `json:"tenantId"`
-	Quote          string `json:"quote"`
+	Quote          string `json:"quote,omitempty"`
 	MeasurementLog string `json:"measurementLog"`
 }
 

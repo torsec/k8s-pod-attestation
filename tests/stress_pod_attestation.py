@@ -1,13 +1,14 @@
 import base64
 import json
 import random
-import time
 import requests
 import rsa
+import sys
+import time
 from datetime import datetime
 
 # Define API endpoints
-REGISTRAR_BASE_URL = 'http://localhost:30000'  # Ensure this matches your pod-handler URL
+REGISTRAR_BASE_URL = 'http://localhost:30000' 
 POD_HANDLER_BASE_URL = 'http://localhost:30001'
 CREATE_TENANT_URL = f'{REGISTRAR_BASE_URL}/tenant/create'
 VERIFY_SIGNATURE_URL = f'{REGISTRAR_BASE_URL}/tenant/verify'
@@ -47,7 +48,7 @@ def verify_signature(name, message, signature):
     headers = {'Content-Type': 'application/json'}
     data = {
         'tenantName': name,
-        'manifest': message,  # Send the entire YAML content as the message
+        'manifest': base64.b64encode(message.encode()).decode(),  # Send the entire YAML content as the message
         'signature': signature
     }
     response = requests.post(POD_DEPLOYMENT_URL, headers=headers, data=json.dumps(data))
@@ -62,7 +63,7 @@ def pod_attestation(name, podName, signature):
     headers = {'Content-Type': 'application/json'}
     data = {
         'tenantName': name,
-        'podName': podName,  # Send the entire YAML content as the message
+        'podName': podName,
         'signature': signature
     }
     print(data)
@@ -78,32 +79,27 @@ tenant_name = f'Tenant-{random.randint(0, 500)}'
 create_tenant(tenant_name, public_key)
 
 pods_to_attest = []
+n_pods = int(sys.argv[1]) if len(sys.argv) > 1 else 1
 
-for i in range(0, 20):
+for i in range(0, n_pods):
     # Usage
-    pod_name = f'redis-pod-{random.randint(0, 2000000)}'
+    pod_name = f'pod-{random.randint(0, 2000000)}'
 
     message = f'''
 apiVersion: v1
 kind: Pod
 metadata:
-  namespace: default
   name: {pod_name}
-  labels:
-    app: redis
+  namespace: it6-ns
 spec:
-  nodeName: worker  # Specify the node where you want to deploy the pod
+  nodeName: worker
   containers:
-    - name: redis1
-      image: redis:latest
-      command: ["redis-server", "--port", "6380"]  # Override the default port
-      ports:
-        - containerPort: 6380
-    - name: redis2
-      image: redis:latest
-      command: ["redis-server", "--port", "6381"]  # Override the second Redis container's port
-      ports:
-        - containerPort: 6381
+  - name: alpine-container1
+    image: franczar/app-to-attest:latest
+    command: ["sh", "-c", "echo Hello Kubernetes! && sleep 3600"]
+  - name: alpine-container2
+    image: franczar/app-to-attest:latest
+    command: ["sh", "-c", "echo Hello Kubernetes! && sleep 3600"]
 '''
     to_sign = message
 
@@ -114,10 +110,17 @@ spec:
     if verify_signature(tenant_name, to_sign, signature):
         pods_to_attest.append(pod_name)
 
-current_time = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-print(f"start: {current_time}")
-for i in range(0, 20):
-    signature = sign_message(pods_to_attest[i])
-    pod_attestation(tenant_name, pods_to_attest[i], signature)
-current_time = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-print(f"end: {current_time}")
+signatures = []
+for pod_name in pods_to_attest:
+    signature = sign_message(pod_name)   # or sign_message(to_sign) if you want to sign the YAML
+    signatures.append(signature)
+
+# Step 2: Measure only attestation time
+time.sleep(20)
+
+start_time = datetime.now()
+print(f"start: {start_time.strftime('%H:%M:%S.%f')[:-3]}")
+for i, pod_name in enumerate(pods_to_attest):
+    pod_attestation(tenant_name, pod_name, signatures[i])
+end_time = datetime.now()
+print(f"end: {end_time.strftime('%H:%M:%S.%f')[:-3]}")

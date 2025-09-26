@@ -25,7 +25,7 @@ store_container_runtime_data = {
             "validDigests": {
                 "sha1": [],
                 "sha256": [
-                    "ce9f5c5940530c40e47218af3405107b9acc0465b8c193492bd6a00db16991ad"
+                    "74cc9274df40f375864dfd0e3fc3d6d3b898faec7abb4b82218ca3c3c43e75e6"
                 ]
             }
         },
@@ -65,17 +65,6 @@ store_container_runtime_data = {
                 ]
             }
         },
-        {
-            "filePath": "/usr/bin/unpigz",
-            "validDigests": {
-                "sha1": [],
-                "sha256": [
-                    "ffdb0ad613a9d22b02816d1c67765f611c90fa98047b83917abe2c4677d0f4b3"
-                ]
-            }
-        }
-
-
     ]
 }
 

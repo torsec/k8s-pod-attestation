@@ -1,6 +1,7 @@
 package verifier
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -28,6 +29,11 @@ import (
 const attestationNonceSize = 16
 const attestationResultIssuer = "RA-Engine"
 
+type lastMLValidation struct {
+	IMAMlOffset       int64
+	PreviousAggregate []byte
+}
+
 type Verifier struct {
 	clusterInteractor cluster_interaction.ClusterInteraction
 	informerFactory   dynamicinformer.DynamicSharedInformerFactory
@@ -36,6 +42,7 @@ type Verifier struct {
 	whitelistClient   *whitelist.Client
 	attestationSecret []byte
 	privateKey        string
+	lastAttested      map[string]lastMLValidation
 }
 
 func (v *Verifier) Init(defaultResync int, attestationSecret []byte, privateKey string, registrarClient *registrar.Client, whitelistClient *whitelist.Client) {
@@ -49,6 +56,7 @@ func (v *Verifier) Init(defaultResync int, attestationSecret []byte, privateKey 
 	v.privateKey = privateKey
 	v.registrarClient = registrarClient
 	v.whitelistClient = whitelistClient
+	v.lastAttested = make(map[string]lastMLValidation)
 }
 
 func (v *Verifier) parseAttestationRequestFromCRD(spec map[string]interface{}) (*model.AttestationRequest, error) {
@@ -92,11 +100,19 @@ func (v *Verifier) parseAttestationRequestFromCRD(spec map[string]interface{}) (
 		return nil, fmt.Errorf("failed to generate nonce for Attestation Request")
 	}
 
+	if _, exists = v.lastAttested[podUid]; !exists {
+		v.lastAttested[podUid] = lastMLValidation{
+			IMAMlOffset:       0,
+			PreviousAggregate: nil,
+		}
+	}
+
 	attestationRequest := &model.AttestationRequest{
-		Nonce:    nonce,
-		PodName:  podName,
-		PodUid:   podUid,
-		TenantId: tenantId,
+		Nonce:       nonce,
+		PodName:     podName,
+		PodUid:      podUid,
+		IMAMlOffset: v.lastAttested[podUid].IMAMlOffset,
+		TenantId:    tenantId,
 	}
 
 	attestationRequestJSON, err := json.Marshal(attestationRequest)
@@ -186,94 +202,75 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		return nil, fmt.Errorf("invalid attestation response: %v", attestationResponse.Message)
 	}
 
-	evidenceRaw, err := json.Marshal(attestationResponse.AttestationEvidence.Evidence)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize Evidence: %v", err)
-	}
-
-	evidenceDigest, err := cryptoUtils.Hash(evidenceRaw)
-	if err != nil {
-		return nil, fmt.Errorf("error computing Attestation Evidence digest")
-	}
-
 	// Serialize Evidence struct to JSON
 	workerName, err := extractNodeName(agentName)
 	if err != nil {
 		return nil, fmt.Errorf("error while verifying Attestation Evidence: invalid Worker name")
 	}
 
-	verifyWorkerSignatureRequest := &model.VerifySignatureRequest{
-		Name:      workerName,
-		Message:   base64.StdEncoding.EncodeToString(evidenceDigest),
-		Signature: attestationResponse.AttestationEvidence.Signature,
-	}
+	var lastCheckedOffset int64
+	var imaPodEntries []model.IMAEntry
+	var imaContainerRuntimeEntries []model.IMAEntry
+	pcrHashAlg := "sha256"
+	var pcr10Content string
 
-	// process Evidence
-	workerSignatureVerificationResponse, err := v.registrarClient.VerifyWorkerSignature(verifyWorkerSignatureRequest)
-	if err != nil {
-		return &model.AttestationResult{
-			Agent:      agentName,
-			Target:     workerName,
-			TargetType: "Node",
-			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     "Evidence signature verification failed",
-		}, fmt.Errorf("evidence signature verification failed")
-	}
+	if attestationResponse.AttestationEvidence.Evidence.Quote != "" {
+		quoteJson, err := base64.StdEncoding.DecodeString(attestationResponse.AttestationEvidence.Evidence.Quote)
+		if err != nil {
+			return &model.AttestationResult{
+				Agent:      agentName,
+				Target:     workerName,
+				TargetType: "Node",
+				Result:     cluster_interaction.UntrustedNodeStatus,
+				Reason:     "failed to decode Evidence Quote from base64",
+			}, fmt.Errorf("failed to process evidence quote")
+		}
 
-	if workerSignatureVerificationResponse.Status != model.Success {
-		return &model.AttestationResult{
-			Agent:      agentName,
-			Target:     workerName,
-			TargetType: "Node",
-			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     "Invalid Evidence signature",
-		}, fmt.Errorf("invalid evidence signature")
-	}
+		// Parse inputQuote JSON
+		var inputQuote *model.InputQuote
+		err = json.Unmarshal(quoteJson, &inputQuote)
+		if err != nil {
+			return &model.AttestationResult{
+				Agent:      agentName,
+				Target:     workerName,
+				TargetType: "Node",
+				Result:     cluster_interaction.UntrustedNodeStatus,
+				Reason:     "failed to parse Evidence Quote",
+			}, fmt.Errorf("failed to process evidence quote")
+		}
 
-	quoteJson, err := base64.StdEncoding.DecodeString(attestationResponse.AttestationEvidence.Evidence.Quote)
-	if err != nil {
-		return &model.AttestationResult{
-			Agent:      agentName,
-			Target:     workerName,
-			TargetType: "Node",
-			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     "failed to decode Evidence Quote from base64",
-		}, fmt.Errorf("failed to process evidence quote")
-	}
+		pcr10Content, pcrHashAlg, err = v.validatePodAttestationQuote(workerName, inputQuote, attestationRequest.Nonce)
+		if err != nil {
+			return &model.AttestationResult{
+				Agent:      agentName,
+				Target:     workerName,
+				TargetType: "Node",
+				Result:     cluster_interaction.UntrustedNodeStatus,
+				Reason:     "Error while validating Worker Quote",
+			}, fmt.Errorf("error while validating Worker Quote")
+		}
 
-	// Parse inputQuote JSON
-	var inputQuote *model.InputQuote
-	err = json.Unmarshal(quoteJson, &inputQuote)
-	if err != nil {
-		return &model.AttestationResult{
-			Agent:      agentName,
-			Target:     workerName,
-			TargetType: "Node",
-			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     "failed to parse Evidence Quote",
-		}, fmt.Errorf("failed to process evidence quote")
-	}
-
-	pcr10Content, pcrHashAlg, err := v.validatePodAttestationQuote(workerName, inputQuote, attestationRequest.Nonce)
-	if err != nil {
-		return &model.AttestationResult{
-			Agent:      agentName,
-			Target:     workerName,
-			TargetType: "Node",
-			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     "Error while validating Worker Quote",
-		}, fmt.Errorf("error while validating Worker Quote")
-	}
-
-	imaPodEntries, imaContainerRuntimeEntries, err := ima.MeasurementLogValidation(attestationResponse.AttestationEvidence.Evidence.MeasurementLog, pcr10Content, attestationRequest.PodUid)
-	if err != nil {
-		return &model.AttestationResult{
-			Agent:      agentName,
-			Target:     workerName,
-			TargetType: "Node",
-			Result:     cluster_interaction.UntrustedNodeStatus,
-			Reason:     "Failed to validate IMA Measurement log",
-		}, fmt.Errorf("failed to validate IMA Measurement log")
+		lastCheckedOffset, imaPodEntries, imaContainerRuntimeEntries, err = ima.MeasurementLogValidation(attestationResponse.AttestationEvidence.Evidence.MeasurementLog, pcr10Content, attestationRequest.PodUid, v.lastAttested[attestationRequest.PodUid].PreviousAggregate)
+		if err != nil {
+			return &model.AttestationResult{
+				Agent:      agentName,
+				Target:     workerName,
+				TargetType: "Node",
+				Result:     cluster_interaction.UntrustedNodeStatus,
+				Reason:     fmt.Sprintf("Failed to validate IMA Measurement log: %s", err),
+			}, fmt.Errorf("failed to validate IMA Measurement log")
+		}
+	} else {
+		imaPodEntries, imaContainerRuntimeEntries, err = ima.ExtractPodAndContainerRuntimeEntries(attestationResponse.AttestationEvidence.Evidence.MeasurementLog, attestationRequest.PodUid)
+		if err != nil {
+			return &model.AttestationResult{
+				Agent:      agentName,
+				Target:     workerName,
+				TargetType: "Node",
+				Result:     cluster_interaction.UntrustedNodeStatus,
+				Reason:     fmt.Sprintf("Failed to extract IMA entries from Measurement log: %s", err),
+			}, fmt.Errorf("failed to extract IMA entries from Measurement log")
+		}
 	}
 
 	podImageName, podImageDigest, err := v.clusterInteractor.GetPodImageDataByUid(attestationRequest.PodUid)
@@ -316,6 +313,7 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		if err != nil {
 			logger.Error("Failed to marshal absent entries as json")
 		}
+		// not run entries are not critical
 		notRunEntries, err := json.Marshal(containerRuntimeValidationResponse.ErroredEntries.NotRunWhitelistEntries)
 		if err != nil {
 			logger.Error("Failed to marshal notRun entries as json")
@@ -324,7 +322,7 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		if err != nil {
 			logger.Error("Failed to marshal mismatching entries as json")
 		}
-		logger.Error("Untrusted Container Runtime on Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", workerName, absentEntries, notRunEntries, mismatchingEntries)
+		logger.Warning("Container Runtime dependencies on Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", workerName, absentEntries, notRunEntries, mismatchingEntries)
 	} else {
 		attestedContainerRuntimeDependencies, err := json.Marshal(imaContainerRuntimeEntries)
 		if err != nil {
@@ -357,7 +355,8 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		if err != nil {
 			logger.Error("Failed to marshal mismatching entries as json")
 		}
-		logger.Error("Untrusted Pod '%s' executed over Worker node '%s'; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", attestationRequest.PodName, workerName, absentEntries, notRunEntries, mismatchingEntries)
+
+		logger.Warning("Pod '%s' executed over Worker node '%s' dependencies; Absent entries: %s; Not Run entries %s; Mismatching entries: %s;", attestationRequest.PodName, workerName, absentEntries, notRunEntries, mismatchingEntries)
 	} else {
 		attestedPodDependencies, err := json.Marshal(imaPodEntries)
 		if err != nil {
@@ -365,6 +364,7 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 		}
 		logger.Success("Attestation of Pod '%s' executed over Worker node '%s' completed with success; Successfully attested dependencies: %s", attestationRequest.PodName, workerName, attestedPodDependencies)
 	}
+
 	trustedContainerRuntimeDependencies := filterTrustedDependencies(imaContainerRuntimeEntries, &containerRuntimeValidationResponse.ErroredEntries)
 	trustedPodDependencies := filterTrustedDependencies(imaPodEntries, &podValidationResponse.ErroredEntries)
 
@@ -401,6 +401,18 @@ func (v *Verifier) podAttestation(attestationRequestCRDSpec map[string]interface
 			Result:     cluster_interaction.UntrustedPodStatus,
 			Reason:     "Untrusted Pod",
 		}, fmt.Errorf("untrusted pod")
+	}
+
+	if attestationResponse.AttestationEvidence.Evidence.Quote != "" {
+		entry := v.lastAttested[attestationRequest.PodUid]
+
+		entry.IMAMlOffset += lastCheckedOffset
+		previousAggregate, err := hex.DecodeString(pcr10Content)
+		if err != nil {
+			logger.Error("Failed to decode from hex previous aggregate: %s", err)
+		}
+		entry.PreviousAggregate = previousAggregate
+		v.lastAttested[attestationRequest.PodUid] = entry
 	}
 
 	return &model.AttestationResult{
@@ -507,6 +519,7 @@ func (v *Verifier) createAttestationResult(podUid string, trustedContainerRuntim
 		containerizationStatus = model.SlContraindicated
 	case len(containerRuntimeErroredEntries.NotRunWhitelistEntries) > 0:
 		containerizationStatus = model.SlWarning
+		isTrusted["containerRuntime"] = true
 	default:
 		containerizationStatus = model.SlAffirming
 		isTrusted["containerRuntime"] = true
@@ -518,6 +531,7 @@ func (v *Verifier) createAttestationResult(podUid string, trustedContainerRuntim
 		podStatus = model.SlContraindicated
 	case len(podErroredEntries.NotRunWhitelistEntries) > 0:
 		podStatus = model.SlWarning
+		isTrusted["pod"] = true
 	default:
 		podStatus = model.SlAffirming
 		isTrusted["pod"] = true
@@ -653,7 +667,7 @@ func (v *Verifier) deleteAttestationRequestCRDHandling(obj interface{}) {
 // WatchAttestationRequestCRDs starts watching for changes to the AttestationRequest CRD
 // and processes added, modified, and deleted events.
 func (v *Verifier) WatchAttestationRequestCRDs() {
-	stopCh := setupSignalHandler()
+	ctx := setupSignalHandler()
 	// Get the informer for the AttestationRequest CRD
 	attestationRequestInformer := v.informerFactory.ForResource(cluster_interaction.AttestationRequestGVR).Informer()
 
@@ -667,30 +681,28 @@ func (v *Verifier) WatchAttestationRequestCRDs() {
 		logger.Fatal("failed to create Attestation Request CRD event handler: %v", err)
 	}
 
-	// Convert `chan os.Signal` to `<-chan struct{}`
-	stopStructCh := make(chan struct{})
-	go func() {
-		<-stopCh // Wait for signal
-		close(stopStructCh)
-	}()
-
 	// Start the informer
-	go attestationRequestInformer.Run(stopStructCh)
+	go attestationRequestInformer.Run(ctx.Done())
 
 	// Wait for the informer to sync
-	if !cache.WaitForCacheSync(stopStructCh, attestationRequestInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), attestationRequestInformer.HasSynced) {
 		logger.Error("Timed out waiting for caches to sync")
 		return
 	}
 
 	// Keep running until stopped
-	<-stopStructCh
+	<-ctx.Done()
 	logger.Info("Stopping Verifier...")
 }
 
-// setupSignalHandler sets up a signal handler for graceful termination.
-func setupSignalHandler() chan os.Signal {
-	stopCh := make(chan os.Signal, 1)
-	signal.Notify(stopCh, syscall.SIGINT, syscall.SIGTERM)
-	return stopCh
+func setupSignalHandler() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		cancel()
+	}()
+	return ctx
 }

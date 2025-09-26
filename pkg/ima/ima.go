@@ -54,13 +54,10 @@ func extendEntry(previousHash []byte, templateHash string) ([]byte, error) {
 	return hash.Sum(nil), nil
 }
 
-// IMAVerification checks the integrity of the IMA measurement logger against the received Quote and returns the entries related to the pod being attested for statical analysis of executed software and the AttestationResult
-func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string) ([]model.IMAEntry, []model.IMAEntry, error) {
-	isMeasurementLogValid := false
-
+func ExtractPodAndContainerRuntimeEntries(imaMeasurementLog, podUid string) ([]model.IMAEntry, []model.IMAEntry, error) {
 	decodedLog, err := base64.StdEncoding.DecodeString(imaMeasurementLog)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decode IMA measurement logger: %v", err)
+		return nil, nil, fmt.Errorf("failed to decode IMA measurement log: %v", err)
 	}
 
 	logLines := strings.Split(string(decodedLog), "\n")
@@ -69,9 +66,6 @@ func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string) ([]
 	}
 	uniquePodEntries := make(map[string]model.IMAEntry)
 	uniqueContainerRuntimeEntries := make(map[string]model.IMAEntry)
-
-	// initial PCR configuration
-	previousHash := make([]byte, 32)
 
 	// Iterate through each line and extract relevant fields
 	for idx, imaLine := range logLines {
@@ -92,15 +86,118 @@ func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string) ([]
 			return nil, nil, fmt.Errorf("IMA measurement log integrity check failed: entry: %d file hash is invalid: %s", idx, imaLine)
 		}
 
-		extendValue, err := validateEntry(templateHashField, depField, cgroupPathField, hashAlgo, fileHash, filePathField)
+		_, err = validateEntry(templateHashField, depField, cgroupPathField, hashAlgo, fileHash, filePathField)
 		if err != nil {
 			return nil, nil, fmt.Errorf("IMA measurement log integrity check failed: entry: %d is invalid: %s", idx, imaLine)
+		}
+
+		// check if entry belongs to container or is pure a host measurement, otherwise after having computed the extend hash, go to next entry in IMA ML
+		if !strings.Contains(depField, containerRuntimeEngineId) {
+			continue
+		}
+
+		// entry is host container-related not a pod entry
+		if filePathField == ContainerRuntimeName || depField == containerRuntimeDependencies {
+			// Create a unique key by combining filePath and fileHash
+			entryKey := fmt.Sprintf("%s:%s", filePathField, fileHash)
+
+			// Add the entry to the map if it doesn't exist
+			if _, exists := uniqueContainerRuntimeEntries[entryKey]; !exists {
+				uniqueContainerRuntimeEntries[entryKey] = model.IMAEntry{
+					FilePath: filePathField,
+					FileHash: fileHash,
+				}
+			}
+			continue
+		}
+
+		// Check if the cgroup path contains the podUID
+		if checkPodUidMatch(cgroupPathField, podUid) {
+			// Create a unique key by combining filePath and fileHash
+			entryKey := fmt.Sprintf("%s:%s", filePathField, fileHash)
+			// Add the entry to the map if it doesn't exist
+			if _, exists := uniquePodEntries[entryKey]; !exists {
+				uniquePodEntries[entryKey] = model.IMAEntry{
+					FilePath: filePathField,
+					FileHash: fileHash,
+				}
+			}
+		}
+	}
+
+	// Convert the unique entries back to a slice
+	podEntries := make([]model.IMAEntry, 0, len(uniquePodEntries))
+	for _, entry := range uniquePodEntries {
+		podEntries = append(podEntries, entry)
+	}
+
+	containerRuntimeEntries := make([]model.IMAEntry, 0, len(uniqueContainerRuntimeEntries))
+	for _, entry := range uniqueContainerRuntimeEntries {
+		containerRuntimeEntries = append(containerRuntimeEntries, entry)
+	}
+
+	// Return the collected IMA pod entries
+	return podEntries, containerRuntimeEntries, nil
+}
+
+// MeasurementLogValidation checks the integrity of the IMA measurement logger against the received Quote and returns the entries related to the pod being attested for statical analysis of executed software and the AttestationResult
+func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string, previousAggregate []byte) (int64, []model.IMAEntry, []model.IMAEntry, error) {
+	isMeasurementLogValid := false
+
+	decodedLog, err := base64.StdEncoding.DecodeString(imaMeasurementLog)
+	if err != nil {
+		return -1, nil, nil, fmt.Errorf("failed to decode IMA measurement log: %v", err)
+	}
+
+	offset := int64(1)
+
+	logLines := strings.Split(string(decodedLog), "\n")
+	if len(logLines) > 0 && logLines[len(logLines)-1] == "" {
+		logLines = logLines[:len(logLines)-1] // Remove the last empty line --> each entry adds a \n so last line will add an empty line
+	}
+	uniquePodEntries := make(map[string]model.IMAEntry)
+	uniqueContainerRuntimeEntries := make(map[string]model.IMAEntry)
+
+	// initial PCR configuration
+	previousHash := make([]byte, 32)
+
+	if previousAggregate != nil {
+		previousHash = previousAggregate
+	}
+
+	// Iterate through each line and extract relevant fields
+	for idx, imaLine := range logLines {
+
+		if !isMeasurementLogValid {
+			offset += int64(len(imaLine) + 1) // +1 for the newline character
+		}
+
+		// Split the line by whitespace
+		IMAFields := strings.Fields(imaLine)
+		if len(IMAFields) < CgpathTemplateEntryFields {
+			return -1, nil, nil, fmt.Errorf("IMA measurement log integrity check failed: entry %d not compliant with template: %s", idx, imaLine)
+		}
+
+		templateHashField := IMAFields[1]
+		depField := IMAFields[3]
+		cgroupPathField := IMAFields[4]
+		fileHashField := IMAFields[5]
+		filePathField := IMAFields[6]
+
+		hashAlgo, fileHash, err := extractShaDigest(fileHashField)
+		if err != nil {
+			return -1, nil, nil, fmt.Errorf("IMA measurement log integrity check failed: entry: %d file hash is invalid: %s", idx, imaLine)
+		}
+
+		extendValue, err := validateEntry(templateHashField, depField, cgroupPathField, hashAlgo, fileHash, filePathField)
+		if err != nil {
+			return -1, nil, nil, fmt.Errorf("IMA measurement log integrity check failed: entry: %d is invalid: %s", idx, imaLine)
 		}
 
 		// Use the helper function to extend ML cumulative hash with the newly computed template hash
 		extendedHash, err := extendEntry(previousHash, extendValue)
 		if err != nil {
-			return nil, nil, fmt.Errorf("error computing hash at index %d: %v\n", idx, err)
+			return -1, nil, nil, fmt.Errorf("error computing hash at index %d: %v\n", idx, err)
 		}
 
 		// Update the previous hash for the next iteration
@@ -149,7 +246,7 @@ func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string) ([]
 	cumulativeHashHex := hex.EncodeToString(previousHash)
 	// Compare the computed hash with the provided PCR10Digest
 	if cumulativeHashHex != pcr10Digest {
-		return nil, nil, fmt.Errorf("IMA measurement log integrity check failed: computed hash does not match quote value")
+		return -1, nil, nil, fmt.Errorf("IMA measurement log integrity check failed: computed hash does not match quote value")
 	}
 
 	// Convert the unique entries back to a slice
@@ -164,7 +261,7 @@ func MeasurementLogValidation(imaMeasurementLog, pcr10Digest, podUid string) ([]
 	}
 
 	// Return the collected IMA pod entries
-	return podEntries, containerRuntimeEntries, nil
+	return offset, podEntries, containerRuntimeEntries, nil
 }
 
 func checkPodUidMatch(path, podUid string) bool {

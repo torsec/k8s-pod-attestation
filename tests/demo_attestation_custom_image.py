@@ -1,10 +1,11 @@
 import base64
 import json
 import random
-import time
-
 import requests
 import rsa
+import sys
+import time
+from datetime import datetime
 
 # Define API endpoints
 REGISTRAR_BASE_URL = 'http://localhost:30000'  # Ensure this matches your pod-handler URL
@@ -102,6 +103,9 @@ signature = sign_message(pod_name)
 
 time.sleep(20)
 
-while True:
+n = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+avg = 0.0
+for i in range(0, n):
+    start_time = datetime.now()
+    print(f"start: {start_time.strftime('%H:%M:%S.%f')[:-3]}")
     pod_attestation(tenant_name, pod_name, signature)
-    time.sleep(10)

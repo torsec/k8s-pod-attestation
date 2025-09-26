@@ -1,3 +1,6 @@
-docker build -t franczar/k8s-attestation-worker-handler:latest .
-docker tag franczar/k8s-attestation-worker-handler:latest franczar/k8s-attestation-worker-handler:latest
-docker push franczar/k8s-attestation-worker-handler:latest
+#!/bin/bash
+tag=${1:-latest}
+
+docker build -t franczar/k8s-attestation-worker-handler:"$tag" .
+docker tag franczar/k8s-attestation-worker-handler:"$tag" franczar/k8s-attestation-worker-handler:"$tag"
+docker push franczar/k8s-attestation-worker-handler:"$tag"
