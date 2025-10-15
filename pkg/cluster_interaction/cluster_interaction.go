@@ -181,12 +181,92 @@ func (c *ClusterInteraction) CreateTenantPodFromManifest(podManifest []byte, ten
 	}
 	pod.Annotations["tenantId"] = tenantId
 
-	podsClient := c.ClientSet.CoreV1().Pods(pod.GetNamespace())
-	createdPod, err := podsClient.Create(context.TODO(), pod, metav1.CreateOptions{})
+	createdPod, err := c.ClientSet.CoreV1().Pods(pod.GetNamespace()).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Pod: %v", err)
 	}
 	return createdPod, nil
+}
+
+func (c *ClusterInteraction) CreateTenantDeploymentFromManifest(deploymentManifest []byte, tenantId string) (*appsv1.Deployment, error) {
+	var deployment *appsv1.Deployment
+
+	if err := yaml.Unmarshal(deploymentManifest, &deployment); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal YAML: %v", err)
+	}
+
+	if deployment.Annotations == nil {
+		deployment.Annotations = make(map[string]string)
+	}
+
+	deployment.Annotations["tenantId"] = tenantId
+
+	createdDeployment, err := c.ClientSet.AppsV1().Deployments(deployment.GetNamespace()).Create(context.TODO(), deployment, metav1.CreateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Deployment: %v", err)
+	}
+	return createdDeployment, nil
+}
+
+func (c *ClusterInteraction) CreateTenantReplicaSetFromManifest(replicaSetManifest []byte, tenantId string) (*appsv1.ReplicaSet, error) {
+	var replicaSet *appsv1.ReplicaSet
+
+	if err := yaml.Unmarshal(replicaSetManifest, &replicaSet); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal YAML: %v", err)
+	}
+
+	if replicaSet.Annotations == nil {
+		replicaSet.Annotations = make(map[string]string)
+	}
+
+	replicaSet.Annotations["tenantId"] = tenantId
+
+	createdReplicaSet, err := c.ClientSet.AppsV1().ReplicaSets(replicaSet.GetNamespace()).Create(context.TODO(), replicaSet, metav1.CreateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ReplicaSet: %v", err)
+	}
+
+	return createdReplicaSet, nil
+}
+
+func (c *ClusterInteraction) CreateTenantStatefulSetFromManifest(statefulSetManifest []byte, tenantId string) (*appsv1.StatefulSet, error) {
+	var statefulSet *appsv1.StatefulSet
+
+	if err := yaml.Unmarshal(statefulSetManifest, &statefulSet); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal YAML: %v", err)
+	}
+
+	if statefulSet.Annotations == nil {
+		statefulSet.Annotations = make(map[string]string)
+	}
+
+	statefulSet.Annotations["tenantId"] = tenantId
+
+	createdStatefulSet, err := c.ClientSet.AppsV1().StatefulSets(statefulSet.GetNamespace()).Create(context.TODO(), statefulSet, metav1.CreateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ReplicaSet: %v", err)
+	}
+	return createdStatefulSet, nil
+}
+
+func (c *ClusterInteraction) CreateTenantDaemonSetFromManifest(daemonSetManifest []byte, tenantId string) (*appsv1.DaemonSet, error) {
+	var daemonSet *appsv1.DaemonSet
+
+	if err := yaml.Unmarshal(daemonSetManifest, &daemonSet); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal YAML: %v", err)
+	}
+
+	if daemonSet.Annotations == nil {
+		daemonSet.Annotations = make(map[string]string)
+	}
+
+	daemonSet.Annotations["tenantId"] = tenantId
+
+	createdDaemonSet, err := c.ClientSet.AppsV1().DaemonSets(daemonSet.GetNamespace()).Create(context.TODO(), daemonSet, metav1.CreateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ReplicaSet: %v", err)
+	}
+	return createdDaemonSet, nil
 }
 
 func (c *ClusterInteraction) DeleteAgentCRDInstance(nodeName string) error {
