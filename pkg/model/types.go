@@ -1,5 +1,10 @@
 package model
 
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"time"
+)
+
 // Struct definitions
 
 type Tenant struct {
@@ -130,12 +135,23 @@ type ErroredWhitelistEntries struct {
 	MismatchingWhitelistEntries []MismatchingWhitelistEntry `json:"mismatchingWhitelistEntries,omitempty"`
 }
 
-/*
 type PodStatus struct {
-	PodName   string `json:"podName"`
-	TenantId  string `json:"tenantId"`
-	Status    string `json:"status"`
-	Reason    string `json:"reason"`
-	LastCheck string `json:"lastCheck"`
+	PodName   string    `json:"podName"`
+	TenantId  string    `json:"tenantId"`
+	Status    string    `json:"status"`
+	Reason    string    `json:"reason"`
+	LastCheck time.Time `json:"lastCheck"`
 }
-*/
+
+type AgentSpec struct {
+	AgentName  string      `json:"agentName"`
+	NodeStatus string      `json:"nodeStatus"`
+	PodStatus  []PodStatus `json:"podStatus"`
+	LastUpdate time.Time   `json:"lastUpdate"`
+}
+
+type Agent struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Spec              AgentSpec `json:"spec"`
+}
