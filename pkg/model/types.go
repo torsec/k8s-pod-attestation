@@ -2,6 +2,40 @@ package model
 
 // shared struct definitions
 
+type PodFileWhitelist struct {
+	FilePath     string              `json:"filePath" bson:"filePath"`
+	ValidDigests map[string][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
+}
+
+// NotRunWhitelistEntry represents Whitelist Reference Values which where expected from the Evidence but actually not included
+type NotRunWhitelistEntry struct {
+	Id           string   `json:"id"`
+	HashAlg      string   `json:"hashAlg"`
+	ExpectedHash []string `json:"expectedHash"`
+}
+
+// AbsentWhitelistEntry represents Evidence entries not corresponding to existing Whitelist Reference Values
+type AbsentWhitelistEntry struct {
+	Id         string `json:"id"`
+	HashAlg    string `json:"hashAlg"`
+	ActualHash string `json:"actualHash,omitempty"`
+}
+
+// MismatchingWhitelistEntry represents Evidence entries whose digest value do not match the actual value stored in the Whitelist Reference Value
+type MismatchingWhitelistEntry struct {
+	Id           string   `json:"id"`
+	HashAlg      string   `json:"hashAlg"`
+	ActualHash   string   `json:"actualHash,omitempty"`
+	ExpectedHash []string `json:"expectedHash,omitempty"`
+}
+
+// ErroredWhitelistEntries aggregate all entries that for their individual reason failed to be correctly evaluated with the Whitelist
+type ErroredWhitelistEntries struct {
+	NotRunWhitelistEntries      []NotRunWhitelistEntry      `json:"notRunWhitelistEntries,omitempty"`
+	AbsentWhitelistEntries      []AbsentWhitelistEntry      `json:"absentWhitelistEntries,omitempty"`
+	MismatchingWhitelistEntries []MismatchingWhitelistEntry `json:"mismatchingWhitelistEntries,omitempty"`
+}
+
 type WorkerNode struct {
 	WorkerId string `json:"workerId"`
 	Name     string `json:"name"`
