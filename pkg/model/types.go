@@ -1,17 +1,6 @@
 package model
 
-import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
-)
-
-// Struct definitions
-
-type Tenant struct {
-	TenantId  string `json:"tenantId"`
-	Name      string `json:"name"`
-	PublicKey string `json:"publicKey"`
-}
+// shared struct definitions
 
 type WorkerNode struct {
 	WorkerId string `json:"workerId"`
@@ -31,25 +20,10 @@ type PCRSet struct {
 	PCRs map[string]string `json:"pcrs"`
 }
 
-type TPMCACertificate struct {
-	CertificateID  string `json:"certificateId,omitempty"`
-	CommonName     string `json:"commonName"`
-	PEMCertificate string `json:"PEMCertificate"`
-}
-
 type TPMVendor struct {
 	VendorID      string `json:"vendorId,omitempty"`
 	Name          string `json:"vendorName"`
 	TCGIdentifier string `json:"TCGIdentifier"`
-}
-
-type AgentConfig struct {
-	TPMPath                 string `json:"TPMPath"`
-	IMAMountPath            string `json:"IMAMountPath"`
-	IMAMeasurementLogPath   string `json:"IMAMeasurementLogPath"`
-	ImageName               string `json:"imageName"`
-	AgentPort               int32  `json:"agentPort"`
-	AgentNodePortAllocation int32  `json:"agentNodePortAllocation"`
 }
 
 type Evidence struct {
@@ -60,98 +34,96 @@ type Evidence struct {
 	MeasurementLog string `json:"measurementLog"`
 }
 
-type PodFileWhitelist struct {
-	FilePath     string              `json:"filePath" bson:"filePath"`
-	ValidDigests map[string][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
-}
-
-type ImageWhitelist struct {
-	ImageName   string             `json:"imageName" bson:"imageName"`
-	ImageDigest string             `json:"imageDigest" bson:"imageDigest"`
-	ValidFiles  []PodFileWhitelist `json:"validFiles" json:"validFiles"`
-}
-
 type IMAEntry struct {
 	FilePath string `json:"filePath"`
 	FileHash string `json:"fileHash"`
 }
 
-// OsWhitelist represents the structure of our stored document in MongoDB.
-// It categorizes valid digests by hash algorithm.
-type OsWhitelist struct {
-	OSName       string              `json:"osName" bson:"osName"`
-	ValidDigests map[string][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
+// PodStatusType represents pod security status possible values
+type PodStatusType string
+
+const (
+	NewPodStatus       PodStatusType = "NEW"
+	TrustedPodStatus   PodStatusType = "TRUSTED"
+	UntrustedPodStatus PodStatusType = "UNTRUSTED"
+	UnknownPodStatus   PodStatusType = "UNKNOWN"
+	DeletedPodStatus   PodStatusType = "DELETED"
+)
+
+func (p PodStatusType) IsValidPodStatus() bool {
+	switch p {
+	case TrustedPodStatus, UntrustedPodStatus, UnknownPodStatus, DeletedPodStatus, NewPodStatus:
+		return true
+	default:
+		return false
+	}
 }
 
-type ContainerDependencyWhitelist struct {
-	FilePath     string              `json:"filePath" bson:"filePath"`
-	ValidDigests map[string][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
+func (p PodStatusType) ToString() string {
+	if p.IsValidPodStatus() {
+		return string(p)
+	}
+	return "INVALID_POD_STATUS"
 }
 
-type ContainerRuntimeWhitelist struct {
-	ContainerRuntimeName string                         `json:"containerRuntimeName" bson:"containerRuntimeName"`
-	ValidFiles           []ContainerDependencyWhitelist `json:"validFiles" json:"validFiles"`
+type TargetType string
+
+const (
+	PodTarget  TargetType = "Pod"
+	NodeTarget TargetType = "Node"
+)
+
+type NodeStatusType string
+
+const (
+	TrustedNodeStatus   NodeStatusType = "TRUSTED"
+	UntrustedNodeStatus NodeStatusType = "UNTRUSTED"
+	UnknownNodeStatus   NodeStatusType = "UNKNOWN"
+	DeletedNodeStatus   NodeStatusType = "DELETED"
+)
+
+func (n NodeStatusType) IsValidNodeStatus() bool {
+	switch n {
+	case TrustedNodeStatus, UntrustedNodeStatus, UnknownNodeStatus, DeletedNodeStatus:
+		return true
+	default:
+		return false
+	}
 }
+
+func (n NodeStatusType) ToString() string {
+	if n.IsValidNodeStatus() {
+		return string(n)
+	}
+	return "INVALID_NODE_STATUS"
+}
+
+type TargetResult interface {
+	GetKind() TargetType
+}
+
+type PodResult struct {
+	Target string
+	Result PodStatusType
+	Reason string
+}
+
+func (p PodResult) GetKind() TargetType { return PodTarget }
+
+type NodeResult struct {
+	Target string
+	Result NodeStatusType
+	Reason string
+}
+
+func (n NodeResult) GetKind() TargetType { return NodeTarget }
 
 type AttestationResult struct {
-	Agent      string
-	Target     string
-	TargetType string
-	Result     string
-	Reason     string
+	Agent  string
+	Result TargetResult
 }
 
 type AttestationEvidence struct {
 	Evidence  Evidence `json:"evidence"`
 	Signature string   `json:"signature,omitempty"`
-}
-
-// NotRunWhitelistEntry represents Whitelist Reference Values which where expected from the Evidence but actually not included
-type NotRunWhitelistEntry struct {
-	Id           string   `json:"id"`
-	HashAlg      string   `json:"hashAlg"`
-	ExpectedHash []string `json:"expectedHash"`
-}
-
-// AbsentWhitelistEntry represents Evidence entries not corresponding to existing Whitelist Reference Values
-type AbsentWhitelistEntry struct {
-	Id         string `json:"id"`
-	HashAlg    string `json:"hashAlg"`
-	ActualHash string `json:"actualHash,omitempty"`
-}
-
-// MismatchingWhitelistEntry represents Evidence entries whose digest value do not match the actual value stored in the Whitelist Reference Value
-type MismatchingWhitelistEntry struct {
-	Id           string   `json:"id"`
-	HashAlg      string   `json:"hashAlg"`
-	ActualHash   string   `json:"actualHash,omitempty"`
-	ExpectedHash []string `json:"expectedHash,omitempty"`
-}
-
-// ErroredWhitelistEntries aggregate all entries that for their individual reason failed to be correctly evaluated with the Whitelist
-type ErroredWhitelistEntries struct {
-	NotRunWhitelistEntries      []NotRunWhitelistEntry      `json:"notRunWhitelistEntries,omitempty"`
-	AbsentWhitelistEntries      []AbsentWhitelistEntry      `json:"absentWhitelistEntries,omitempty"`
-	MismatchingWhitelistEntries []MismatchingWhitelistEntry `json:"mismatchingWhitelistEntries,omitempty"`
-}
-
-type PodStatus struct {
-	PodName   string    `json:"podName"`
-	TenantId  string    `json:"tenantId"`
-	Status    string    `json:"status"`
-	Reason    string    `json:"reason"`
-	LastCheck time.Time `json:"lastCheck"`
-}
-
-type AgentSpec struct {
-	AgentName  string      `json:"agentName"`
-	NodeStatus string      `json:"nodeStatus"`
-	PodStatus  []PodStatus `json:"podStatus"`
-	LastUpdate time.Time   `json:"lastUpdate"`
-}
-
-type Agent struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              AgentSpec `json:"spec"`
 }
