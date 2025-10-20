@@ -69,10 +69,11 @@ type PodHandlerResponse struct {
 	Status  string `json:"status"`
 }
 
-type PodDeploymentRequest struct {
-	TenantName string `json:"tenantName"`
-	Manifest   string `json:"manifest"`
-	Signature  string `json:"signature"`
+type DeploymentRequest struct {
+	TenantName   string `json:"tenantName"`
+	ResourceKind string `json:"resourceKind"`
+	Manifest     string `json:"manifest"`
+	Signature    string `json:"signature"`
 }
 
 type PodAttestationRequest struct {
