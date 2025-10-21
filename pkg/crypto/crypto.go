@@ -2,21 +2,28 @@ package crypto
 
 import (
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"crypto/x509"
+	"encoding/asn1"
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	x509ext "github.com/google/go-attestation/x509"
-	"github.com/google/go-tpm/tpmutil"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
+	"math/big"
 )
 
-func VerifyHMAC(message, key, providedHMAC []byte) error {
-	h := hmac.New(sha256.New, key)
+// VerifyHMAC checks if the provided HMAC matches the computed HMAC for the given message and key.
+func VerifyHMAC(message, key, providedHMAC []byte, hashAlgo crypto.Hash) error {
+	if !hashAlgo.Available() {
+		return fmt.Errorf("hash algorithm %v is not available", hashAlgo)
+	}
+
+	h := hmac.New(hashAlgo.New, key)
 	h.Write(message)
 	expectedHMAC := h.Sum(nil)
 
@@ -27,83 +34,163 @@ func VerifyHMAC(message, key, providedHMAC []byte) error {
 	return nil
 }
 
-func ComputeHMAC(message, key []byte) []byte {
-	h := hmac.New(sha256.New, key)
+// ComputeHMAC computes the HMAC of a message using the given key and hash algorithm.
+func ComputeHMAC(message, key []byte, hashAlgo crypto.Hash) ([]byte, error) {
+	if !hashAlgo.Available() {
+		return nil, fmt.Errorf("hash algorithm %v is not available", hashAlgo)
+	}
+
+	h := hmac.New(hashAlgo.New, key)
 	h.Write(message)
-	return h.Sum(nil)
+	return h.Sum(nil), nil
 }
 
-func DecodePublicKeyFromPEM(publicKeyPEM []byte) (*rsa.PublicKey, error) {
+// DecodePublicKeyFromPEM decodes a PEM-encoded public key of any supported type
+// (RSA, ECDSA, or Ed25519) and returns it as crypto.PublicKey.
+func DecodePublicKeyFromPEM(publicKeyPEM []byte) (crypto.PublicKey, error) {
 	block, _ := pem.Decode(publicKeyPEM)
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block containing public key")
 	}
 
-	var rsaPubKey *rsa.PublicKey
+	var pubKey crypto.PublicKey
 	var err error
 
 	switch block.Type {
 	case "RSA PUBLIC KEY":
-		rsaPubKey, err = x509.ParsePKCS1PublicKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse PKCS1 public key: %v", err)
-		}
+		pubKey, err = x509.ParsePKCS1PublicKey(block.Bytes)
 	case "PUBLIC KEY":
-		parsedKey, err := x509.ParsePKIXPublicKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse PKIX public key: %v", err)
-		}
-		var ok bool
-		rsaPubKey, ok = parsedKey.(*rsa.PublicKey)
-		if !ok {
-			return nil, fmt.Errorf("not an RSA public key")
-		}
+		pubKey, err = x509.ParsePKIXPublicKey(block.Bytes)
 	default:
 		return nil, fmt.Errorf("unsupported public key type: %s", block.Type)
 	}
-	return rsaPubKey, nil
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public key: %v", err)
+	}
+
+	// Type-check to ensure it’s one of the supported kinds
+	switch pubKey.(type) {
+	case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey:
+		return pubKey, nil
+	default:
+		return nil, fmt.Errorf("unsupported public key algorithm: %T", pubKey)
+	}
 }
 
-// Utility function: Sign a message using the provided private key
-func SignMessage(privateKeyPEM string, message []byte) ([]byte, error) {
-	// Decode the PEM-encoded private key
-	block, _ := pem.Decode([]byte(privateKeyPEM))
-	if block == nil {
-		return nil, fmt.Errorf("failed to decode PEM block containing private key")
+// SignMessage signs `message` using the provided `privKey` and `hashAlgo`.
+// Supported key types: *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey.
+// For Ed25519, the hash algorithm is ignored (it signs the raw message).
+func SignMessage(privateKey crypto.PrivateKey, message []byte, hashAlgo crypto.Hash) ([]byte, error) {
+	var hashed []byte
+
+	// Hash the message unless the algorithm doesn't require it (Ed25519)
+	if hashAlgo != crypto.Hash(0) {
+		if !hashAlgo.Available() {
+			return nil, fmt.Errorf("hash algorithm %v not available", hashAlgo)
+		}
+		h := hashAlgo.New()
+		h.Write(message)
+		hashed = h.Sum(nil)
+	} else {
+		hashed = message
 	}
 
-	// Parse the private key from the PEM block
-	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse PKCS1 private key: %v", err)
+	switch key := privateKey.(type) {
+
+	case *rsa.PrivateKey:
+		// RSA always needs a hash (cannot use hashAlgo=0)
+		if hashAlgo == crypto.Hash(0) {
+			return nil, fmt.Errorf("RSA requires a hash algorithm")
+		}
+		return rsa.SignPKCS1v15(rand.Reader, key, hashAlgo, hashed)
+
+	case *ecdsa.PrivateKey:
+		r, s, err := ecdsa.Sign(rand.Reader, key, hashed)
+		if err != nil {
+			return nil, fmt.Errorf("failed to sign message with ECDSA: %v", err)
+		}
+
+		// Encode to ASN.1 DER format
+		type ecdsaSignature struct {
+			R, S *big.Int
+		}
+		return asn1.Marshal(ecdsaSignature{r, s})
+
+	case ed25519.PrivateKey:
+		// Hash ignored, Ed25519 signs the message directly
+		return ed25519.Sign(key, message), nil
+
+	default:
+		return nil, fmt.Errorf("unsupported private key type: %T", key)
 	}
-
-	// Hash the message using SHA256
-	hashed := sha256.Sum256(message)
-
-	// Sign the hashed message using the private key
-	signature, err := rsa.SignPKCS1v15(rand.Reader, rsaPrivKey, crypto.SHA256, hashed[:])
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign message: %v", err)
-	}
-
-	// Encode the signature in Base64 and return it
-	return signature, nil
 }
 
-func Hash(message []byte) ([]byte, error) {
-	// Compute SHA256 hash
-	hash := sha256.New()
+// VerifyMessage verifies a digital signature created by SignMessage.
+// Supported key types: *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey.
+// For Ed25519, the hash algorithm is ignored (it verifies the raw message).
+func VerifyMessage(publicKey crypto.PublicKey, message, signature []byte, hashAlgo crypto.Hash) error {
+	var hashed []byte
+
+	// Hash message if required
+	if hashAlgo != crypto.Hash(0) {
+		if !hashAlgo.Available() {
+			return fmt.Errorf("hash algorithm %v not available", hashAlgo)
+		}
+		h := hashAlgo.New()
+		h.Write(message)
+		hashed = h.Sum(nil)
+	} else {
+		hashed = message
+	}
+
+	switch key := publicKey.(type) {
+
+	case *rsa.PublicKey:
+		// RSA expects hashed input
+		if hashAlgo == crypto.Hash(0) {
+			return fmt.Errorf("RSA requires a hash algorithm")
+		}
+		return rsa.VerifyPKCS1v15(key, hashAlgo, hashed, signature)
+
+	case *ecdsa.PublicKey:
+		// Decode ASN.1 DER signature
+		type ecdsaSignature struct {
+			R, S *big.Int
+		}
+		var sig ecdsaSignature
+		if _, err := asn1.Unmarshal(signature, &sig); err != nil {
+			return fmt.Errorf("failed to unmarshal ECDSA signature: %v", err)
+		}
+
+		if !ecdsa.Verify(key, hashed, sig.R, sig.S) {
+			return fmt.Errorf("invalid ECDSA signature")
+		}
+		return nil
+
+	case ed25519.PublicKey:
+		// Hash ignored, verify directly
+		if !ed25519.Verify(key, message, signature) {
+			return fmt.Errorf("invalid Ed25519 signature")
+		}
+		return nil
+
+	default:
+		return fmt.Errorf("unsupported public key type: %T", key)
+	}
+}
+
+func Hash(message []byte, hashAlgo crypto.Hash) ([]byte, error) {
+	hash := hashAlgo.New()
 	_, err := hash.Write(message)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute hash: %v", err)
 	}
-	// Get the final hash as a hex-encoded string
 	digest := hash.Sum(nil)
 	return digest, nil
 }
 
-// Generate a cryptographically secure random symmetric key of the specified size in bytes
+// GenerateEphemeralKey generates a cryptographically secure random symmetric key of the specified size in bytes
 func GenerateEphemeralKey(size int) ([]byte, error) {
 	if size <= 0 {
 		return nil, fmt.Errorf("key size must be greater than 0")
@@ -117,20 +204,20 @@ func GenerateEphemeralKey(size int) ([]byte, error) {
 	return key, nil
 }
 
-// Helper function to encode the public key to PEM format (for printing)
-func EncodePublicKeyToPEM(pubKey crypto.PublicKey) []byte {
+// EncodePublicKeyToPEM helper function to encode the public key to PEM format (for printing)
+func EncodePublicKeyToPEM(pubKey crypto.PublicKey) ([]byte, error) {
 	pubASN1, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("failed to marshal public key: %v", err)
 	}
 	pubPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "PUBLIC KEY",
 		Bytes: pubASN1,
 	})
-	return pubPEM
+	return pubPEM, nil
 }
 
-// generateNonce creates a random nonce of specified byte length
+// GenerateHexNonce generateNonce creates a random nonce of specified byte length
 func GenerateHexNonce(size int) (string, error) {
 	nonce := make([]byte, size)
 
@@ -144,35 +231,73 @@ func GenerateHexNonce(size int) (string, error) {
 	return hex.EncodeToString(nonce), nil
 }
 
-func VerifyTPMSignature(rsaPubKey *rsa.PublicKey, message []byte, signature tpmutil.U16Bytes) error {
-	hashed := sha256.Sum256(message)
-	err := rsa.VerifyPKCS1v15(rsaPubKey, crypto.SHA256, hashed[:], signature)
-	return err
+// EncodePrivateKeyToPEM encodes a crypto.PrivateKey into a PEM block.
+// Supports *rsa.PrivateKey, *ecdsa.PrivateKey, and ed25519.PrivateKey.
+func EncodePrivateKeyToPEM(privKey crypto.PrivateKey) ([]byte, error) {
+	var privBytes []byte
+	var blockType string
+	var err error
+
+	switch key := privKey.(type) {
+	case *rsa.PrivateKey:
+		// PKCS#1
+		privBytes = x509.MarshalPKCS1PrivateKey(key)
+		blockType = "RSA PRIVATE KEY"
+
+	case *ecdsa.PrivateKey:
+		// EC Private Key
+		privBytes, err = x509.MarshalECPrivateKey(key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal ECDSA private key: %v", err)
+		}
+		blockType = "EC PRIVATE KEY"
+
+	case ed25519.PrivateKey:
+		// PKCS#8 format
+		privBytes, err = x509.MarshalPKCS8PrivateKey(key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal Ed25519 private key: %v", err)
+		}
+		blockType = "PRIVATE KEY"
+
+	default:
+		return nil, fmt.Errorf("unsupported private key type: %T", privKey)
+	}
+
+	privPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  blockType,
+		Bytes: privBytes,
+	})
+	return privPEM, nil
 }
 
-func DecodePrivateKeyFromPEM(privateKeyPEM string) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode([]byte(privateKeyPEM))
+// DecodePrivateKeyFromPEM decodes a PEM-encoded private key.
+// Supports RSA, ECDSA, and Ed25519 keys in PKCS#1, PKCS#8 formats.
+func DecodePrivateKeyFromPEM(privateKeyPEM []byte) (crypto.PrivateKey, error) {
+	block, _ := pem.Decode(privateKeyPEM)
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block containing private key")
 	}
 
 	switch block.Type {
 	case "RSA PRIVATE KEY":
-		// PKCS#1 format
 		return x509.ParsePKCS1PrivateKey(block.Bytes)
+	case "EC PRIVATE KEY":
+		return x509.ParseECPrivateKey(block.Bytes)
 	case "PRIVATE KEY":
-		// PKCS#8 format
+		// PKCS#8 format (can contain RSA, ECDSA, Ed25519)
 		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to parse PKCS#8 private key: %v", err)
 		}
-		rsaKey, ok := key.(*rsa.PrivateKey)
-		if !ok {
-			return nil, fmt.Errorf("not an RSA private key")
+		switch key := key.(type) {
+		case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
+			return key, nil
+		default:
+			return nil, fmt.Errorf("unsupported private key type in PKCS#8: %T", key)
 		}
-		return rsaKey, nil
 	default:
-		return nil, fmt.Errorf("unsupported key type: " + block.Type)
+		return nil, fmt.Errorf("unsupported key type: %s", block.Type)
 	}
 }
 
@@ -269,11 +394,4 @@ func VerifyIntermediateCaCertificateChain(intermediateCACert, rootCACert *x509.C
 		return fmt.Errorf("TPM Intermediate CA Certificate verification failed: %v", err)
 	}
 	return nil
-}
-
-// Utility function: Verify a signature using provided public key
-func VerifySignature(publicKey *rsa.PublicKey, message, signature []byte) error {
-	hashed := sha256.Sum256(message)
-	err := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hashed[:], signature)
-	return err
 }
