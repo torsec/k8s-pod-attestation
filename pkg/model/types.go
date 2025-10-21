@@ -48,7 +48,10 @@ type InputQuote struct {
 	PCRset PCRSet `json:"pcrs"`
 }
 
-// PCRSet represents the PCR values and the hash algorithm used
+// PCRSet represents a PCR bank in the TPM. A bank is a set of PCRs using the same cryptographic hash algorithm.
+// This enables the TPM to keep separate measurements for different algorithms simultaneously.
+// Hash: Hash algorithm used by the bank (e.g., SHA256)
+// PCRs: Map of PCR index to its stored value
 type PCRSet struct {
 	Hash int               `json:"hash"`
 	PCRs map[string]string `json:"pcrs"`
@@ -137,15 +140,16 @@ type TargetResult interface {
 }
 
 type PodResult struct {
-	Target string
-	Result PodStatusType
-	Reason string
+	Name     string
+	TenantId string
+	Result   PodStatusType
+	Reason   string
 }
 
 func (p PodResult) GetKind() TargetType { return PodTarget }
 
 type NodeResult struct {
-	Target string
+	Name   string
 	Result NodeStatusType
 	Reason string
 }
