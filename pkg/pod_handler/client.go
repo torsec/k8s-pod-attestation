@@ -22,8 +22,8 @@ func (c *Client) Init(podHandlerHost string, podHandlerPort int, invokerTlsCerti
 	c.invokerTlsCertificate = invokerTlsCertificate
 }
 
-func (c *Client) SecurePodDeployment(podDeploymentRequest model.PodDeploymentRequest) (*model.PodHandlerResponse, error) {
-	completeUrl := fmt.Sprintf("http://%s:%d%s", c.podHandlerHost, c.podHandlerPort, DeployPodUrl)
+func (c *Client) SecurePodDeployment(podDeploymentRequest model.DeploymentRequest) (*model.PodHandlerResponse, error) {
+	completeUrl := fmt.Sprintf("http://%s:%d%s", c.podHandlerHost, c.podHandlerPort, DeployResourceUrl)
 
 	jsonData, err := json.Marshal(podDeploymentRequest)
 	if err != nil {
@@ -50,7 +50,7 @@ func (c *Client) SecurePodDeployment(podDeploymentRequest model.PodDeploymentReq
 
 	// Decode the response JSON into the WorkerChallengeResponse struct
 	var podHandlerResponse model.PodHandlerResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&podHandlerResponse); err != nil {
+	if err = json.NewDecoder(bytes.NewBuffer(body)).Decode(&podHandlerResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode pod deployment response: %v", err)
 	}
 
@@ -85,7 +85,7 @@ func (c *Client) PodAttestation(podAttestationRequest *model.PodAttestationReque
 
 	// Decode the response JSON into the WorkerChallengeResponse struct
 	var podHandlerResponse model.PodHandlerResponse
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&podHandlerResponse); err != nil {
+	if err = json.NewDecoder(bytes.NewBuffer(body)).Decode(&podHandlerResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode pod attestation response: %v", err)
 	}
 
