@@ -4,8 +4,8 @@ import (
 	"context"
 	clusterInteraction "github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
+	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	"os"
@@ -25,17 +25,40 @@ func (pw *PodWatcher) Init(attestationEnabledNamespaces []string, defaultResync 
 	pw.informerFactory = informers.NewSharedInformerFactory(pw.clusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
 }
 
+func (pw *PodWatcher) updatePodHandling(oldObj interface{}, newObj interface{}) {
+	oldPod := oldObj.(*corev1.Pod)
+	newPod := newObj.(*corev1.Pod)
+
+	if oldPod.Spec.NodeName != "" && newPod.Spec.NodeName != "" && oldPod.Spec.NodeName == newPod.Spec.NodeName {
+		// Pod is already tracked for attestation
+		return
+	}
+
+	if oldPod.Spec.NodeName != "" && newPod.Spec.NodeName != "" && oldPod.Spec.NodeName != newPod.Spec.NodeName {
+		pw.changePodAgent(oldPod, newPod)
+	}
+
+	if oldPod.Spec.NodeName == "" && newPod.Spec.NodeName != "" {
+		podStatus := model.NewPodStatus
+		reason := "Pod first time scheduled to a node"
+		err := pw.clusterInteractor.UpdatePodStatus(newPod.Spec.NodeName, newPod.Name, newPod.Annotations["tenantId"], reason, podStatus)
+		if err != nil {
+			logger.Error("error occurred while updating pod status for pod '%s': %v", newPod.Name, err)
+		}
+		logger.Success("pod '%s' added to node '%s'; starting pod attestation tracking", newPod.Name, newPod.Spec.NodeName)
+		return
+
+	}
+}
+
 func (pw *PodWatcher) addPodHandling(obj interface{}) {
 	pod := obj.(*corev1.Pod)
 	podNamespace := pod.GetNamespace()
 	podName := pod.GetName()
 	nodeName := pod.Spec.NodeName
 
-	if nodeName == "" {
-		nodeName = "worker"
-	}
-
-	var podStatus string
+	podStatus := model.NewPodStatus
+	reason := "New pod added to the cluster"
 
 	isNamespaceEnabled := pw.clusterInteractor.IsNamespaceEnabledForAttestation(podNamespace)
 	if !isNamespaceEnabled {
@@ -46,7 +69,7 @@ func (pw *PodWatcher) addPodHandling(obj interface{}) {
 	isNodeControlPlane, err := pw.clusterInteractor.NodeIsControlPlane(nodeName, nil)
 	if err != nil {
 		logger.Error("error occurred while checking if node is control plane: %v; skipping attestation tracking for pod '%s'", err, podName)
-		podStatus = clusterInteraction.UnknownPodStatus
+		podStatus = model.UnknownPodStatus
 		return
 	}
 
@@ -55,9 +78,15 @@ func (pw *PodWatcher) addPodHandling(obj interface{}) {
 		return
 	}
 
-	logger.Success("pod '%s' added to node '%s'; starting pod attestation tracking", podName, nodeName)
-	podStatus = clusterInteraction.NewPodStatus
-	pw.updateAgentCRDWithPodStatus(nodeName, podName, pod.Annotations["tenantId"], podStatus)
+	if nodeName != "" {
+		err = pw.clusterInteractor.UpdatePodStatus(nodeName, podName, pod.Annotations["tenantId"], reason, podStatus)
+		if err != nil {
+			logger.Error("error occurred while updating pod status for pod '%s': %v", podName, err)
+		}
+		logger.Success("pod '%s' added to node '%s'; starting pod attestation tracking", podName, nodeName)
+		return
+	}
+	logger.Info("pod '%s' not scheduled yet; pod attestation tracking will start after the pod is scheduled on a valid worker", podName)
 }
 
 func (pw *PodWatcher) deletePodHandling(obj interface{}) {
@@ -65,7 +94,8 @@ func (pw *PodWatcher) deletePodHandling(obj interface{}) {
 	podNamespace := pod.GetNamespace()
 	nodeName := pod.Spec.NodeName
 
-	var podStatus string
+	podStatus := model.DeletedPodStatus
+	reason := "Pod deleted"
 
 	isNamespaceEnabled := pw.clusterInteractor.IsNamespaceEnabledForAttestation(podNamespace)
 	if !isNamespaceEnabled {
@@ -77,7 +107,7 @@ func (pw *PodWatcher) deletePodHandling(obj interface{}) {
 	if err != nil {
 		logger.Error("error occurred while checking if node is control plane: %v; skipping ending of pod attestation tracking", err)
 		// TODO: pod may need to be killed and rescheduled for security reason or retry x times before doing it
-		podStatus = clusterInteraction.UnknownPodStatus
+		podStatus = model.UnknownPodStatus
 		return
 	}
 
@@ -86,9 +116,39 @@ func (pw *PodWatcher) deletePodHandling(obj interface{}) {
 		return
 	}
 
+	err = pw.clusterInteractor.UpdatePodStatus(nodeName, pod.Name, pod.Annotations["tenantId"], reason, podStatus)
+	if err != nil {
+		logger.Error("error occurred while updating pod status for pod '%s': %v", pod.Name, err)
+	}
 	logger.Success("pod '%s' deleted from node '%s'; ending pod attestation tracking", pod.Name, nodeName)
-	podStatus = clusterInteraction.DeletedPodStatus
-	pw.updateAgentCRDWithPodStatus(nodeName, pod.Name, pod.Annotations["tenantId"], podStatus)
+}
+
+func (pw *PodWatcher) changePodAgent(oldPod, newPod *corev1.Pod) {
+	// Pod has been rescheduled to a different node
+	oldPodNamespace := newPod.GetNamespace()
+	oldPodName := newPod.GetName()
+	oldNodeName := oldPod.Spec.NodeName
+
+	newPodNamespace := newPod.GetNamespace()
+	newPodName := newPod.GetName()
+	newNodeName := newPod.Spec.NodeName
+	reason := "Pod rescheduled to a different node"
+
+	isNamespaceEnabled := pw.clusterInteractor.IsNamespaceEnabledForAttestation(oldPodNamespace)
+	if isNamespaceEnabled {
+		err := pw.clusterInteractor.UpdatePodStatus(oldNodeName, oldPodName, oldPod.Annotations["tenantId"], reason, model.DeletedPodStatus)
+		if err != nil {
+			logger.Error("error while stopping tracking for pod '%s' on node '%s': %v", oldPodName, oldNodeName, err)
+		}
+	}
+
+	isNamespaceEnabled = pw.clusterInteractor.IsNamespaceEnabledForAttestation(newPodNamespace)
+	if isNamespaceEnabled {
+		err := pw.clusterInteractor.UpdatePodStatus(newPodName, newNodeName, oldPod.Annotations["tenantId"], reason, model.NewPodStatus)
+		if err != nil {
+			logger.Error("error while stopping tracking for pod '%s' on node '%s': %v", oldPodName, oldNodeName, err)
+		}
+	}
 }
 
 func (pw *PodWatcher) WatchPods() {
@@ -97,7 +157,7 @@ func (pw *PodWatcher) WatchPods() {
 
 	podEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc:    pw.addPodHandling,
-		UpdateFunc: func(oldObj, newObj interface{}) {}, // Update is not relevant, we just care of pods addition and removal
+		UpdateFunc: pw.updatePodHandling,
 		DeleteFunc: pw.deletePodHandling,
 	}
 
@@ -119,59 +179,6 @@ func (pw *PodWatcher) WatchPods() {
 	// Keep running until stopped
 	<-ctx.Done()
 	logger.Info("stopping PodWatcher...")
-}
-
-func (pw *PodWatcher) updateAgentCRDWithPodStatus(nodeName, podName, tenantId, status string) {
-	agentCRDName := "agent-" + nodeName
-	// Get the current CRD instance
-	crdResource := pw.clusterInteractor.DynamicClient.Resource(clusterInteraction.AgentGVR).Namespace(clusterInteraction.PodAttestationNamespace)
-
-	crdInstance, err := crdResource.Get(context.Background(), agentCRDName, v1.GetOptions{})
-	if err != nil {
-		logger.Warning("error getting Agent CRD instance: %v", err)
-		return
-	}
-
-	// Initialize 'podStatus' as an empty slice of interfaces if it's nil
-	spec := crdInstance.Object["spec"].(map[string]interface{})
-	podStatus := spec["podStatus"]
-	if podStatus == nil {
-		spec["podStatus"] = make([]interface{}, 0)
-	}
-
-	// Update the pod status in the CRD
-	newPodStatus := make([]interface{}, 0)
-	for _, ps := range spec["podStatus"].([]interface{}) {
-		pod := ps.(map[string]interface{})
-		if pod["podName"].(string) != podName {
-			newPodStatus = append(newPodStatus, ps)
-		}
-	}
-
-	now := time.Now().Format(time.RFC3339)
-
-	if status != clusterInteraction.DeletedPodStatus {
-		newPodStatus = append(newPodStatus, map[string]interface{}{
-			"podName":   podName,
-			"tenantId":  tenantId,
-			"status":    status,
-			"reason":    "Pod just created",
-			"lastCheck": now,
-		})
-	}
-
-	spec["podStatus"] = newPodStatus
-	spec["lastUpdate"] = now
-	crdInstance.Object["spec"] = spec
-
-	// Update the CRD instance
-	_, err = crdResource.Update(context.Background(), crdInstance, v1.UpdateOptions{})
-	if err != nil {
-		logger.Error("error updating Agent CRD '%s': %v", agentCRDName, err)
-		return
-	}
-
-	logger.Success("Agent CRD '%s' updated; involved pod: '%s'", agentCRDName, podName)
 }
 
 // setupSignalHandler sets up a signal handler for graceful termination.
