@@ -9,20 +9,52 @@ import (
 	"time"
 )
 
+type CmwCollectionType string
+
 const (
-	CmwCollectionTypeAttestationResult            = "tag:attestation.com,2025:attestation-result"
-	CmwCollectionTypeAttestationEvidence          = "tag:attestation.com,2025:attestation-evidence"
-	CmwCollectionTypeCredentialActivationEvidence = "tag:attestation.com,2025:credential-activation-evidence"
+	CmwCollectionTypeAttestationResult            CmwCollectionType = "tag:attestation.com,2025:attestation-result"
+	CmwCollectionTypeAttestationEvidence          CmwCollectionType = "tag:attestation.com,2025:attestation-evidence"
+	CmwCollectionTypeCredentialActivationEvidence CmwCollectionType = "tag:attestation.com,2025:credential-activation-evidence"
 )
+
+func (ct CmwCollectionType) String() string {
+	switch ct {
+	case CmwCollectionTypeAttestationResult:
+		return "tag:attestation.com,2025:attestation-result"
+	case CmwCollectionTypeAttestationEvidence:
+		return "tag:attestation.com,2025:attestation-evidence"
+	case CmwCollectionTypeCredentialActivationEvidence:
+		return "tag:attestation.com,2025:credential-activation-evidence"
+	default:
+		return "unknown_collection_type"
+	}
+}
 
 const EATProfile = "tag:github.com,2023:veraison/ear"
 
+type MediaType string
+
 const (
-	EatJWTMediaType       = "application/eat+jwt"
-	EatCWTMediaType       = "application/eat+cwt"
-	EatJsonClaimMediaType = "application/eat-ucs+json"
-	EatCborClaimMediaType = "application/eat-ucs+cbor"
+	EatJWTMediaType       MediaType = "application/eat+jwt"
+	EatCWTMediaType       MediaType = "application/eat+cwt"
+	EatJsonClaimMediaType MediaType = "application/eat-ucs+json"
+	EatCborClaimMediaType MediaType = "application/eat-ucs+cbor"
 )
+
+func (mt MediaType) String() string {
+	switch mt {
+	case EatJWTMediaType:
+		return "application/eat+jwt"
+	case EatCWTMediaType:
+		return "application/eat+cwt"
+	case EatJsonClaimMediaType:
+		return "application/eat-ucs+json"
+	case EatCborClaimMediaType:
+		return "application/eat-ucs+cbor"
+	default:
+		return "unknown_media_type"
+	}
+}
 
 const (
 	BootQuoteClaimKey         = "bootQuote"
@@ -30,15 +62,39 @@ const (
 	IMAPcrQuoteClaimKey       = "imaPcrQuote"
 )
 
+// Indicator https://www.ietf.org/archive/id/draft-ietf-rats-msg-wrap-11.html#section-10.4.2
+type Indicator uint
+
 const (
-	ReferenceValuesItemType    = cmw.ReferenceValues
-	EndorsementsItemType       = cmw.Endorsements
-	EvidenceItemType           = cmw.Evidence
-	AttestationResultsItemType = cmw.AttestationResults
-	TrustAnchors               = cmw.TrustAnchors
+	ReferenceValuesIndicator Indicator = 1 << iota
+	EndorsementsIndicator
+	EvidenceIndicator
+	AttestationResultsIndicator
+	TrustAnchorsIndicator
 )
 
-type StatusLabel int
+func (indicator Indicator) ToCmwIndicator() cmw.Indicator {
+	return cmw.Indicator(indicator)
+}
+
+func (indicator Indicator) String() string {
+	switch indicator {
+	case ReferenceValuesIndicator:
+		return "ReferenceValues"
+	case EndorsementsIndicator:
+		return "Endorsements"
+	case EvidenceIndicator:
+		return "Evidence"
+	case AttestationResultsIndicator:
+		return "AttestationResults"
+	case TrustAnchorsIndicator:
+		return "TrustAnchors"
+	default:
+		return "unknown_indicator"
+	}
+}
+
+type StatusLabel uint
 
 const (
 	SlNone            StatusLabel = iota
@@ -58,7 +114,7 @@ func (sl StatusLabel) String() string {
 	case SlContraindicated:
 		return "Contraindicated"
 	default:
-		return "Unknown"
+		return "unknown_status_label"
 	}
 }
 
@@ -114,6 +170,18 @@ type RatsAttestationResult struct {
 
 type RatsEvidence struct {
 	claims *cmw.CMW
+}
+
+func NewCmwItem(mediaType MediaType, value []byte, indicators ...Indicator) (*cmw.CMW, error) {
+	var cmwIndicators []cmw.Indicator
+	for _, indicator := range indicators {
+		cmwIndicators = append(cmwIndicators, indicator.ToCmwIndicator())
+	}
+	cmwItem, err := cmw.NewMonad(mediaType.String(), value, cmwIndicators...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cmw: %w", err)
+	}
+	return cmwItem, nil
 }
 
 func NewEAR(eat *EAT, verifierId string, submods map[string]EARAppraisal) (*EAR, error) {
@@ -213,55 +281,119 @@ func AttestationResultFromJSON(attestationResultJSON []byte) (*RatsAttestationRe
 	return &RatsAttestationResult{results: results}, nil
 }
 
-func (ar *RatsAttestationResult) AddResult(key any, result *cmw.CMW) error {
-	err := ar.results.AddCollectionItem(key, result)
+func (ar *RatsAttestationResult) AddResult(key any, value []byte, mediaType MediaType) error {
+	cmwItem, err := cmw.NewMonad(mediaType.String(), value, AttestationResultsIndicator.ToCmwIndicator())
+	if err != nil {
+		return fmt.Errorf("failed to create cmw for attestation result: %w", err)
+	}
+	err = ar.results.AddCollectionItem(key, cmwItem)
 	if err != nil {
 		return fmt.Errorf("failed to add result to attestation result: %w", err)
 	}
 	return nil
 }
 
-func (ar *RatsAttestationResult) GetResult(key any) (*cmw.CMW, error) {
+func (ar *RatsAttestationResult) AddCmwResult(key any, result *cmw.CMW) error {
+	resultType, err := result.GetMonadIndicator()
+	if err != nil {
+		return fmt.Errorf("failed to create cmw for attestation result: %w", err)
+	}
+
+	if resultType != AttestationResultsIndicator.ToCmwIndicator() {
+		return fmt.Errorf("claim monad type is not '%s'", AttestationResultsIndicator.String())
+	}
+
+	err = ar.results.AddCollectionItem(key, result)
+	if err != nil {
+		return fmt.Errorf("failed to add result to attestation result: %w", err)
+	}
+	return nil
+}
+
+func (ar *RatsAttestationResult) GetResult(key any) ([]byte, error) {
 	result, err := ar.results.GetCollectionItem(key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get result from attestation result: %w", err)
 	}
+	val, err := result.GetMonadValue()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get result value from attestation result: %w", err)
+	}
+	return val, nil
+}
+
+func (ar *RatsAttestationResult) GetCmwResult(key any) (*cmw.CMW, error) {
+	result, err := ar.results.GetCollectionItem(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cmw result from attestation evidence: %w", err)
+	}
 	return result, nil
 }
 
-func NewAttestationResult() (*RatsAttestationResult, error) {
-	results, err := cmw.NewCollection(CmwCollectionTypeAttestationResult)
+func NewAttestationResult(attestationResultType CmwCollectionType) (*RatsAttestationResult, error) {
+	results, err := cmw.NewCollection(attestationResultType.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize attestation result: %w", err)
 	}
 	return &RatsAttestationResult{results: results}, nil
 }
 
-func NewEvidence(evidenceType string) (*RatsEvidence, error) {
-	claims, err := cmw.NewCollection(evidenceType)
+// Evidence
+
+func NewEvidence(evidenceType CmwCollectionType) (*RatsEvidence, error) {
+	claims, err := cmw.NewCollection(evidenceType.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize attestation evidence: %w", err)
 	}
 	return &RatsEvidence{claims: claims}, nil
 }
 
-func NewCmwItem(mediaType any, value []byte, indicators ...cmw.Indicator) (*cmw.CMW, error) {
-	cmwItem, err := cmw.NewMonad(mediaType, value, indicators...)
+func (e *RatsEvidence) AddClaim(key any, value []byte, mediaType MediaType) error {
+	cmwItem, err := cmw.NewMonad(mediaType.String(), value, EvidenceIndicator.ToCmwIndicator())
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cmw: %w", err)
+		return fmt.Errorf("failed to create cmw for claim: %w", err)
 	}
-	return cmwItem, nil
-}
-
-func (e *RatsEvidence) AddClaim(key any, claim *cmw.CMW) error {
-	err := e.claims.AddCollectionItem(key, claim)
+	err = e.claims.AddCollectionItem(key, cmwItem)
 	if err != nil {
 		return fmt.Errorf("failed to add claim to attestation evidence: %w", err)
 	}
 	return nil
 }
 
-func (e *RatsEvidence) GetClaim(key any) (*cmw.CMW, error) {
+func (e *RatsEvidence) AddCmwClaim(key any, claim *cmw.CMW) error {
+	monadType, err := claim.GetMonadIndicator()
+	if err != nil {
+		return fmt.Errorf("failed to create cmw for claim: %w", err)
+	}
+
+	if monadType != EvidenceIndicator.ToCmwIndicator() {
+		return fmt.Errorf("claim monad type is not '%s'", EvidenceIndicator.String())
+	}
+
+	err = e.claims.AddCollectionItem(key, claim)
+	if err != nil {
+		return fmt.Errorf("failed to add claim to attestation evidence: %w", err)
+	}
+	return nil
+}
+
+func (e *RatsEvidence) GetClaim(key any) ([]byte, error) {
+	claim, err := e.claims.GetCollectionItem(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get claim from attestation evidence: %w", err)
+	}
+	val, err := claim.GetMonadValue()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get claim value from attestation evidence: %w", err)
+	}
+	return val, nil
+}
+
+func (e *RatsEvidence) GetClaims() (map[any][]byte, error) {
+	return nil, nil
+}
+
+func (e *RatsEvidence) GetCmwClaim(key any) (*cmw.CMW, error) {
 	claim, err := e.claims.GetCollectionItem(key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get claim from attestation evidence: %w", err)

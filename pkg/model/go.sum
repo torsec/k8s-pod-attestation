@@ -16,6 +16,8 @@ github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20251013125547-d35c3f466
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20251013125547-d35c3f466aff/go.mod h1:2Zvkk3D3mEl8HdYORy+KQPgS5CsKrD4xfMIdXnZaclw=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20251021165144-888cd777e724 h1:WAFAbXZVmwbl9wPlc/c1ikLqLga1rWsvbnINh5MhxKw=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20251021165144-888cd777e724/go.mod h1:hqYIBsXtP/JfbYEM3slp01upGaZFzMjYq2faT2lsWdk=
+github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20251022125136-979375e8e618 h1:ua85sjo156fmrss67p3QYzaB+//u5X5ENsqv7+IYrxI=
+github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20251022125136-979375e8e618/go.mod h1:hqYIBsXtP/JfbYEM3slp01upGaZFzMjYq2faT2lsWdk=
 github.com/veraison/cmw v0.2.0 h1:BWEvwZnD4nn5osq6XwQpTRcGxwV+Su4t6ytdAbVXAJY=
 github.com/veraison/cmw v0.2.0/go.mod h1:OiYKk1t6/Fmmg30ZpSMzi4nKr5kt3374sNTkgxC5BDs=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=

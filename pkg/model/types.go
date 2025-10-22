@@ -61,8 +61,8 @@ type Evidence struct {
 	PodName        string `json:"podName"`
 	PodUid         string `json:"podUid"`
 	TenantId       string `json:"tenantId"`
-	Quote          string `json:"quote,omitempty"`
-	MeasurementLog string `json:"measurementLog,omitempty"`
+	Quote          []byte `json:"quote,omitempty"`
+	MeasurementLog []byte `json:"measurementLog,omitempty"`
 	Signature      []byte `json:"signature,omitempty"`
 }
 
@@ -163,10 +163,10 @@ type AttestationResult struct {
 }
 
 type AgentConfig struct {
-	TPMPath                 string `json:"TPMPath"`
-	IMAMountPath            string `json:"IMAMountPath"`
-	IMAMeasurementLogPath   string `json:"IMAMeasurementLogPath"`
-	ImageName               string `json:"imageName"`
-	AgentPort               int32  `json:"agentPort"`
-	AgentNodePortAllocation int32  `json:"agentNodePortAllocation"`
+	TPMPath                    string `json:"TPMPath"`
+	IMAMeasurementLogMountPath string `json:"IMAMeasurementLogMountPath"`
+	IMAMeasurementLogPath      string `json:"IMAMeasurementLogPath"`
+	ImageName                  string `json:"imageName"`
+	AgentPort                  int32  `json:"agentPort"`
+	AgentNodePortAllocation    int32  `json:"agentNodePortAllocation"`
 }

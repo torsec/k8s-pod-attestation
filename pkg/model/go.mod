@@ -5,7 +5,7 @@ go 1.24.5
 require (
 	github.com/golang-jwt/jwt/v5 v5.2.3
 	github.com/stretchr/testify v1.10.0
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20251021165144-888cd777e724
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20251022125136-979375e8e618
 	github.com/veraison/cmw v0.2.0
 )
 
