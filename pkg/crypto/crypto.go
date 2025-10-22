@@ -9,13 +9,17 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/asn1"
-	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	x509ext "github.com/google/go-attestation/x509"
-	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"math/big"
 )
+
+type TPMVendor struct {
+	VendorId string `json:"vendorId,omitempty"`
+	Name     string `json:"vendorName"`
+	TCGId    string `json:"TCGId"`
+}
 
 // VerifyHMAC checks if the provided HMAC matches the computed HMAC for the given message and key.
 func VerifyHMAC(message, key, providedHMAC []byte, hashAlgo crypto.Hash) error {
@@ -217,18 +221,16 @@ func EncodePublicKeyToPEM(pubKey crypto.PublicKey) ([]byte, error) {
 	return pubPEM, nil
 }
 
-// GenerateHexNonce generateNonce creates a random nonce of specified byte length
-func GenerateHexNonce(size int) (string, error) {
+// GetNonce creates a random nonce of specified byte length
+func GetNonce(size int) ([]byte, error) {
 	nonce := make([]byte, size)
 
-	// Fill the byte slice with random data
 	_, err := rand.Read(nonce)
 	if err != nil {
-		return "", fmt.Errorf("error generating nonce: %v", err)
+		return nil, fmt.Errorf("error generating nonce: %v", err)
 	}
 
-	// Return the nonce as a hexadecimal string
-	return hex.EncodeToString(nonce), nil
+	return nonce, nil
 }
 
 // EncodePrivateKeyToPEM encodes a crypto.PrivateKey into a PEM block.
@@ -316,7 +318,7 @@ func LoadCertificateFromPEM(pemCert []byte) (*x509.Certificate, error) {
 }
 
 // handleTPMSubjectAltName processes the subjectAltName extension to mark it as handled
-func handleTPMSubjectAltName(cert *x509.Certificate, tpmVendors []model.TPMVendor) error {
+func handleTPMSubjectAltName(cert *x509.Certificate, tpmVendors []TPMVendor) error {
 	for _, ext := range cert.Extensions {
 		if ext.Id.Equal([]int{2, 5, 29, 17}) { // OID for subjectAltName
 			subjectAltName, err := x509ext.ParseSubjectAltName(ext)
@@ -326,10 +328,10 @@ func handleTPMSubjectAltName(cert *x509.Certificate, tpmVendors []model.TPMVendo
 
 			// check if Certificate Vendor is a TCG valid one
 			TCGVendorId := (subjectAltName.DirectoryNames[0].Names[0].Value).(string)
-			var foundTPMVendor *model.TPMVendor
+			var foundTPMVendor *TPMVendor
 
 			for _, tpmVendor := range tpmVendors {
-				if tpmVendor.TCGIdentifier == TCGVendorId {
+				if tpmVendor.TCGId == TCGVendorId {
 					foundTPMVendor = &tpmVendor
 				}
 			}
@@ -357,7 +359,7 @@ func handleTPMSubjectAltName(cert *x509.Certificate, tpmVendors []model.TPMVendo
 }
 
 // VerifyEKCertificateChain verifies the provided certificate chain from PEM strings
-func VerifyEKCertificateChain(ekCert, intermediateCACert, rootCACert *x509.Certificate, tpmVendors []model.TPMVendor) error {
+func VerifyEKCertificateChain(ekCert, intermediateCACert, rootCACert *x509.Certificate, tpmVendors []TPMVendor) error {
 	roots := x509.NewCertPool()
 	roots.AddCert(rootCACert)
 

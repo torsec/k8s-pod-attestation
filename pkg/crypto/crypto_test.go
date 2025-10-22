@@ -183,3 +183,38 @@ func TestEncodeDecodePublicKeyPEM(t *testing.T) {
 		t.Fatalf("decoded key is not Ed25519: %T", pubDecoded)
 	}
 }
+
+func TestUnsupportedKeyType(t *testing.T) {
+	_, err := SignMessage("unsupported key", []byte("msg"), crypto.SHA256)
+	if err == nil {
+		t.Fatalf("SignMessage should have failed for unsupported key type")
+	}
+
+	_, err = EncodePrivateKeyToPEM("unsupported key")
+	if err == nil {
+		t.Fatalf("EncodePrivateKeyToPEM should have failed for unsupported key type")
+	}
+
+	_, err = EncodePublicKeyToPEM("unsupported key")
+	if err == nil {
+		t.Fatalf("EncodePublicKeyToPEM should have failed for unsupported key type")
+	}
+}
+
+func TestGetNonce(t *testing.T) {
+	nonce1, err := GetNonce(16)
+	if err != nil {
+		t.Fatalf("GetNonce failed: %v", err)
+	}
+	if len(nonce1) != 16 {
+		t.Fatalf("GetNonce returned nonce of incorrect length: got %d, want 16", len(nonce1))
+	}
+
+	nonce2, err := GetNonce(16)
+	if err != nil {
+		t.Fatalf("GetNonce failed: %v", err)
+	}
+	if string(nonce1) == string(nonce2) {
+		t.Fatalf("GetNonce returned the same nonce twice")
+	}
+}
