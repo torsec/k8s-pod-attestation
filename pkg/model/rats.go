@@ -30,6 +30,14 @@ const (
 	IMAPcrQuoteClaimKey       = "imaPcrQuote"
 )
 
+const (
+	ReferenceValuesItemType    = cmw.ReferenceValues
+	EndorsementsItemType       = cmw.Endorsements
+	EvidenceItemType           = cmw.Evidence
+	AttestationResultsItemType = cmw.AttestationResults
+	TrustAnchors               = cmw.TrustAnchors
+)
+
 type StatusLabel int
 
 const (
@@ -121,6 +129,23 @@ func NewEAR(eat *EAT, verifierId string, submods map[string]EARAppraisal) (*EAR,
 		EarRawEvidence:  base64.URLEncoding.EncodeToString(rawEat),
 		Submods:         submods,
 	}, nil
+}
+
+func (ear *EAR) ToJSON() ([]byte, error) {
+	earJSON, err := json.Marshal(ear)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal EAR: %w", err)
+	}
+	return earJSON, nil
+}
+
+func EARFromJSON(earJSON []byte) (*EAR, error) {
+	ear := &EAR{}
+	err := json.Unmarshal(earJSON, ear)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal EAR: %w", err)
+	}
+	return ear, nil
 }
 
 func (ar *RatsAttestationResult) ToJWT(signingMethod jwt.SigningMethod, signingKey any, issuer string, minuteExp int) (string, error) {

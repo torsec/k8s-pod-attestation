@@ -1,5 +1,12 @@
 package model
 
+import (
+	"crypto"
+	"encoding/json"
+	"fmt"
+	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
+)
+
 const Success = "success"
 const Error = "error"
 
@@ -19,27 +26,27 @@ type NewTPMVendorRequest struct {
 
 type WorkerCredentialsResponse struct {
 	UUID          string `json:"UUID"`
-	EKCert        string `json:"EKCert"`
-	AIKNameData   string `json:"AIKNameData"`
-	AIKPublicArea string `json:"AIKPublicArea"`
+	EKCert        []byte `json:"EKCert"`
+	AIKNameData   []byte `json:"AIKNameData"`
+	AIKPublicArea []byte `json:"AIKPublicArea"`
 }
 
 type WorkerChallenge struct {
-	AIKCredential      string `json:"AIKCredential"`
-	AIKEncryptedSecret string `json:"AIKEncryptedSecret"`
+	AIKCredential      []byte `json:"AIKCredential"`
+	AIKEncryptedSecret []byte `json:"AIKEncryptedSecret"`
 }
 
 type WorkerChallengeResponse struct {
 	Message         string `json:"message"`
 	Status          string `json:"status"`
-	HMAC            string `json:"HMAC"`
-	WorkerBootQuote string `json:"workerBootQuote"`
+	HMAC            []byte `json:"HMAC"`
+	WorkerBootQuote []byte `json:"workerBootQuote"`
 }
 
 type RegistrationAcknowledge struct {
 	Message           string `json:"message"`
 	Status            string `json:"status"`
-	VerifierPublicKey string `json:"verifierPublicKey"`
+	VerifierPublicKey []byte `json:"verifierPublicKey"`
 }
 
 type WorkerWhitelistCheckRequest struct {
@@ -56,7 +63,7 @@ type VerifyTPMEKCertificateRequest struct {
 type VerifySignatureRequest struct {
 	Name      string `json:"name"`
 	Message   string `json:"message"`
-	Signature string `json:"signature"`
+	Signature []byte `json:"signature"`
 }
 
 type RegistrarResponse struct {
@@ -72,29 +79,72 @@ type PodHandlerResponse struct {
 type DeploymentRequest struct {
 	TenantName   string `json:"tenantName"`
 	ResourceKind string `json:"resourceKind"`
-	Manifest     string `json:"manifest"`
-	Signature    string `json:"signature"`
+	Manifest     []byte `json:"manifest"`
+	Signature    []byte `json:"signature"`
 }
 
 type PodAttestationRequest struct {
 	TenantName string `json:"tenantName"`
 	PodName    string `json:"podName"`
-	Signature  string `json:"signature"`
+	Signature  []byte `json:"signature"`
 }
 
 type AttestationRequest struct {
-	Nonce       string `json:"nonce"`
+	Nonce       []byte `json:"nonce"`
 	PodName     string `json:"podName"`
 	PodUid      string `json:"podUid"`
 	TenantId    string `json:"tenantId"`
 	IMAMlOffset int64  `json:"imaMlOffset"`
-	Signature   string `json:"signature,omitempty"`
+	Signature   []byte `json:"signature,omitempty"`
+}
+
+func (ar *AttestationRequest) ToJSON() ([]byte, error) {
+	arJSON, err := json.Marshal(ar)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal Attestation Request: %v", err)
+	}
+	return arJSON, nil
+}
+
+func NewAttestationRequestFromJSON(data []byte) (*AttestationRequest, error) {
+	var ar *AttestationRequest
+	err := json.Unmarshal(data, ar)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal Attestation Request: %v", err)
+	}
+	return ar, nil
+}
+
+func (ar *AttestationRequest) VerifySignature(publicKey crypto.PublicKey, hashAlgo crypto.Hash) error {
+	arCopy := *ar
+	arCopy.Signature = nil
+	arJSON, err := json.Marshal(arCopy)
+	if err != nil {
+		return fmt.Errorf("failed to marshal Attestation Request for signature verification: %v", err)
+	}
+	err = cryptoUtils.VerifyMessage(publicKey, arJSON, ar.Signature, hashAlgo)
+	if err != nil {
+		return fmt.Errorf("attestation request signature verification failed: %v", err)
+	}
+	return nil
+}
+
+func (ar *AttestationRequest) Sign(key crypto.PrivateKey, hashAlgo crypto.Hash) error {
+	arJSON, err := json.Marshal(ar)
+	if err != nil {
+		return fmt.Errorf("failed to marshal Attestation Request: %v", err)
+	}
+	ar.Signature, err = cryptoUtils.SignMessage(key, arJSON, hashAlgo)
+	if err != nil {
+		return fmt.Errorf("error while signing Attestation Request")
+	}
+	return nil
 }
 
 type AttestationResponse struct {
-	AttestationEvidence AttestationEvidence `json:"attestationEvidence,omitempty"`
-	Message             string              `json:"message"`
-	Status              string              `json:"status"`
+	Evidence Evidence `json:"evidence,omitempty"`
+	Message  string   `json:"message"`
+	Status   string   `json:"status"`
 }
 
 type WorkerRegistrationConfirm struct {
@@ -103,10 +153,10 @@ type WorkerRegistrationConfirm struct {
 }
 
 type PodWhitelistCheckRequest struct {
-	PodImageName   string     `json:"podImageName"`
-	PodImageDigest string     `json:"podImageDigest"`
-	PodFiles       []IMAEntry `json:"podFiles"`
-	HashAlg        string     `json:"hashAlg"` // Include the hash algorithm in the request
+	ImageName   string     `json:"imageName"`
+	ImageDigest string     `json:"imageDigest"`
+	Files       []IMAEntry `json:"files"`
+	HashAlg     string     `json:"hashAlg"` // Include the hash algorithm in the request
 }
 
 type AppendFilesToImageRequest struct {

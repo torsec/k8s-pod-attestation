@@ -57,18 +57,13 @@ type PCRSet struct {
 	PCRs map[string]string `json:"pcrs"`
 }
 
-type TPMVendor struct {
-	VendorID      string `json:"vendorId,omitempty"`
-	Name          string `json:"vendorName"`
-	TCGIdentifier string `json:"TCGIdentifier"`
-}
-
 type Evidence struct {
 	PodName        string `json:"podName"`
 	PodUid         string `json:"podUid"`
 	TenantId       string `json:"tenantId"`
 	Quote          string `json:"quote,omitempty"`
-	MeasurementLog string `json:"measurementLog"`
+	MeasurementLog string `json:"measurementLog,omitempty"`
+	Signature      []byte `json:"signature,omitempty"`
 }
 
 type IMAEntry struct {
@@ -137,6 +132,8 @@ func (n NodeStatusType) ToString() string {
 
 type TargetResult interface {
 	GetKind() TargetType
+	GetName() string
+	GetResult() string
 }
 
 type PodResult struct {
@@ -147,6 +144,8 @@ type PodResult struct {
 }
 
 func (p PodResult) GetKind() TargetType { return PodTarget }
+func (p PodResult) GetName() string     { return p.Name }
+func (p PodResult) GetResult() string   { return p.Result.ToString() }
 
 type NodeResult struct {
 	Name   string
@@ -155,15 +154,12 @@ type NodeResult struct {
 }
 
 func (n NodeResult) GetKind() TargetType { return NodeTarget }
+func (n NodeResult) GetName() string     { return n.Name }
+func (n NodeResult) GetResult() string   { return n.Result.ToString() }
 
 type AttestationResult struct {
 	Agent  string
 	Result TargetResult
-}
-
-type AttestationEvidence struct {
-	Evidence  Evidence `json:"evidence"`
-	Signature string   `json:"signature,omitempty"`
 }
 
 type AgentConfig struct {
