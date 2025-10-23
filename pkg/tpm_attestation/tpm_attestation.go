@@ -127,9 +127,25 @@ func GetPCRHashAlgorithm(quote *pb.Quote) (crypto.Hash, error) {
 	return ToCryptoHash(quote.GetPcrs().GetHash())
 }
 
-func GetQuoteSignature(sig *tpm2legacy.Signature) ([]byte, crypto.Hash, error) {
+func GetPCRDigest(quote *pb.Quote) ([]byte, error) {
+	attestationData, err := tpm2legacy.DecodeAttestationData(quote.GetQuote())
+	if err != nil {
+		return nil, fmt.Errorf("decoding quote attestation data failed: %v", err)
+	}
+	attestedQuoteInfo := attestationData.AttestedQuoteInfo
+	if attestedQuoteInfo == nil {
+		return nil, fmt.Errorf("attestation data does not contain quote info")
+	}
+	return attestedQuoteInfo.PCRDigest, nil
+}
+
+func GetQuoteSignature(quote *pb.Quote) ([]byte, crypto.Hash, error) {
+	sig, err := tpm2legacy.DecodeSignature(bytes.NewBuffer(quote.GetRawSig()))
+	if err != nil {
+		return nil, crypto.Hash(0), fmt.Errorf("failed to decode quote Signature")
+	}
+
 	var rawSig []byte
-	var err error
 	var hashAlg crypto.Hash
 
 	switch sig.Alg {
