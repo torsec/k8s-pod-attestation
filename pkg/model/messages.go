@@ -111,7 +111,7 @@ func NewAttestationRequestFromJSON(data []byte) (*AttestationRequest, error) {
 	return &ar, nil
 }
 
-func (ar *AttestationRequest) VerifySignature(publicKey crypto.PublicKey, hashAlgo crypto.Hash) error {
+func (ar *AttestationRequest) VerifySignature(publicKey crypto.PublicKey) error {
 	arCopy := *ar
 	arCopy.Signature = nil
 	arJSON, err := json.Marshal(arCopy)
