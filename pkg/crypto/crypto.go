@@ -21,12 +21,33 @@ type TPMVendor struct {
 	TCGId    string `json:"TCGId"`
 }
 
+type ECDSASignature struct {
+	R *big.Int
+	S *big.Int
+}
+
+func NewECDSASignature(r, s *big.Int) *ECDSASignature {
+	return &ECDSASignature{R: r, S: s}
+}
+
+func (r *ECDSASignature) ToASN1() ([]byte, error) {
+	return asn1.Marshal(*r)
+}
+
+func ECDSASignatureFromASN1(asn1Bytes []byte) (*ECDSASignature, error) {
+	var sig ECDSASignature
+	_, err := asn1.Unmarshal(asn1Bytes, &sig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse ECDSA signature: %w", err)
+	}
+	return &sig, nil
+}
+
 // VerifyHMAC checks if the provided HMAC matches the computed HMAC for the given message and key.
 func VerifyHMAC(message, key, providedHMAC []byte, hashAlgo crypto.Hash) error {
 	if !hashAlgo.Available() {
 		return fmt.Errorf("hash algorithm %v is not available", hashAlgo)
 	}
-
 	h := hmac.New(hashAlgo.New, key)
 	h.Write(message)
 	expectedHMAC := h.Sum(nil)
@@ -114,12 +135,7 @@ func SignMessage(privateKey crypto.PrivateKey, message []byte, hashAlgo crypto.H
 		if err != nil {
 			return nil, fmt.Errorf("failed to sign message with ECDSA: %v", err)
 		}
-
-		// Encode to ASN.1 DER format
-		type ecdsaSignature struct {
-			R, S *big.Int
-		}
-		return asn1.Marshal(ecdsaSignature{r, s})
+		return NewECDSASignature(r, s).ToASN1()
 
 	case ed25519.PrivateKey:
 		// Hash ignored, Ed25519 signs the message directly
@@ -158,10 +174,6 @@ func VerifyMessage(publicKey crypto.PublicKey, message, signature []byte, hashAl
 		return rsa.VerifyPKCS1v15(key, hashAlgo, hashed, signature)
 
 	case *ecdsa.PublicKey:
-		// Decode ASN.1 DER signature
-		type ecdsaSignature struct {
-			R, S *big.Int
-		}
 		var sig ecdsaSignature
 		if _, err := asn1.Unmarshal(signature, &sig); err != nil {
 			return fmt.Errorf("failed to unmarshal ECDSA signature: %v", err)
