@@ -24,10 +24,11 @@ type NewTPMVendorRequest struct {
 }
 
 type WorkerCredentialsResponse struct {
-	UUID          string `json:"UUID"`
-	EKCert        []byte `json:"EKCert"`
-	AIKName       []byte `json:"AIKName"`
-	AIKPublicArea []byte `json:"AIKPublicArea"`
+	SimpleResponse `json:",inline"`
+	UUID           string `json:"UUID"`
+	EKCert         []byte `json:"EKCert"`
+	AIKName        []byte `json:"AIKName"`
+	AIKPublicArea  []byte `json:"AIKPublicArea"`
 }
 
 type WorkerChallenge struct {
@@ -138,9 +139,8 @@ func (ar *AttestationRequest) Sign(key crypto.PrivateKey, hashAlgo crypto.Hash) 
 }
 
 type AttestationResponse struct {
-	Evidence *RatsEvidence `json:"evidence,omitempty"`
-	Message  string        `json:"message"`
-	Status   string        `json:"status"`
+	Evidence       *RatsEvidence `json:"evidence,omitempty"`
+	SimpleResponse `json:",inline"`
 }
 
 type WorkerRegistrationConfirm struct {
