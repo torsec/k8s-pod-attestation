@@ -41,9 +41,6 @@ type WorkerChallengeResponse struct {
 	Evidence       *RatsEvidence `json:"evidence,omitempty"`
 }
 
-// 	HMAC            []byte `json:"HMAC"`
-//	WorkerBootQuote []byte `json:"workerBootQuote"`
-
 type RegistrationAcknowledge struct {
 	SimpleResponse    `json:",inline"`
 	VerifierPublicKey []byte `json:"verifierPublicKey"`
@@ -56,7 +53,7 @@ type WorkerWhitelistCheckRequest struct {
 }
 
 type VerifyTPMEKCertificateRequest struct {
-	EKCertificate string `json:"EKCertificate"`
+	EKCertificate []byte `json:"EKCertificate"`
 }
 
 // VerifySignatureRequest represents the input data for signature verification

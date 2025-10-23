@@ -57,9 +57,10 @@ func (mt MediaType) String() string {
 }
 
 const (
-	BootQuoteClaimKey         = "bootQuote"
-	IMAMeasurementLogClaimKey = "imaMeasurementLog"
-	IMAPcrQuoteClaimKey       = "imaPcrQuote"
+	BootQuoteClaimKey                = "bootQuote"
+	IMAMeasurementLogClaimKey        = "imaMeasurementLog"
+	IMAPcrQuoteClaimKey              = "imaPcrQuote"
+	CredentialActivationHMACClaimKey = "credentialActivationHMAC"
 )
 
 // Indicator https://www.ietf.org/archive/id/draft-ietf-rats-msg-wrap-11.html#section-10.4.2
