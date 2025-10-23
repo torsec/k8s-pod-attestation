@@ -178,12 +178,7 @@ func GetQuoteSignature(quote *pb.Quote) ([]byte, crypto.Hash, error) {
 }
 
 func VerifyQuote(AIK crypto.PublicKey, quote *pb.Quote) error {
-	sig, err := tpm2legacy.DecodeSignature(bytes.NewBuffer(quote.GetRawSig()))
-	if err != nil {
-		return fmt.Errorf("failed to decode quote Signature")
-	}
-
-	rawSig, sigAlgo, err := GetQuoteSignature(sig)
+	rawSig, sigAlgo, err := GetQuoteSignature(quote)
 	if err != nil {
 		return fmt.Errorf("failed to get quote signature: %v", err)
 	}
