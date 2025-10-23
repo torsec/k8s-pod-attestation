@@ -3,34 +3,19 @@ package tpm_attestation
 import (
 	"bytes"
 	"crypto"
-	"crypto/rsa"
 	"crypto/subtle"
-	"encoding/base64"
-	"encoding/hex"
 	"fmt"
-	"github.com/google/go-tpm-tools/client"
 	pb "github.com/google/go-tpm-tools/proto/tpm"
 	tpm2legacy "github.com/google/go-tpm/legacy/tpm2"
 	"github.com/google/go-tpm/legacy/tpm2/credactivation"
+	"github.com/google/go-tpm/tpmutil"
 	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
-	"github.com/torsec/k8s-pod-attestation/pkg/model"
-	"strconv"
 )
 
 const symBlockSize = 16
 
-func ValidateAIKPublicData(aikNameData, aikPublicArea string) (*rsa.PublicKey, error) {
-	decodedNameData, err := base64.StdEncoding.DecodeString(aikNameData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode AIK Name data")
-	}
-
-	decodedPublicArea, err := base64.StdEncoding.DecodeString(aikPublicArea)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode AIK Public Area data")
-	}
-
-	retrievedName, err := tpm2legacy.DecodeName(bytes.NewBuffer(decodedNameData))
+func ValidateAIKPublicData(aikNameData, aikPublicArea []byte, aikTemplate tpm2legacy.Public) (crypto.PublicKey, error) {
+	retrievedName, err := tpm2legacy.DecodeName(bytes.NewBuffer(aikNameData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode AIK Name")
 	}
@@ -45,19 +30,19 @@ func ValidateAIKPublicData(aikNameData, aikPublicArea string) (*rsa.PublicKey, e
 	}
 
 	pubHash := hash.New()
-	pubHash.Write(decodedPublicArea)
+	pubHash.Write(aikPublicArea)
 	pubDigest := pubHash.Sum(nil)
 
 	if !bytes.Equal(retrievedName.Digest.Value, pubDigest) {
 		return nil, fmt.Errorf("computed AIK Name does not match received Name digest")
 	}
 
-	retrievedAKPublicArea, err := tpm2legacy.DecodePublic(decodedPublicArea)
+	retrievedAKPublicArea, err := tpm2legacy.DecodePublic(aikPublicArea)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode received AIK Public Area")
 	}
 
-	if !retrievedAKPublicArea.MatchesTemplate(client.AKTemplateRSA()) {
+	if !retrievedAKPublicArea.MatchesTemplate(aikTemplate) {
 		return nil, fmt.Errorf("provided AIK does not match AIK Template")
 	}
 
@@ -66,194 +51,127 @@ func ValidateAIKPublicData(aikNameData, aikPublicArea string) (*rsa.PublicKey, e
 		return nil, fmt.Errorf("failed to retrieve AIK Public Key from AIK Public Area")
 	}
 
-	return AIKPub.(*rsa.PublicKey), nil
+	return AIKPub, nil
 }
 
-func GenerateCredentialActivation(AIKNameData string, ekPublic *rsa.PublicKey, activateCredentialSecret []byte) (string, string, error) {
-	decodedNameData, err := base64.StdEncoding.DecodeString(AIKNameData)
+func GenerateCredentialActivation(AIKNameData []byte, ekPublic crypto.PublicKey, activateCredentialSecret []byte) ([]byte, []byte, error) {
+	retrievedName, err := tpm2legacy.DecodeName(bytes.NewBuffer(AIKNameData))
 	if err != nil {
-		return "", "", fmt.Errorf("failed to decode AIK Name data")
-	}
-
-	retrievedName, err := tpm2legacy.DecodeName(bytes.NewBuffer(decodedNameData))
-	if err != nil {
-		return "", "", fmt.Errorf("failed to decode AIK Name")
+		return nil, nil, fmt.Errorf("failed to decode AIK Name")
 	}
 
 	// Re-generate the credential blob and encrypted secret based on AK public info
 	credentialBlob, encryptedSecret, err := credactivation.Generate(retrievedName.Digest, ekPublic, symBlockSize, activateCredentialSecret)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to generate credential activation challenge: %v", err)
+		return nil, nil, fmt.Errorf("failed to generate credential activation challenge: %v", err)
 	}
 
-	encodedCredentialBlob := base64.StdEncoding.EncodeToString(credentialBlob)
-	encodedEncryptedSecret := base64.StdEncoding.EncodeToString(encryptedSecret)
-
-	return encodedCredentialBlob, encodedEncryptedSecret, nil
+	return credentialBlob, encryptedSecret, nil
 }
 
-func ValidatePodQuoteStructure(podQuote *model.InputQuote, nonce []byte) (string, string, string, error) {
-	// Decode Base64-encoded quote and signature
-	quoteBytes, err := base64.StdEncoding.DecodeString(podQuote.Quote)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to decode Quote: %v", err)
-	}
-
-	// Decode Base64-encoded quote and signature
-	quoteSig, err := base64.StdEncoding.DecodeString(podQuote.RawSig)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to decode Quote: %v", err)
-	}
-
-	sig, err := tpm2legacy.DecodeSignature(bytes.NewBuffer(quoteSig))
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to decode quote Signature")
-	}
-
+func ValidateQuoteStructure(quote *pb.Quote, nonce []byte) error {
 	// Decode and check for magic TPMS_GENERATED_VALUE.
-	attestationData, err := tpm2legacy.DecodeAttestationData(quoteBytes)
+	attestationData, err := tpm2legacy.DecodeAttestationData(quote.GetQuote())
 	if err != nil {
-		return "", "", "", fmt.Errorf("decoding quote attestation data failed: %v", err)
+		return fmt.Errorf("decoding quote attestation data failed: %v", err)
 	}
+
 	if attestationData.Type != tpm2legacy.TagAttestQuote {
-		return "", "", "", fmt.Errorf("expected quote tag, got: %v", attestationData.Type)
+		return fmt.Errorf("expected quote tag, got: %v", attestationData.Type)
 	}
+
 	attestedQuoteInfo := attestationData.AttestedQuoteInfo
 	if attestedQuoteInfo == nil {
-		return "", "", "", fmt.Errorf("attestation data does not contain quote info")
+		return fmt.Errorf("attestation data does not contain quote info")
 	}
+
 	if subtle.ConstantTimeCompare(attestationData.ExtraData, nonce) == 0 {
-		return "", "", "", fmt.Errorf("quote extraData %v did not match expected extraData %v", attestationData.ExtraData, nonce)
+		return fmt.Errorf("quote extraData %v did not match expected extraData %v", attestationData.ExtraData, nonce)
 	}
 
-	inputPCRs, err := convertPCRs(podQuote.PCRset.PCRs)
+	pcrHashAlgo, err := ToCryptoHash(quote.GetPcrs().GetHash())
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to convert PCRs from received quote")
+		return fmt.Errorf("failed to parse hash algorithm: %v", err)
 	}
 
-	quotePCRs := &pb.PCRs{
-		Hash: pb.HashAlgo(podQuote.PCRset.Hash),
-		Pcrs: inputPCRs,
-	}
-
-	pcrHashAlgo, err := convertToCryptoHash(quotePCRs.GetHash())
+	err = validatePCRDigest(attestedQuoteInfo, quote.GetPcrs(), pcrHashAlgo)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to parse hash algorithm: %v", err)
+		return fmt.Errorf("PCRs digest validation failed: %v", err)
 	}
 
-	err = validatePCRDigest(attestedQuoteInfo, quotePCRs, pcrHashAlgo)
-	if err != nil {
-		return "", "", "", fmt.Errorf("PCRs digest validation failed: %v", err)
-	}
-
-	encodedSig := base64.StdEncoding.EncodeToString(sig.RSA.Signature)
-	pcr10content := hex.EncodeToString(quotePCRs.GetPcrs()[10])
-	pcrHash := quotePCRs.GetHash().String()
-
-	return encodedSig, pcr10content, pcrHash, nil
+	return nil
 }
 
-func ValidateWorkerQuote(workerQuote *model.InputQuote, nonce []byte, AIK *rsa.PublicKey) (string, string, error) {
-	quoteBytes, err := base64.StdEncoding.DecodeString(workerQuote.Quote)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to decode Quote: %v", err)
-	}
-
-	// Decode Base64-encoded quote and signature
-	quoteSig, err := base64.StdEncoding.DecodeString(workerQuote.RawSig)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to decode Quote: %v", err)
-	}
-
-	sig, err := tpm2legacy.DecodeSignature(bytes.NewBuffer(quoteSig))
-	if err != nil {
-		return "", "", fmt.Errorf("failed to decode quote Signature")
-	}
-
-	// Verify the signature
-	if cryptoUtils.VerifySignature(AIK, quoteBytes, sig.RSA.Signature) != nil {
-		return "", "", fmt.Errorf("quote signature verification failed")
-	}
-
-	// Decode and check for magic TPMS_GENERATED_VALUE.
-	attestationData, err := tpm2legacy.DecodeAttestationData(quoteBytes)
-	if err != nil {
-		return "", "", fmt.Errorf("decoding quote attestation data failed: %v", err)
-	}
-	if attestationData.Type != tpm2legacy.TagAttestQuote {
-		return "", "", fmt.Errorf("expected quote tag, got: %v", attestationData.Type)
-	}
-	attestedQuoteInfo := attestationData.AttestedQuoteInfo
-	if attestedQuoteInfo == nil {
-		return "", "", fmt.Errorf("attestation data does not contain quote info")
-	}
-	if subtle.ConstantTimeCompare(attestationData.ExtraData, nonce) == 0 {
-		return "", "", fmt.Errorf("quote extraData %v did not match expected extraData %v", attestationData.ExtraData, nonce)
-	}
-
-	inputPCRs, err := convertPCRs(workerQuote.PCRset.PCRs)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to convert PCRs from received quote")
-	}
-
-	quotePCRs := &pb.PCRs{
-		Hash: pb.HashAlgo(workerQuote.PCRset.Hash),
-		Pcrs: inputPCRs,
-	}
-
-	pcrHashAlgo, err := convertToCryptoHash(quotePCRs.GetHash())
-	if err != nil {
-		return "", "", fmt.Errorf("failed to parse hash algorithm: %v", err)
-	}
-
-	err = validatePCRDigest(attestedQuoteInfo, quotePCRs, pcrHashAlgo)
-	if err != nil {
-		return "", "", fmt.Errorf("PCRs digest validation failed: %v", err)
-	}
-
-	bootAggregate := hex.EncodeToString(attestedQuoteInfo.PCRDigest)
-	pcrHash := quotePCRs.GetHash().String()
-
-	return bootAggregate, pcrHash, nil
+func GetPCRValues(quote *pb.Quote) map[uint32][]byte {
+	return quote.GetPcrs().GetPcrs()
 }
 
-func convertToCryptoHash(algo pb.HashAlgo) (crypto.Hash, error) {
-	switch algo {
-	case 4:
-		return crypto.SHA1, nil
-	case 11:
-		return crypto.SHA256, nil
-	case 12:
-		return crypto.SHA384, nil
-	case 13:
-		return crypto.SHA512, nil
+func GetQuoteNonce(quote *pb.Quote) ([]byte, error) {
+	attestationData, err := tpm2legacy.DecodeAttestationData(quote.GetQuote())
+	if err != nil {
+		return nil, fmt.Errorf("decoding quote attestation data failed: %v", err)
+	}
+	return attestationData.ExtraData, nil
+}
+
+func GetPCRValue(quote *pb.Quote, pcrIndex uint32) ([]byte, error) {
+	pcrs := quote.GetPcrs().GetPcrs()
+	pcrValue, exists := pcrs[pcrIndex]
+	if !exists {
+		return nil, fmt.Errorf("PCR index %d not found in quote PCRs", pcrIndex)
+	}
+	return pcrValue, nil
+}
+
+func GetPCRHashAlgorithm(quote *pb.Quote) (crypto.Hash, error) {
+	return ToCryptoHash(quote.GetPcrs().GetHash())
+}
+
+func GetQuoteSignature(sig *tpm2legacy.Signature) ([]byte, crypto.Hash, error) {
+	var rawSig []byte
+	var err error
+	var hashAlg crypto.Hash
+
+	switch sig.Alg {
+	case tpm2legacy.AlgRSASSA, tpm2legacy.AlgRSAPSS:
+		rawSig, err = tpmutil.Pack(sig.RSA.Signature)
+		if err != nil {
+			return nil, crypto.Hash(0), fmt.Errorf("failed to pack RSA signature: %v", err)
+		}
+		hashAlg, err = sig.RSA.HashAlg.Hash()
+		if err != nil {
+			return nil, crypto.Hash(0), fmt.Errorf("failed to parse RSA signature hash algorithm: %v", err)
+		}
+		return rawSig, hashAlg, nil
+
+	case tpm2legacy.AlgECDSA:
+		ecdsaSig := cryptoUtils.ECDSASignature{R: sig.ECC.R, S: sig.ECC.S}
+		rawSig, err = ecdsaSig.ToASN1()
+		if err != nil {
+			return nil, crypto.Hash(0), fmt.Errorf("failed to convert ECDSA signature to ASN.1 format: %v", err)
+		}
+		hashAlg, err = sig.ECC.HashAlg.Hash()
+		if err != nil {
+			return nil, crypto.Hash(0), fmt.Errorf("failed to parse ECDSA signature hash algorithm: %v", err)
+		}
+		return rawSig, hashAlg, nil
+
 	default:
-		return 0, fmt.Errorf("unsupported hash algorithm: %v", algo)
+		return nil, crypto.Hash(0), fmt.Errorf("unsupported quote signature algorithm: %v", sig.Alg)
 	}
 }
 
-func convertPCRs(input map[string]string) (map[uint32][]byte, error) {
-	converted := make(map[uint32][]byte)
-
-	// Iterate over the input map
-	for key, value := range input {
-		// Convert string key to uint32
-		keyUint32, err := strconv.ParseUint(key, 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert key '%s' to uint32: %v", key, err)
-		}
-
-		// Decode base64-encoded value
-		valueBytes, err := base64.StdEncoding.DecodeString(value)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode base64 value for key '%s': %v", key, err)
-		}
-
-		// Add the converted key-value pair to the new map
-		converted[uint32(keyUint32)] = valueBytes
+func VerifyQuote(AIK crypto.PublicKey, quote *pb.Quote) error {
+	sig, err := tpm2legacy.DecodeSignature(bytes.NewBuffer(quote.GetRawSig()))
+	if err != nil {
+		return fmt.Errorf("failed to decode quote Signature")
 	}
 
-	return converted, nil
+	rawSig, sigAlgo, err := GetQuoteSignature(sig)
+	if err != nil {
+		return fmt.Errorf("failed to get quote signature: %v", err)
+	}
+	return cryptoUtils.VerifyMessage(AIK, quote.GetQuote(), rawSig, sigAlgo)
 }
 
 func validatePCRDigest(quoteInfo *tpm2legacy.QuoteInfo, pcrs *pb.PCRs, hash crypto.Hash) error {
@@ -265,6 +183,22 @@ func validatePCRDigest(quoteInfo *tpm2legacy.QuoteInfo, pcrs *pb.PCRs, hash cryp
 		return fmt.Errorf("given PCRs digest not matching")
 	}
 	return nil
+}
+
+// ToCryptoHash maps a TPM supported hash algorithm (tpm.HashAlgo) to the corresponding crypto.Hash.
+func ToCryptoHash(algo pb.HashAlgo) (crypto.Hash, error) {
+	switch algo {
+	case pb.HashAlgo_SHA1:
+		return crypto.SHA1, nil
+	case pb.HashAlgo_SHA256:
+		return crypto.SHA256, nil
+	case pb.HashAlgo_SHA384:
+		return crypto.SHA384, nil
+	case pb.HashAlgo_SHA512:
+		return crypto.SHA512, nil
+	default:
+		return crypto.Hash(0), fmt.Errorf("unsupported hash algorithm: %v", algo)
+	}
 }
 
 // PCRDigest computes the digest of the Pcrs. Note that the digest hash

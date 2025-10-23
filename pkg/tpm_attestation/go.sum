@@ -40,6 +40,10 @@ github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsT
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250722091327-ad82fb00ad6b h1:UK51wAh477uI71VLHPmR63SuuOmRX4fvgA5s5noB54Y=
 github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20250722091327-ad82fb00ad6b/go.mod h1:2Zvkk3D3mEl8HdYORy+KQPgS5CsKrD4xfMIdXnZaclw=
+github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20251022144037-4535883694e5 h1:gosFTMzwXL6Pw1Mxd3DPfTlWpAx7q6OZiMv7ddb6Wvk=
+github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20251022144037-4535883694e5/go.mod h1:hqYIBsXtP/JfbYEM3slp01upGaZFzMjYq2faT2lsWdk=
+github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20251023090218-dd4b5e2b1097 h1:S+FU446z7M7GAjvBwTO2cCWt9i1r1Uw61fZ71mbioJs=
+github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20251023090218-dd4b5e2b1097/go.mod h1:2vpTZmTLgxjdIAd2/MrJo2IoDEMbGqina1820ZK5FQE=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250722091327-ad82fb00ad6b h1:e5Owwc89qEwDTHe9zeixbnBRcdk6OqFJRJ4DkLj1ZV8=
 github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20250722091327-ad82fb00ad6b/go.mod h1:BBgRJxkLIW5WghFJ+4OSRZkjMQ4P7NJyKnPHBrpo7vc=
 github.com/veraison/cmw v0.2.0 h1:BWEvwZnD4nn5osq6XwQpTRcGxwV+Su4t6ytdAbVXAJY=
