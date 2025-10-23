@@ -4,7 +4,6 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
-	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 )
 
 const Success = "success"
@@ -50,9 +49,9 @@ type RegistrationAcknowledge struct {
 }
 
 type WorkerWhitelistCheckRequest struct {
-	OsName        string `json:"osName"`
-	BootAggregate string `json:"bootAggregate"`
-	HashAlg       string `json:"hashAlg"`
+	OsName        string      `json:"osName"`
+	BootAggregate string      `json:"bootAggregate"`
+	HashAlg       crypto.Hash `json:"hashAlg"`
 }
 
 type VerifyTPMEKCertificateRequest struct {
@@ -61,9 +60,9 @@ type VerifyTPMEKCertificateRequest struct {
 
 // VerifySignatureRequest represents the input data for signature verification
 type VerifySignatureRequest struct {
-	Name      string `json:"name"`
-	Message   string `json:"message"`
-	Signature []byte `json:"signature"`
+	Name      string     `json:"name"`
+	Message   string     `json:"message"`
+	Signature *Signature `json:"signature,omitempty"`
 }
 
 type RegistrarResponse struct {
@@ -77,25 +76,22 @@ type PodHandlerResponse struct {
 }
 
 type DeploymentRequest struct {
-	TenantName   string `json:"tenantName"`
-	ResourceKind string `json:"resourceKind"`
-	Manifest     []byte `json:"manifest"`
-	Signature    []byte `json:"signature"`
+	TenantName   string     `json:"tenantName"`
+	ResourceKind string     `json:"resourceKind"`
+	Manifest     []byte     `json:"manifest"`
+	Signature    *Signature `json:"signature,omitempty"`
 }
 
 type PodAttestationRequest struct {
-	TenantName string `json:"tenantName"`
-	PodName    string `json:"podName"`
-	Signature  []byte `json:"signature"`
+	TenantName string     `json:"tenantName"`
+	PodName    string     `json:"podName"`
+	Signature  *Signature `json:"signature,omitempty"`
 }
 
 type AttestationRequest struct {
-	Nonce       []byte `json:"nonce"`
-	PodName     string `json:"podName"`
-	PodUid      string `json:"podUid"`
-	TenantId    string `json:"tenantId"`
-	IMAMlOffset int64  `json:"imaMlOffset"`
-	Signature   []byte `json:"signature,omitempty"`
+	Nonce       []byte     `json:"nonce"`
+	IMAMlOffset int64      `json:"imaMlOffset"`
+	Signature   *Signature `json:"signature,omitempty"`
 }
 
 func (ar *AttestationRequest) ToJSON() ([]byte, error) {
@@ -107,12 +103,12 @@ func (ar *AttestationRequest) ToJSON() ([]byte, error) {
 }
 
 func NewAttestationRequestFromJSON(data []byte) (*AttestationRequest, error) {
-	var ar *AttestationRequest
-	err := json.Unmarshal(data, ar)
+	var ar AttestationRequest
+	err := json.Unmarshal(data, &ar)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal Attestation Request: %v", err)
 	}
-	return ar, nil
+	return &ar, nil
 }
 
 func (ar *AttestationRequest) VerifySignature(publicKey crypto.PublicKey, hashAlgo crypto.Hash) error {
@@ -122,21 +118,23 @@ func (ar *AttestationRequest) VerifySignature(publicKey crypto.PublicKey, hashAl
 	if err != nil {
 		return fmt.Errorf("failed to marshal Attestation Request for signature verification: %v", err)
 	}
-	err = cryptoUtils.VerifyMessage(publicKey, arJSON, ar.Signature, hashAlgo)
+	err = ar.Signature.Verify(publicKey, arJSON)
 	if err != nil {
-		return fmt.Errorf("attestation request signature verification failed: %v", err)
+		return fmt.Errorf("failed to verify Attestation Request signature: %v", err)
 	}
 	return nil
 }
 
 func (ar *AttestationRequest) Sign(key crypto.PrivateKey, hashAlgo crypto.Hash) error {
+	ar.Signature = nil
 	arJSON, err := json.Marshal(ar)
 	if err != nil {
 		return fmt.Errorf("failed to marshal Attestation Request: %v", err)
 	}
-	ar.Signature, err = cryptoUtils.SignMessage(key, arJSON, hashAlgo)
+	ar.Signature = &Signature{HashAlg: hashAlgo}
+	err = ar.Signature.Sign(key, arJSON)
 	if err != nil {
-		return fmt.Errorf("error while signing Attestation Request")
+		return fmt.Errorf("failed to sign Attestation Request: %v", err)
 	}
 	return nil
 }
@@ -153,10 +151,10 @@ type WorkerRegistrationConfirm struct {
 }
 
 type PodWhitelistCheckRequest struct {
-	ImageName   string     `json:"imageName"`
-	ImageDigest string     `json:"imageDigest"`
-	Files       []IMAEntry `json:"files"`
-	HashAlg     string     `json:"hashAlg"` // Include the hash algorithm in the request
+	ImageName   string      `json:"imageName"`
+	ImageDigest string      `json:"imageDigest"`
+	Files       []IMAEntry  `json:"files"`
+	HashAlg     crypto.Hash `json:"hashAlg"` // Include the hash algorithm in the request
 }
 
 type AppendFilesToImageRequest struct {
@@ -165,13 +163,13 @@ type AppendFilesToImageRequest struct {
 }
 
 type ContainerRuntimeCheckRequest struct {
-	ContainerRuntimeName         string     `json:"containerRuntimeName"`
-	ContainerRuntimeDependencies []IMAEntry `json:"containerRuntimeDependencies"`
-	HashAlg                      string     `json:"hashAlg"` // Include the hash algorithm in the request
+	Name         string      `json:"name"`
+	Dependencies []IMAEntry  `json:"dependencies"`
+	HashAlg      crypto.Hash `json:"hashAlg"` // Include the hash algorithm in the request
 }
 
 type WhitelistResponse struct {
-	Message        string                  `json:"message"`
-	Status         string                  `json:"status"`
-	ErroredEntries ErroredWhitelistEntries `json:"erroredEntries,omitempty"`
+	Message        string         `json:"message"`
+	Status         string         `json:"status"`
+	ErroredEntries ErroredEntries `json:"erroredEntries,omitempty"`
 }

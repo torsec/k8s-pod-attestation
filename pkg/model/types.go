@@ -1,39 +1,45 @@
 package model
 
+import (
+	"crypto"
+	"fmt"
+	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
+)
+
 // shared struct definitions
 
 type PodFileWhitelist struct {
-	FilePath     string              `json:"filePath" bson:"filePath"`
-	ValidDigests map[string][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
+	FilePath     string                   `json:"filePath" bson:"filePath"`
+	ValidDigests map[crypto.Hash][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
 }
 
-// NotRunWhitelistEntry represents Whitelist Reference Values which where expected from the Evidence but actually not included
-type NotRunWhitelistEntry struct {
-	Id           string   `json:"id"`
-	HashAlg      string   `json:"hashAlg"`
-	ExpectedHash []string `json:"expectedHash"`
+// NotRunEntry represents Whitelist Reference Values which where expected from the Evidence but actually not included
+type NotRunEntry struct {
+	Id           string      `json:"id"`
+	HashAlg      crypto.Hash `json:"hashAlg"`
+	ExpectedHash []string    `json:"expectedHash"`
 }
 
-// AbsentWhitelistEntry represents Evidence entries not corresponding to existing Whitelist Reference Values
-type AbsentWhitelistEntry struct {
-	Id         string `json:"id"`
-	HashAlg    string `json:"hashAlg"`
-	ActualHash string `json:"actualHash,omitempty"`
+// AbsentEntry represents Evidence entries not corresponding to existing Whitelist Reference Values
+type AbsentEntry struct {
+	Id         string      `json:"id"`
+	HashAlg    crypto.Hash `json:"hashAlg"`
+	ActualHash string      `json:"actualHash,omitempty"`
 }
 
-// MismatchingWhitelistEntry represents Evidence entries whose digest value do not match the actual value stored in the Whitelist Reference Value
-type MismatchingWhitelistEntry struct {
-	Id           string   `json:"id"`
-	HashAlg      string   `json:"hashAlg"`
-	ActualHash   string   `json:"actualHash,omitempty"`
-	ExpectedHash []string `json:"expectedHash,omitempty"`
+// MismatchingEntry represents Evidence entries whose digest value do not match the actual value stored in the Whitelist Reference Value
+type MismatchingEntry struct {
+	Id           string      `json:"id"`
+	HashAlg      crypto.Hash `json:"hashAlg"`
+	ActualHash   string      `json:"actualHash,omitempty"`
+	ExpectedHash []string    `json:"expectedHash,omitempty"`
 }
 
-// ErroredWhitelistEntries aggregate all entries that for their individual reason failed to be correctly evaluated with the Whitelist
-type ErroredWhitelistEntries struct {
-	NotRunWhitelistEntries      []NotRunWhitelistEntry      `json:"notRunWhitelistEntries,omitempty"`
-	AbsentWhitelistEntries      []AbsentWhitelistEntry      `json:"absentWhitelistEntries,omitempty"`
-	MismatchingWhitelistEntries []MismatchingWhitelistEntry `json:"mismatchingWhitelistEntries,omitempty"`
+// ErroredEntries aggregate all entries that for their individual reason failed to be correctly evaluated with the Whitelist
+type ErroredEntries struct {
+	NotRun      []NotRunEntry      `json:"notRun,omitempty"`
+	Absent      []AbsentEntry      `json:"absent,omitempty"`
+	Mismatching []MismatchingEntry `json:"mismatching,omitempty"`
 }
 
 type WorkerNode struct {
@@ -42,33 +48,44 @@ type WorkerNode struct {
 	AIK      string `json:"AIK"`
 }
 
-type InputQuote struct {
-	Quote  string `json:"quote"`
-	RawSig string `json:"raw_sig"`
-	PCRset PCRSet `json:"pcrs"`
-}
-
-// PCRSet represents a PCR bank in the TPM. A bank is a set of PCRs using the same cryptographic hash algorithm.
-// This enables the TPM to keep separate measurements for different algorithms simultaneously.
-// Hash: Hash algorithm used by the bank (e.g., SHA256)
-// PCRs: Map of PCR index to its stored value
-type PCRSet struct {
-	Hash int               `json:"hash"`
-	PCRs map[string]string `json:"pcrs"`
-}
-
 type Evidence struct {
-	PodName        string `json:"podName"`
-	PodUid         string `json:"podUid"`
-	TenantId       string `json:"tenantId"`
-	Quote          []byte `json:"quote,omitempty"`
-	MeasurementLog []byte `json:"measurementLog,omitempty"`
-	Signature      []byte `json:"signature,omitempty"`
+	PodName        string    `json:"podName"`
+	PodUid         string    `json:"podUid"`
+	TenantId       string    `json:"tenantId"`
+	Quote          []byte    `json:"quote,omitempty"`
+	MeasurementLog []byte    `json:"measurementLog,omitempty"`
+	Signature      Signature `json:"signature,omitempty"`
 }
 
 type IMAEntry struct {
 	FilePath string `json:"filePath"`
 	FileHash string `json:"fileHash"`
+}
+
+type Signature struct {
+	RawSignature []byte      `json:"rawSignature,omitempty"`
+	HashAlg      crypto.Hash `json:"hashAlg"`
+}
+
+func (s *Signature) HashToString() string {
+	return s.HashAlg.String()
+}
+
+func (s *Signature) Valid() bool {
+	return len(s.RawSignature) > 0 && s.HashAlg != crypto.Hash(0)
+}
+
+func (s *Signature) Sign(privateKey crypto.PrivateKey, msg []byte) error {
+	sig, err := cryptoUtils.SignMessage(privateKey, msg, s.HashAlg)
+	if err != nil {
+		return fmt.Errorf("failed to sign message: %w", err)
+	}
+	s.RawSignature = sig
+	return nil
+}
+
+func (s *Signature) Verify(publicKey crypto.PublicKey, msg []byte) error {
+	return cryptoUtils.VerifyMessage(publicKey, msg, s.RawSignature, s.HashAlg)
 }
 
 // PodStatusType represents pod security status possible values
