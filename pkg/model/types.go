@@ -48,15 +48,6 @@ type WorkerNode struct {
 	AIK      string `json:"AIK"`
 }
 
-type Evidence struct {
-	PodName        string    `json:"podName"`
-	PodUid         string    `json:"podUid"`
-	TenantId       string    `json:"tenantId"`
-	Quote          []byte    `json:"quote,omitempty"`
-	MeasurementLog []byte    `json:"measurementLog,omitempty"`
-	Signature      Signature `json:"signature,omitempty"`
-}
-
 type IMAEntry struct {
 	FilePath string `json:"filePath"`
 	FileHash string `json:"fileHash"`

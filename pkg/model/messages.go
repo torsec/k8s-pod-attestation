@@ -15,18 +15,18 @@ type NewTenantRequest struct {
 }
 
 type NewTPMCaCertRequest struct {
-	TPMCaCertificate string `json:"tpmCaCertificate"`
+	TPMCaCert string `json:"tpmCaCert"`
 }
 
 type NewTPMVendorRequest struct {
-	Name          string `json:"name"`
-	TCGIdentifier string `json:"TCGIdentifier"`
+	Name  string `json:"name"`
+	TCGId string `json:"TCGId"`
 }
 
 type WorkerCredentialsResponse struct {
 	UUID          string `json:"UUID"`
 	EKCert        []byte `json:"EKCert"`
-	AIKNameData   []byte `json:"AIKNameData"`
+	AIKName       []byte `json:"AIKName"`
 	AIKPublicArea []byte `json:"AIKPublicArea"`
 }
 
@@ -36,15 +36,15 @@ type WorkerChallenge struct {
 }
 
 type WorkerChallengeResponse struct {
-	Message         string `json:"message"`
-	Status          string `json:"status"`
-	HMAC            []byte `json:"HMAC"`
-	WorkerBootQuote []byte `json:"workerBootQuote"`
+	SimpleResponse `json:",inline"`
+	Evidence       *RatsEvidence `json:"evidence,omitempty"`
 }
 
+// 	HMAC            []byte `json:"HMAC"`
+//	WorkerBootQuote []byte `json:"workerBootQuote"`
+
 type RegistrationAcknowledge struct {
-	Message           string `json:"message"`
-	Status            string `json:"status"`
+	SimpleResponse    `json:",inline"`
 	VerifierPublicKey []byte `json:"verifierPublicKey"`
 }
 
@@ -66,13 +66,11 @@ type VerifySignatureRequest struct {
 }
 
 type RegistrarResponse struct {
-	Message string `json:"message"`
-	Status  string `json:"status"`
+	SimpleResponse `json:",inline"`
 }
 
 type PodHandlerResponse struct {
-	Message string `json:"message"`
-	Status  string `json:"status"`
+	SimpleResponse `json:",inline"`
 }
 
 type DeploymentRequest struct {
@@ -140,14 +138,13 @@ func (ar *AttestationRequest) Sign(key crypto.PrivateKey, hashAlgo crypto.Hash) 
 }
 
 type AttestationResponse struct {
-	Evidence Evidence `json:"evidence,omitempty"`
-	Message  string   `json:"message"`
-	Status   string   `json:"status"`
+	Evidence *RatsEvidence `json:"evidence,omitempty"`
+	Message  string        `json:"message"`
+	Status   string        `json:"status"`
 }
 
 type WorkerRegistrationConfirm struct {
-	Message string `json:"message"`
-	Status  string `json:"status"`
+	SimpleResponse `json:",inline"`
 }
 
 type PodWhitelistCheckRequest struct {
@@ -169,7 +166,11 @@ type ContainerRuntimeCheckRequest struct {
 }
 
 type WhitelistResponse struct {
-	Message        string         `json:"message"`
-	Status         string         `json:"status"`
+	SimpleResponse `json:",inline"`
 	ErroredEntries ErroredEntries `json:"erroredEntries,omitempty"`
+}
+
+type SimpleResponse struct {
+	Message string `json:"message"`
+	Status  string `json:"status"`
 }
