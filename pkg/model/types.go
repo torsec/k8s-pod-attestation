@@ -8,6 +8,11 @@ import (
 
 // shared struct definitions
 
+type Measurement struct {
+	FilePath string `json:"filePath"`
+	FileHash string `json:"fileHash"`
+}
+
 type PodFileWhitelist struct {
 	FilePath     string                   `json:"filePath" bson:"filePath"`
 	ValidDigests map[crypto.Hash][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
@@ -46,11 +51,6 @@ type WorkerNode struct {
 	WorkerId string `json:"workerId"`
 	Name     string `json:"name"`
 	AIK      string `json:"AIK"`
-}
-
-type IMAEntry struct {
-	FilePath string `json:"filePath"`
-	FileHash string `json:"fileHash"`
 }
 
 type Signature struct {
