@@ -1,6 +1,7 @@
 package tpm
 
 import (
+	"crypto"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -31,7 +32,7 @@ func (tpm *TPM) Init(tpmPath string) {
 	tpm.tpmPath = tpmPath
 }
 
-func (tpm *TPM) OpenTPM() {
+func (tpm *TPM) Open() {
 	var err error
 	if tpm.tpmPath == "" {
 		logger.Fatal("Unable to open TPM: no device path provided")
@@ -50,7 +51,7 @@ func (tpm *TPM) OpenTPM() {
 	}
 }
 
-func (tpm *TPM) CloseTPM() {
+func (tpm *TPM) Close() {
 	err := tpm.rwc.Close()
 	if err != nil {
 		logger.Fatal("Unable to close TPM: %v", err)
@@ -82,7 +83,7 @@ func (tpm *TPM) GetWorkerEKCertificate() ([]byte, error) {
 	return nil, fmt.Errorf("unable to get EK certificate")
 }
 
-// getWorkerEKandCertificate is used to get TPM EK public key and certificate.
+// GetWorkerEKandCertificate is used to get TPM EK public key and certificate.
 // It returns both the EK and the certificate to be compliant with simulator TPMs not provided with a certificate
 func (tpm *TPM) GetWorkerEKandCertificate() ([]byte, []byte, error) {
 	tpm.mtx.Lock()
@@ -114,7 +115,7 @@ func (tpm *TPM) GetWorkerEKandCertificate() ([]byte, []byte, error) {
 	return pemPublicEK, pemEKCert, nil
 }
 
-// Function to create a new AIK (Attestation Identity Key) for the Agent
+// CreateWorkerAIK creates a new AIK (Attestation Identity Key) for the Agent
 func (tpm *TPM) CreateWorkerAIK() ([]byte, []byte, error) {
 	tpm.mtx.Lock()
 	defer tpm.mtx.Unlock()
@@ -156,7 +157,21 @@ func containsAndReturnPCR(pcrsToQuote []int) (bool, []int) {
 	return true, foundPCRs
 }
 
-func (tpm *TPM) QuoteGeneralPurposePCRs(nonce []byte, pcrsToQuote []int) ([]byte, error) {
+func GetPCRHashAlgo(algo crypto.Hash) (tpm2legacy.Algorithm, error) {
+	tpmAlgo, err := tpm2legacy.HashToAlgorithm(algo)
+	if err != nil {
+		return tpm2legacy.AlgUnknown, fmt.Errorf("unable to determine hash algorithm: %v", err)
+	}
+
+	switch tpmAlgo {
+	case tpm2legacy.AlgSHA1, tpm2legacy.AlgSHA256, tpm2legacy.AlgSHA384, tpm2legacy.AlgSHA512:
+		return tpmAlgo, nil
+	default:
+		return tpm2legacy.AlgUnknown, fmt.Errorf("hash algorithm not supported for PCR bank: %v", tpmAlgo)
+	}
+}
+
+func (tpm *TPM) QuoteGeneralPurposePCRs(nonce []byte, pcrsToQuote []int, bank crypto.Hash) ([]byte, error) {
 	tpm.mtx.Lock()
 	defer tpm.mtx.Unlock()
 	// Custom function to return both found status and the PCR value
@@ -165,8 +180,13 @@ func (tpm *TPM) QuoteGeneralPurposePCRs(nonce []byte, pcrsToQuote []int) ([]byte
 		return nil, fmt.Errorf("cannot compute Quote on provided PCR set %v: boot reserved PCRs where included: %v", foundPCR, bootReservedPCRs)
 	}
 
+	pcrHashAlgo, err := GetPCRHashAlgo(bank)
+	if err != nil {
+		return nil, fmt.Errorf("cannot compute Quote on selected PCR bank: %v", err)
+	}
+
 	generalPurposePcrs := tpm2legacy.PCRSelection{
-		Hash: tpm2legacy.AlgSHA256,
+		Hash: pcrHashAlgo,
 		PCRs: pcrsToQuote,
 	}
 
@@ -186,12 +206,17 @@ func (tpm *TPM) QuoteGeneralPurposePCRs(nonce []byte, pcrsToQuote []int) ([]byte
 	return quoteJSON, nil
 }
 
-func (tpm *TPM) QuoteBootPCRs(nonce []byte) ([]byte, error) {
+func (tpm *TPM) QuoteBootPCRs(nonce []byte, bank crypto.Hash) ([]byte, error) {
 	tpm.mtx.Lock()
 	defer tpm.mtx.Unlock()
 
+	pcrHashAlgo, err := GetPCRHashAlgo(bank)
+	if err != nil {
+		return nil, fmt.Errorf("cannot compute Quote on selected PCR bank: %v", err)
+	}
+
 	bootPCRs := tpm2legacy.PCRSelection{
-		Hash: tpm2legacy.AlgSHA256,
+		Hash: pcrHashAlgo,
 		PCRs: bootReservedPCRs,
 	}
 
