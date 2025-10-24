@@ -13,7 +13,7 @@ type Measurement struct {
 	FileHash string `json:"fileHash"`
 }
 
-type PodFileWhitelist struct {
+type FileWhitelist struct {
 	FilePath     string                   `json:"filePath" bson:"filePath"`
 	ValidDigests map[crypto.Hash][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
 }

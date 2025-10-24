@@ -85,9 +85,10 @@ type PodAttestationRequest struct {
 }
 
 type AttestationRequest struct {
-	Nonce       []byte     `json:"nonce"`
-	IMAMlOffset int64      `json:"imaMlOffset"`
-	Signature   *Signature `json:"signature,omitempty"`
+	Nonce     []byte      `json:"nonce"`
+	Offset    int64       `json:"offset"`
+	PCRBank   crypto.Hash `json:"pcrBank"`
+	Signature *Signature  `json:"signature,omitempty"`
 }
 
 func (ar *AttestationRequest) ToJSON() ([]byte, error) {
@@ -152,8 +153,8 @@ type PodWhitelistCheckRequest struct {
 }
 
 type AppendFilesToImageRequest struct {
-	ImageName string           `json:"imageName"`
-	NewFiles  PodFileWhitelist `json:"newFiles"`
+	ImageName string        `json:"imageName"`
+	Files     FileWhitelist `json:"files"`
 }
 
 type ContainerRuntimeCheckRequest struct {
