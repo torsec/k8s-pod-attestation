@@ -208,3 +208,19 @@ func (ng *NgTemplate) Clear() {
 	ng.BasicEntry = BasicEntry{}
 	ng.NgExtraFields = NgExtraFields{}
 }
+
+type NgTarget struct {
+	fileHashes [][]byte
+	FilePaths  [][]byte
+	Matches
+}
+
+func (n NgTarget) CheckMatch(t Template) (bool, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n NgTarget) GetMatches() Matches {
+	//TODO implement me
+	panic("implement me")
+}

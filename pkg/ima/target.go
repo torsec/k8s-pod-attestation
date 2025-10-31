@@ -2,7 +2,31 @@ package ima
 
 type Target interface {
 	CheckMatch(t Template) (bool, error)
-	GetMatches() map[MeasurementType][]Measurement
+	GetMatches() Matches
+}
+
+type Matches struct {
+	Matches map[MeasurementType][]Measurement
+}
+
+func NewMatches() *Matches {
+	return &Matches{
+		Matches: make(map[MeasurementType][]Measurement),
+	}
+}
+
+func (m *Matches) AddMatch(measurementType MeasurementType, measurement Measurement) {
+	m.Matches[measurementType] = append(m.Matches[measurementType], measurement)
+}
+
+func (m *Matches) RemoveMatch(measurementType MeasurementType, measurement Measurement) {
+	measurements := m.Matches[measurementType]
+	for i, msr := range measurements {
+		if msr == measurement {
+			m.Matches[measurementType] = append(measurements[:i], measurements[i+1:]...)
+			break
+		}
+	}
 }
 
 type Measurement struct {

@@ -30,22 +30,25 @@ type MeasurementList struct {
 	Path string              // path to measurement list file
 	file *os.File            // file handle to measurement list file
 	raw  []byte              // raw content of measurement list
+	ptr  int64               // ptr contains the number of bytes processed i.e. index of next to read
 }
 
-func NewMeasurementListFromRaw(raw []byte) *MeasurementList {
+func NewMeasurementListFromRaw(raw []byte, ptr int64) *MeasurementList {
 	return &MeasurementList{
 		Type: Raw,
 		raw:  raw,
+		ptr:  ptr,
 	}
 }
 
-func NewMeasurementListFromFile(path string) *MeasurementList {
+func NewMeasurementListFromFile(path string, ptr int64) *MeasurementList {
 	if path == "" {
 		path = DefaultBinaryPath
 	}
 	return &MeasurementList{
 		Type: File,
 		Path: path,
+		ptr:  ptr,
 	}
 }
 
@@ -135,7 +138,7 @@ func (ml *MeasurementList) SetOffset(offset int64) error {
 		if offset < 0 || offset > mlLen {
 			return fmt.Errorf("invalid offset for raw IMA measurement list: %d", offset)
 		}
-		ml.raw = ml.raw[offset:]
+		ml.ptr = offset
 		return nil
 
 	case File:
@@ -147,6 +150,7 @@ func (ml *MeasurementList) SetOffset(offset int64) error {
 		if err != nil {
 			return fmt.Errorf("failed to seek in IMA measurement list: %v", err)
 		}
+		ml.ptr = offset
 		return nil
 
 	default:
@@ -175,6 +179,7 @@ func (ml *MeasurementList) Close() error {
 func (ml *MeasurementList) ReadAll() ([]byte, error) {
 	switch ml.Type {
 	case Raw:
+		ml.ptr = int64(len(ml.raw))
 		return ml.raw, nil
 
 	case File:
@@ -186,7 +191,7 @@ func (ml *MeasurementList) ReadAll() ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read IMA measurement list: %v", err)
 		}
-
+		ml.ptr = int64(len(buf))
 		return buf, nil
 
 	default:
@@ -204,8 +209,8 @@ func (ml *MeasurementList) Read(n int) ([]byte, error) {
 		if mlLen < n {
 			return nil, fmt.Errorf("failed to read IMA measurement list: not enough data in raw measurement list")
 		}
-		buf := ml.raw[:n]
-		ml.raw = ml.raw[n:]
+		buf := ml.raw[ml.ptr : ml.ptr+int64(n)]
+		ml.ptr += int64(n)
 		return buf, nil
 
 	case File:
@@ -222,6 +227,7 @@ func (ml *MeasurementList) Read(n int) ([]byte, error) {
 				return nil, fmt.Errorf("failed to read IMA measurement list: %v", err)
 			}
 		}
+		ml.ptr += int64(n)
 		return buf, nil
 
 	default:
