@@ -10,7 +10,7 @@ type Integrity struct {
 	attested  int64  // number of attested bytes of IMA measurement list bytes i.e. starting offset for next measurement list verification
 	aggregate []byte // cumulative hash of processed IMA measurements
 	tpm       *TPM
-	pcrIndex  uint32 // index of PCR reserved to store IMA measurements
+	PcrIndex  uint32 // index of PCR reserved to store IMA measurements
 
 	TemplateHashAlgo crypto.Hash // hash algorithm used for template hash computation
 	FileHashAlgo     crypto.Hash // hash algorithm used for file hash computation
@@ -21,7 +21,7 @@ func NewIntegrity(pcrIndex uint32, templateHashAlgo, fileHashAlgo crypto.Hash, t
 		attested:         attested,
 		aggregate:        make([]byte, templateHashAlgo.Size()),
 		tpm:              tpm,
-		pcrIndex:         pcrIndex,
+		PcrIndex:         pcrIndex,
 		TemplateHashAlgo: templateHashAlgo,
 		FileHashAlgo:     fileHashAlgo,
 	}
@@ -47,7 +47,7 @@ func (i *Integrity) isFileHashAlgo() bool {
 }
 
 func (i *Integrity) IsValidPCRIndex() bool {
-	return i.pcrIndex >= MinPCRIndex && i.pcrIndex <= MaxPCRIndex
+	return i.PcrIndex >= MinPCRIndex && i.PcrIndex <= MaxPCRIndex
 }
 
 func (i *Integrity) IsValidHashConfig() bool {
@@ -101,13 +101,13 @@ func (i *Integrity) CheckFromPCR() error {
 	if !i.tpm.IsOpen() {
 		return fmt.Errorf("TPM is not open")
 	}
-	pcrs, err := i.tpm.ReadPCRs([]int{int(i.pcrIndex)}, i.TemplateHashAlgo)
+	pcrs, err := i.tpm.ReadPCRs([]int{int(i.PcrIndex)}, i.TemplateHashAlgo)
 	if err != nil {
-		return fmt.Errorf("failed to read PCR %d from TPM: %v", i.pcrIndex, err)
+		return fmt.Errorf("failed to read PCR %d from TPM: %v", i.PcrIndex, err)
 	}
-	expectedAggregate, ok := pcrs[i.pcrIndex]
+	expectedAggregate, ok := pcrs[i.PcrIndex]
 	if !ok {
-		return fmt.Errorf("PCR %d not found in TPM read result", i.pcrIndex)
+		return fmt.Errorf("PCR %d not found in TPM read result", i.PcrIndex)
 	}
 	return i.Check(expectedAggregate)
 }

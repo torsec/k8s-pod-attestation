@@ -23,7 +23,7 @@ func TestValidator_MeasurementListAttestation_raw(t *testing.T) {
 	i := &Integrity{
 		attested:         0,
 		aggregate:        make([]byte, crypto.SHA1.Size()),
-		pcrIndex:         DefaultPCRIndex,
+		PcrIndex:         DefaultPCRIndex,
 		TemplateHashAlgo: crypto.SHA1,
 		FileHashAlgo:     crypto.SHA256,
 	}
@@ -50,7 +50,7 @@ func TestValidator_MeasurementListAttestation_file(t *testing.T) {
 	i := &Integrity{
 		attested:         0,
 		aggregate:        make([]byte, crypto.SHA1.Size()),
-		pcrIndex:         DefaultPCRIndex,
+		PcrIndex:         DefaultPCRIndex,
 		TemplateHashAlgo: crypto.SHA1,
 		FileHashAlgo:     crypto.SHA256,
 	}
@@ -77,7 +77,7 @@ func TestValidator_MeasurementListAttestation_target(t *testing.T) {
 	i := &Integrity{
 		attested:         0,
 		aggregate:        make([]byte, crypto.SHA1.Size()),
-		pcrIndex:         DefaultPCRIndex,
+		PcrIndex:         DefaultPCRIndex,
 		TemplateHashAlgo: crypto.SHA1,
 		FileHashAlgo:     crypto.SHA256,
 	}
@@ -110,7 +110,7 @@ func TestValidator_MeasurementListAttestation_ng(t *testing.T) {
 	i := &Integrity{
 		attested:         0,
 		aggregate:        make([]byte, crypto.SHA1.Size()),
-		pcrIndex:         DefaultPCRIndex,
+		PcrIndex:         DefaultPCRIndex,
 		TemplateHashAlgo: crypto.SHA1,
 		FileHashAlgo:     crypto.SHA256,
 	}
@@ -141,7 +141,7 @@ func TestValidator_MeasurementListAttestation_cgpath_partialAttestation(t *testi
 	i := &Integrity{
 		attested:         0,
 		aggregate:        make([]byte, crypto.SHA1.Size()),
-		pcrIndex:         DefaultPCRIndex,
+		PcrIndex:         DefaultPCRIndex,
 		TemplateHashAlgo: crypto.SHA1,
 		FileHashAlgo:     crypto.SHA256,
 	}

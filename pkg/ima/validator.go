@@ -60,11 +60,11 @@ func (v *Validator) MeasurementListTPMAttestation() error {
 		return fmt.Errorf("TPM is not open")
 	}
 	// read PCR value from TPM
-	pcrs, err := v.Integrity.tpm.ReadPCRs([]int{int(v.Integrity.pcrIndex)}, v.Integrity.TemplateHashAlgo)
+	pcrs, err := v.Integrity.tpm.ReadPCRs([]int{int(v.Integrity.PcrIndex)}, v.Integrity.TemplateHashAlgo)
 	if err != nil {
 		return fmt.Errorf("failed to read PCR from TPM: %v", err)
 	}
-	expected := pcrs[v.Integrity.pcrIndex]
+	expected := pcrs[v.Integrity.PcrIndex]
 	return v.MeasurementListAttestation(expected)
 }
 
@@ -82,7 +82,7 @@ func (v *Validator) MeasurementListAttestation(expected []byte) error {
 	for {
 		v.Entry.Clear()
 
-		err = v.Entry.ParseEntry(v.MeasurementList, v.Integrity.pcrIndex, v.Integrity.TemplateHashSize(), v.Integrity.FileHashSize())
+		err = v.Entry.ParseEntry(v.MeasurementList, v.Integrity.PcrIndex, v.Integrity.TemplateHashSize(), v.Integrity.FileHashSize())
 		if err != nil {
 			return fmt.Errorf("failed to parse entry: %v", err)
 		}
