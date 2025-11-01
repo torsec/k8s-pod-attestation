@@ -137,8 +137,11 @@ func (ar *AttestationRequest) Sign(key crypto.PrivateKey, hashAlgo crypto.Hash) 
 }
 
 type AttestationResponse struct {
-	Evidence       *RatsEvidence `json:"evidence,omitempty"`
-	SimpleResponse `json:",inline"`
+	SimpleResponse   `json:",inline"`
+	Evidence         *RatsEvidence `json:"evidence,omitempty"`
+	ImaPcr           uint          `json:"imaPcr"`
+	TemplateHashAlgo crypto.Hash   `json:"templateHashAlgo"`
+	FileHashAlgo     crypto.Hash   `json:"fileHashAlgo"`
 }
 
 type WorkerRegistrationConfirm struct {
