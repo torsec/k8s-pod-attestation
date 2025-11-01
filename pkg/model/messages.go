@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
+	"github.com/torsec/k8s-pod-attestation/pkg/ima"
 )
 
 const Success = "success"
@@ -149,10 +150,10 @@ type WorkerRegistrationConfirm struct {
 }
 
 type PodWhitelistCheckRequest struct {
-	ImageName   string        `json:"imageName"`
-	ImageDigest string        `json:"imageDigest"`
-	Files       []Measurement `json:"files"`
-	HashAlg     crypto.Hash   `json:"hashAlg"` // Include the hash algorithm in the request
+	ImageName   string            `json:"imageName"`
+	ImageDigest string            `json:"imageDigest"`
+	Files       []ima.Measurement `json:"files"`
+	HashAlg     crypto.Hash       `json:"hashAlg"` // Include the hash algorithm in the request
 }
 
 type AppendFilesToImageRequest struct {
@@ -161,9 +162,9 @@ type AppendFilesToImageRequest struct {
 }
 
 type ContainerRuntimeCheckRequest struct {
-	Name         string        `json:"name"`
-	Dependencies []Measurement `json:"dependencies"`
-	HashAlg      crypto.Hash   `json:"hashAlg"` // Include the hash algorithm in the request
+	Name         string            `json:"name"`
+	Dependencies []ima.Measurement `json:"dependencies"`
+	HashAlg      crypto.Hash       `json:"hashAlg"` // Include the hash algorithm in the request
 }
 
 type WhitelistResponse struct {
