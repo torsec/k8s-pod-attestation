@@ -149,7 +149,7 @@ type IndividualResult struct {
 }
 
 type EAT struct {
-	Nonce   string             `json:"nonce"`
+	Nonce   []byte             `json:"nonce"`
 	Measres []IndividualResult `json:"measres"`
 }
 
