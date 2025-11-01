@@ -1,35 +1,32 @@
 package agent
 
 import (
-	"crypto/rsa"
+	"crypto"
 	"crypto/x509"
-	"encoding/base64"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
+	"github.com/torsec/k8s-pod-attestation/pkg/ima"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"github.com/torsec/k8s-pod-attestation/pkg/tpm"
-	"io"
 	"net/http"
-	"os"
-	"strconv"
-	"time"
 )
 
 type Server struct {
-	agentHost             string
-	agentPort             int
-	tlsCertificate        *x509.Certificate
-	workerId              string
-	imaMeasurementLogPath string
-	verifierPublicKey     *rsa.PublicKey
-	tpm                   *tpm.TPM
-	attestWorkerInterval  int
-	router                *gin.Engine
+	agentHost         string
+	agentPort         int32
+	tlsCertificate    *x509.Certificate
+	workerId          string
+	mlPath            string
+	verifierPublicKey *crypto.PublicKey
+	tpm               *tpm.TPM
+	router            *gin.Engine
+	imaReservedPcr    uint32
+	templateHashAlgo  crypto.Hash
+	fileHashAlgo      crypto.Hash
+	keysType          tpm.KeyType
 }
 
 const (
@@ -39,149 +36,217 @@ const (
 	PodAttestationUrl                   = "/agent/pod/attest"
 )
 
-var (
-	firstIntervalAttestation = time.Now().Add(-10 * time.Minute) // 10 minutes ago
-)
+const DefaultHashAlg = crypto.SHA256
 
-func (s *Server) Init(agentHost string, agentPort int, tlsCertificate *x509.Certificate, imaMeasurementLog string, tpm *tpm.TPM) {
+func (s *Server) Init(agentHost string, agentPort int32, tlsCertificate *x509.Certificate, mlPath string, tpm *tpm.TPM, imaReservedPcr uint32, templateHashAlgo crypto.Hash, fileHashAlgo crypto.Hash) {
 	s.agentHost = agentHost
 	s.agentPort = agentPort
 	s.tlsCertificate = tlsCertificate
-	s.imaMeasurementLogPath = imaMeasurementLog
+	s.mlPath = mlPath
 	s.tpm = tpm
-	s.attestWorkerInterval = 0
+	s.imaReservedPcr = imaReservedPcr
+	s.templateHashAlgo = templateHashAlgo
+	s.fileHashAlgo = fileHashAlgo
 }
 
 func (s *Server) SetHost(host string) {
 	s.agentHost = host
 }
 
-func (s *Server) SetPort(port int) {
+func (s *Server) SetPort(port int32) {
 	s.agentPort = port
 }
 
 func (s *Server) acknowledgeRegistration(c *gin.Context) {
 	var acknowledge model.RegistrationAcknowledge
+	var err error
 
-	if err := c.BindJSON(&acknowledge); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid request payload",
-			"status":  model.Error,
-		})
+	if err = c.BindJSON(&acknowledge); err != nil {
+		c.JSON(http.StatusBadRequest, model.WorkerRegistrationConfirm{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Invalid request payload",
+				Status:  model.Error,
+			}})
 		return
 	}
 
-	if acknowledge.Status == model.Success {
-		publicKey, err := base64.StdEncoding.DecodeString(acknowledge.VerifierPublicKey)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"message": "failed to decode verifier public key from base64",
-				"status":  model.Error,
-			})
-		}
-		s.verifierPublicKey, err = cryptoUtils.DecodePublicKeyFromPEM(publicKey)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"message": "failed to decode verifier public key from PEM",
-				"status":  model.Error,
-			})
-		}
-
-		c.JSON(http.StatusCreated, gin.H{
-			"message": "Agent acknowledged success of registration and obtained Verifier Public Key",
-			"status":  model.Success,
-		})
+	if acknowledge.Status != model.Success {
+		c.JSON(http.StatusOK, model.WorkerRegistrationConfirm{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Agent acknowledged failure of registration",
+				Status:  model.Error,
+			}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Agent acknowledged failure of registration",
-		"status":  model.Error,
-	})
+
+	*s.verifierPublicKey, err = cryptoUtils.DecodePublicKeyFromPEM(acknowledge.VerifierPublicKey)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, model.WorkerRegistrationConfirm{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Failed to decode verifier public key from PEM",
+				Status:  model.Error,
+			}})
+		return
+	}
+
+	c.JSON(http.StatusCreated, model.WorkerRegistrationConfirm{
+		SimpleResponse: model.SimpleResponse{
+			Message: "Agent acknowledged success of registration and obtained Verifier Public Key",
+			Status:  model.Success,
+		}})
+	return
+}
+
+func createAttestationEvidence(quote []byte, imaMl []byte) (*model.RatsEvidence, error) {
+	evidence, err := model.NewEvidence(model.CmwCollectionTypeAttestationEvidence)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new evidence: %v", err)
+	}
+
+	err = evidence.AddClaim(model.IMAPcrQuoteClaimKey, quote, model.EatJsonClaimMediaType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create quote claim to evidence: %v", err)
+	}
+
+	err = evidence.AddClaim(model.IMAPcrQuoteClaimKey, imaMl, model.EatJsonClaimMediaType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add IMA measurement log claim to evidence: %v", err)
+	}
+
+	return evidence, nil
+}
+
+func createCredentialActivationEvidence(hmac, quote []byte) (*model.RatsEvidence, error) {
+	evidence, err := model.NewEvidence(model.CmwCollectionTypeCredentialActivationEvidence)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new evidence: %v", err)
+	}
+
+	err = evidence.AddClaim(model.CredentialActivationHMACClaimKey, hmac, model.EatJsonClaimMediaType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add HMAC claim to evidence: %v", err)
+	}
+	err = evidence.AddClaim(model.IMAPcrQuoteClaimKey, quote, model.EatJsonClaimMediaType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add Quote claim to evidence: %v", err)
+	}
+
+	return evidence, nil
 }
 
 func (s *Server) challengeWorker(c *gin.Context) {
 	var workerChallenge model.WorkerChallenge
 	// Bind the JSON request body to the struct
 	if err := c.BindJSON(&workerChallenge); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid request payload",
-			"status":  model.Error,
+		c.JSON(http.StatusBadRequest, model.WorkerChallengeResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Invalid request payload",
+				Status:  model.Error,
+			},
 		})
 		return
 	}
 
-	aikCredential, err := base64.StdEncoding.DecodeString(workerChallenge.AIKCredential)
+	challengeSecret, err := s.tpm.ActivateAIKCredential(workerChallenge.AIKCredential, workerChallenge.AIKEncryptedSecret)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "failed to decode aik credential from base64",
-			"status":  model.Error,
-		})
-	}
-
-	aikEncryptedSecret, err := base64.StdEncoding.DecodeString(workerChallenge.AIKEncryptedSecret)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "failed to decode aik encrypted secret from base64",
-			"status":  model.Error,
-		})
-	}
-
-	challengeSecret, err := s.tpm.ActivateAIKCredential(aikCredential, aikEncryptedSecret)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Agent failed to perform Credential Activation",
-			"status":  model.Error,
+		c.JSON(http.StatusUnauthorized, model.WorkerChallengeResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Agent failed to perform Credential Activation",
+				Status:  model.Error,
+			},
 		})
 		return
 	}
 	ephemeralKey := challengeSecret
 	quoteNonce := challengeSecret[:8]
 
-	bootQuoteJSON, err := s.tpm.QuoteBootPCRs(quoteNonce)
+	bootQuoteJSON, err := s.tpm.QuoteBootPCRs(quoteNonce, s.templateHashAlgo, s.keysType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error while computing Boot Aggregate quote",
-			"status":  model.Error,
+		c.JSON(http.StatusInternalServerError, model.WorkerChallengeResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Error while computing Boot Aggregate quote",
+				Status:  model.Error,
+			},
 		})
 		return
 	}
 
 	// Compute HMAC on the worker UUID using the ephemeral key
-	challengeHmac := cryptoUtils.ComputeHMAC([]byte(s.workerId), ephemeralKey)
-	encodedChallengeHmac := base64.StdEncoding.EncodeToString(challengeHmac)
+	hmac, err := cryptoUtils.ComputeHMAC([]byte(s.workerId), ephemeralKey, DefaultHashAlg)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, model.WorkerChallengeResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Error while computing HMAC of the worker UUID",
+				Status:  model.Error,
+			},
+		})
+		return
+	}
 
-	// Respond with success, including the HMAC of the UUID
-	c.JSON(http.StatusOK, gin.H{
-		"message":         "Worker registration challenge decrypted and verified successfully",
-		"status":          model.Success,
-		"HMAC":            encodedChallengeHmac,
-		"workerBootQuote": bootQuoteJSON,
+	evidence, err := createCredentialActivationEvidence(hmac, bootQuoteJSON)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, model.WorkerChallengeResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Failed to create credential activation evidence",
+				Status:  model.Error,
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, model.WorkerChallengeResponse{
+		Evidence: evidence,
+		SimpleResponse: model.SimpleResponse{
+			Message: "Worker registration challenge decrypted and verified successfully",
+			Status:  model.Success,
+		},
 	})
 	return
 }
 
 func (s *Server) getWorkerRegistrationCredentials(c *gin.Context) {
+	keyType, err := tpm.KeyTypeFromString(c.Param("keyType"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, model.WorkerChallengeResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Invalid EK key type",
+				Status:  model.Error,
+			},
+		})
+	}
 	s.workerId = uuid.New().String()
-
-	ekCert, err := s.tpm.GetWorkerEKCertificate()
+	ekCert, err := s.tpm.GetWorkerEKCertificate(keyType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Agent failed to fetch EK certificate",
-			"status":  model.Error,
+		c.JSON(http.StatusInternalServerError, model.WorkerCredentialsResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Agent failed to fetch EK certificate",
+				Status:  model.Error,
+			},
 		})
+		return
 	}
 
-	aikNameData, aikPublicArea, err := s.tpm.CreateWorkerAIK()
+	aikNameData, aikPublicArea, err := s.tpm.CreateAIK(keyType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Agent failed to create AIK",
-			"status":  model.Error,
+		c.JSON(http.StatusInternalServerError, model.WorkerCredentialsResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Agent failed to create AIK",
+				Status:  model.Error,
+			},
 		})
+		return
 	}
 
-	encodedEkCert := base64.StdEncoding.EncodeToString(ekCert)
-
-	c.JSON(http.StatusOK, gin.H{"uuid": s.workerId, "ekCert": encodedEkCert, "aikNameData": aikNameData, "aikPublicArea": aikPublicArea})
+	c.JSON(http.StatusOK, model.WorkerCredentialsResponse{
+		UUID:          s.workerId,
+		EKCert:        ekCert,
+		AIKName:       aikNameData,
+		AIKPublicArea: aikPublicArea,
+		SimpleResponse: model.SimpleResponse{
+			Message: "Worker registration credentials successfully generated",
+			Status:  model.Success,
+		},
+	})
 }
 
 func (s *Server) podAttestation(c *gin.Context) {
@@ -189,133 +254,74 @@ func (s *Server) podAttestation(c *gin.Context) {
 
 	// Bind the JSON request body to the struct
 	if err := c.BindJSON(&attestationRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid request payload",
-			"status":  model.Error,
+		c.JSON(http.StatusBadRequest, model.AttestationResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: fmt.Sprintf("Failed to decode request: %v", err),
+				Status:  model.Error,
+			},
 		})
 		return
 	}
 
-	receivedAttestationRequest := model.AttestationRequest{
-		Nonce:       attestationRequest.Nonce,
-		PodName:     attestationRequest.PodName,
-		PodUid:      attestationRequest.PodUid,
-		IMAMlOffset: attestationRequest.IMAMlOffset,
-		TenantId:    attestationRequest.TenantId,
-	}
-
-	receivedAttestationRequestJSON, err := json.Marshal(receivedAttestationRequest)
+	err := attestationRequest.VerifySignature(s.verifierPublicKey)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error serializing Attestation Request",
-			"status":  model.Error,
+		c.JSON(http.StatusUnauthorized, model.AttestationResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: fmt.Sprintf("Failed to verify request: %v", err),
+				Status:  model.Error,
+			},
 		})
 		return
 	}
 
-	decodedAttestationRequestSignature, err := base64.StdEncoding.DecodeString(attestationRequest.Signature)
+	quote, err := s.tpm.QuoteGeneralPurposePCRs(attestationRequest.Nonce, []int{int(s.imaReservedPcr)}, s.templateHashAlgo, s.keysType)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error decoding Attestation Request Signature from base64",
-			"status":  model.Error,
+		c.JSON(http.StatusUnauthorized, model.AttestationResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: fmt.Sprintf("Failed to compute Quote: %v", err),
+				Status:  model.Error,
+			},
 		})
 		return
 	}
 
-	err = cryptoUtils.VerifySignature(s.verifierPublicKey, receivedAttestationRequestJSON, decodedAttestationRequestSignature)
+	measurementList := ima.NewMeasurementListFromFile(s.mlPath, attestationRequest.Offset)
+	mlContent, err := measurementList.ReadAll()
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Attestation request signature verification failed",
-			"status":  model.Error,
+		c.JSON(http.StatusUnauthorized, model.AttestationResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: fmt.Sprintf("Failed to get Measurement List: %v", err),
+				Status:  model.Error,
+			},
 		})
 		return
 	}
 
-	encodedQuote := ""
-
-	if time.Since(firstIntervalAttestation) > time.Duration(s.attestWorkerInterval)*time.Minute {
-
-		nonceBytes, err := hex.DecodeString(attestationRequest.Nonce)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "Failed to decode nonce",
-				"status":  model.Error,
-			})
-			return
-		}
-
-		quotePcrs := []int{10}
-		workerQuote, err := s.tpm.QuoteGeneralPurposePCRs(nonceBytes, quotePcrs)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": err.Error(),
-				"status":  model.Error,
-			})
-			return
-		}
-
-		encodedQuote = base64.StdEncoding.EncodeToString(workerQuote)
-		firstIntervalAttestation = time.Now()
-	}
-
-	measurementLog, err := s.getWorkerMeasurementLog(attestationRequest.IMAMlOffset)
+	evidence, err := createAttestationEvidence(quote, mlContent)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": err.Error(),
-			"status":  model.Error,
+		c.JSON(http.StatusInternalServerError, model.AttestationResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Failed to create attestation evidence",
+				Status:  model.Error,
+			},
 		})
 		return
 	}
 
-	// TODO standardize
-	evidence := model.Evidence{
-		PodName:        attestationRequest.PodName,
-		PodUid:         attestationRequest.PodUid,
-		TenantId:       attestationRequest.TenantId,
-		Quote:          encodedQuote,
-		MeasurementLog: measurementLog,
-	}
+	// TODO: Sign the evidence as JWT, agent must be provided with a pk to sign the evidence
+	// for now we just return the evidence as is
 
-	attestationEvidence := &model.AttestationEvidence{
-		Evidence: evidence,
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"attestationEvidence": attestationEvidence,
-		"message":             "Attestation Request successfully processed",
-		"status":              model.Success,
+	c.JSON(http.StatusOK, model.AttestationResponse{
+		SimpleResponse: model.SimpleResponse{
+			Message: "Pod attestation request successfully processed",
+			Status:  model.Success,
+		},
+		Evidence:         evidence,
+		ImaPcr:           s.imaReservedPcr,
+		TemplateHashAlgo: s.templateHashAlgo,
+		FileHashAlgo:     s.fileHashAlgo,
 	})
 	return
-}
-
-func (s *Server) getWorkerMeasurementLog(offset int64) (string, error) {
-	// Open the file
-	f, err := os.Open(s.imaMeasurementLogPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open IMA measurement log: %v", err)
-	}
-	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
-			logger.Error("failed to close IMA measurement log: %v", err)
-		}
-	}(f)
-
-	// Seek to the given offset
-	_, err = f.Seek(offset, io.SeekStart)
-	if err != nil {
-		return "", fmt.Errorf("failed to seek to offset in IMA measurement log: %v", err)
-	}
-
-	// Read the file content from offset to EOF
-	fileContent, err := io.ReadAll(f)
-	if err != nil {
-		return "", fmt.Errorf("failed to read IMA measurement log: %v", err)
-	}
-
-	// Encode the file content into Base64
-	base64Encoded := base64.StdEncoding.EncodeToString(fileContent)
-	return base64Encoded, nil
 }
 
 func (s *Server) Start() {
@@ -330,9 +336,9 @@ func (s *Server) Start() {
 	s.router.POST(PodAttestationUrl, s.podAttestation) // POST attestation against one Pod running upon Worker of this agent
 
 	// Start the server
-	logger.Info("server is running on port: %d", s.agentPort)
-	err := s.router.Run(":" + strconv.Itoa(s.agentPort))
+	logger.Info("agent is running on port: %d", s.agentPort)
+	err := s.router.Run(fmt.Sprintf(":%d", s.agentPort))
 	if err != nil {
-		logger.Fatal("failed to start registrar: %v", err)
+		logger.Fatal("failed to start agent: %v", err)
 	}
 }

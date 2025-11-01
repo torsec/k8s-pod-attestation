@@ -14,18 +14,18 @@ import (
 
 type Client struct {
 	agentHost             string
-	agentPort             int
+	agentPort             int32
 	invokerTlsCertificate *x509.Certificate
 }
 
-func (c *Client) Init(agentHost string, agentPort int, invokerTlsCertificate *x509.Certificate) {
+func (c *Client) Init(agentHost string, agentPort int32, invokerTlsCertificate *x509.Certificate) {
 	c.agentHost = agentHost
 	c.agentPort = agentPort
 	c.invokerTlsCertificate = invokerTlsCertificate
 }
 
-func (c *Client) WorkerRegistrationCredentials() (*model.WorkerCredentialsResponse, error) {
-	completeUrl := fmt.Sprintf("http://%s:%d%s", c.agentHost, c.agentPort, GetWorkerRegistrationCredentialsUrl)
+func (c *Client) WorkerRegistrationCredentials(keyType string) (*model.WorkerCredentialsResponse, error) {
+	completeUrl := fmt.Sprintf("http://%s:%d%s?keyType=%s", c.agentHost, c.agentPort, GetWorkerRegistrationCredentialsUrl, keyType)
 	resp, err := http.Get(completeUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Worker identification data: %v", err)
@@ -37,7 +37,7 @@ func (c *Client) WorkerRegistrationCredentials() (*model.WorkerCredentialsRespon
 	}
 
 	defer func(Body io.ReadCloser) {
-		err := Body.Close()
+		err = Body.Close()
 		if err != nil {
 			return
 		}
