@@ -141,15 +141,6 @@ func NewAgent(agentName string) *Agent {
 	}
 }
 
-func (a *Agent) CheckPodExists(podName, tenantId string) bool {
-	for _, pod := range a.Spec.PodStatus {
-		if pod.PodName == podName && pod.TenantId == tenantId {
-			return true
-		}
-	}
-	return false
-}
-
 func (a *Agent) GetPodStatus(podName, tenantId string) *PodStatus {
 	for _, pod := range a.Spec.PodStatus {
 		if pod.PodName == podName && pod.TenantId == tenantId {
@@ -312,17 +303,9 @@ func (a *Agent) FromUnstructured(unstructuredObj *unstructured.Unstructured) err
 	return nil
 }
 
-func (c *ClusterInteraction) DeleteAttestationRequestCRDInstance(crdObj interface{}) (bool, error) {
-	// Assert that crdObj is of type *unstructured.Unstructured
-	unstructuredObj, ok := crdObj.(*unstructured.Unstructured)
-	if !ok {
-		return false, fmt.Errorf("invalid AttestationRequest CRD object")
-	}
-
-	resourceName := unstructuredObj.GetName()
-
+func (c *ClusterInteraction) DeleteAttestationRequest(attestationRequestName string) (bool, error) {
 	// Delete the AttestationRequest CR in the given namespace
-	err := c.DynamicClient.Resource(AttestationRequestGVR).Namespace(PodAttestationNamespace).Delete(context.TODO(), resourceName, metav1.DeleteOptions{})
+	err := c.DynamicClient.Resource(AttestationRequestGVR).Namespace(PodAttestationNamespace).Delete(context.TODO(), attestationRequestName, metav1.DeleteOptions{})
 	if err != nil {
 		return false, fmt.Errorf("failed to delete attestation request CRD: %v", err)
 	}
