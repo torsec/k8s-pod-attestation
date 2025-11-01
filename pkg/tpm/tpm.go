@@ -13,6 +13,7 @@ import (
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	"io"
 	"slices"
+	"strings"
 	"sync"
 )
 
@@ -23,9 +24,20 @@ const SimulatorPath = "simulator"
 type KeyType int
 
 const (
-	RSA KeyType = iota
-	ECC KeyType = iota
+	RSA KeyType = 1 + iota
+	ECC
 )
+
+func KeyTypeFromString(s string) (KeyType, error) {
+	switch strings.ToUpper(s) {
+	case "RSA":
+		return RSA, nil
+	case "ECC":
+		return ECC, nil
+	default:
+		return 0, fmt.Errorf("unsupported key type: %s", s)
+	}
+}
 
 func (k KeyType) String() string {
 	switch k {
