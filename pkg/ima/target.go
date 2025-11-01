@@ -6,24 +6,24 @@ type Target interface {
 }
 
 type Matches struct {
-	Matches map[MeasurementType][]Measurement
+	Measurements map[MeasurementType][]Measurement
 }
 
 func NewMatches() *Matches {
 	return &Matches{
-		Matches: make(map[MeasurementType][]Measurement),
+		Measurements: make(map[MeasurementType][]Measurement),
 	}
 }
 
 func (m *Matches) AddMatch(measurementType MeasurementType, measurement Measurement) {
-	m.Matches[measurementType] = append(m.Matches[measurementType], measurement)
+	m.Measurements[measurementType] = append(m.Measurements[measurementType], measurement)
 }
 
 func (m *Matches) RemoveMatch(measurementType MeasurementType, measurement Measurement) {
-	measurements := m.Matches[measurementType]
+	measurements := m.Measurements[measurementType]
 	for i, msr := range measurements {
 		if msr == measurement {
-			m.Matches[measurementType] = append(measurements[:i], measurements[i+1:]...)
+			m.Measurements[measurementType] = append(measurements[:i], measurements[i+1:]...)
 			break
 		}
 	}

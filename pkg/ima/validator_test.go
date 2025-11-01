@@ -95,8 +95,8 @@ func TestValidator_MeasurementListAttestation_target(t *testing.T) {
 	err = v.MeasurementListAttestation(expected)
 	assert.NoError(t, err)
 
-	assert.Equal(t, len(v.Target.GetMatches().Matches[Pod]), 44)
-	assert.Equal(t, len(v.Target.GetMatches().Matches[ContainerRuntime]), 7)
+	assert.Equal(t, len(v.Target.GetMatches().Measurements[Pod]), 44)
+	assert.Equal(t, len(v.Target.GetMatches().Measurements[ContainerRuntime]), 7)
 }
 
 func TestValidator_MeasurementListAttestation_ng(t *testing.T) {
