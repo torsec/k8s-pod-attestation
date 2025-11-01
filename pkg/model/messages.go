@@ -59,7 +59,7 @@ type VerifyTPMEKCertificateRequest struct {
 // VerifySignatureRequest represents the input data for signature verification
 type VerifySignatureRequest struct {
 	Name      string     `json:"name"`
-	Message   string     `json:"message"`
+	Message   []byte     `json:"message"`
 	Signature *Signature `json:"signature,omitempty"`
 }
 
