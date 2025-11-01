@@ -20,31 +20,49 @@ var bootReservedPCRs = []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 const SimulatorPath = "simulator"
 
+type KeyType int
+
+const (
+	RSA KeyType = iota
+	ECC KeyType = iota
+)
+
+func (k KeyType) String() string {
+	switch k {
+	case RSA:
+		return "RSA"
+	case ECC:
+		return "ECC"
+	default:
+		return "Unknown"
+	}
+}
+
 type TPM struct {
 	rwc       io.ReadWriteCloser
-	tpmPath   string
+	Path      string
 	aikHandle tpmutil.Handle
 	ekHandle  tpmutil.Handle
 	mtx       sync.Mutex
 }
 
 func (tpm *TPM) Init(tpmPath string) {
-	tpm.tpmPath = tpmPath
+	tpm.Path = tpmPath
 }
 
 func (tpm *TPM) Open() {
 	var err error
-	if tpm.tpmPath == "" {
+	if tpm.Path == "" {
 		logger.Fatal("Unable to open TPM: no device path provided")
 	}
 
-	if tpm.tpmPath == SimulatorPath {
+	if tpm.Path == SimulatorPath {
 		tpm.rwc, err = simulator.GetWithFixedSeedInsecure(1073741825)
 		if err != nil {
 			logger.Fatal("Unable to open TPM simulator: %v", err)
 		}
 	} else {
-		tpm.rwc, err = tpmutil.OpenTPM(tpm.tpmPath)
+		tpm.rwc, err = tpmutil.OpenTPM(tpm.Path)
 		if err != nil {
 			logger.Fatal("unable to open TPM: %v", err)
 		}
@@ -58,13 +76,27 @@ func (tpm *TPM) Close() {
 	}
 }
 
-func (tpm *TPM) GetWorkerEKCertificate() ([]byte, error) {
+func (tpm *TPM) GetWorkerEKCertificate(keyType KeyType) ([]byte, error) {
 	tpm.mtx.Lock()
 	defer tpm.mtx.Unlock()
+	var EK *client.Key
+	var err error
 
-	EK, err := client.EndorsementKeyRSA(tpm.rwc)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get RSA EK: %v", err)
+	switch keyType {
+	case RSA:
+		EK, err = client.EndorsementKeyRSA(tpm.rwc)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get RSA EK: %v", err)
+		}
+		break
+	case ECC:
+		EK, err = client.EndorsementKeyECC(tpm.rwc)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get ECC EK: %v", err)
+		}
+		break
+	default:
+		return nil, fmt.Errorf("unsupported key type: %v", keyType)
 	}
 
 	tpm.ekHandle = EK.Handle()
@@ -83,15 +115,51 @@ func (tpm *TPM) GetWorkerEKCertificate() ([]byte, error) {
 	return nil, fmt.Errorf("unable to get EK certificate")
 }
 
-// GetWorkerEKandCertificate is used to get TPM EK public key and certificate.
-// It returns both the EK and the certificate to be compliant with simulator TPMs not provided with a certificate
-func (tpm *TPM) GetWorkerEKandCertificate() ([]byte, []byte, error) {
+func (tpm *TPM) ReadPCR(pcrIndex int, bankHash crypto.Hash) ([]byte, error) {
 	tpm.mtx.Lock()
 	defer tpm.mtx.Unlock()
 
-	EK, err := client.EndorsementKeyRSA(tpm.rwc)
+	pcrHashAlgo, err := GetPCRHashAlgo(bankHash)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to get RSA EK: %v", err)
+		return nil, fmt.Errorf("cannot read selected PCR bank: %v", err)
+	}
+
+	pcrSelection := tpm2legacy.PCRSelection{
+		Hash: pcrHashAlgo,
+		PCRs: []int{pcrIndex},
+	}
+
+	pcrValues, err := tpm2legacy.ReadPCRs(tpm.rwc, pcrSelection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read PCR %d: %v", pcrIndex, err)
+	}
+	return pcrValues[pcrIndex], nil
+}
+
+// GetWorkerEKandCertificate is used to get TPM EK public key and certificate.
+// It returns both the EK and the certificate to be compliant with simulator TPMs not provided with a certificate
+func (tpm *TPM) GetWorkerEKandCertificate(keyType KeyType) ([]byte, []byte, error) {
+	tpm.mtx.Lock()
+	defer tpm.mtx.Unlock()
+
+	var EK *client.Key
+	var err error
+
+	switch keyType {
+	case RSA:
+		EK, err = client.EndorsementKeyRSA(tpm.rwc)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to get RSA EK: %v", err)
+		}
+		break
+	case ECC:
+		EK, err = client.EndorsementKeyECC(tpm.rwc)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to get ECC EK: %v", err)
+		}
+		break
+	default:
+		return nil, nil, fmt.Errorf("unsupported key type: %v", keyType)
 	}
 
 	tpm.ekHandle = EK.Handle()
@@ -115,15 +183,31 @@ func (tpm *TPM) GetWorkerEKandCertificate() ([]byte, []byte, error) {
 	return pemPublicEK, pemEKCert, nil
 }
 
-// CreateWorkerAIK creates a new AIK (Attestation Identity Key) for the Agent
-func (tpm *TPM) CreateWorkerAIK() ([]byte, []byte, error) {
+// CreateAIK creates a new AIK (Attestation Identity Key) for the Agent
+func (tpm *TPM) CreateAIK(keyType KeyType) ([]byte, []byte, error) {
 	tpm.mtx.Lock()
 	defer tpm.mtx.Unlock()
 
-	AIK, err := client.AttestationKeyRSA(tpm.rwc)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to create RSA AIK: %v", err)
+	var AIK *client.Key
+	var err error
+
+	switch keyType {
+	case RSA:
+		AIK, err = client.EndorsementKeyRSA(tpm.rwc)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to get RSA EK: %v", err)
+		}
+		break
+	case ECC:
+		AIK, err = client.EndorsementKeyECC(tpm.rwc)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to get ECC EK: %v", err)
+		}
+		break
+	default:
+		return nil, nil, fmt.Errorf("unsupported key type: %v", keyType)
 	}
+
 	defer AIK.Close()
 
 	// used to later retrieve newly created AIK inside the TPM
@@ -157,8 +241,8 @@ func containsAndReturnPCR(pcrsToQuote []int) (bool, []int) {
 	return true, foundPCRs
 }
 
-func GetPCRHashAlgo(algo crypto.Hash) (tpm2legacy.Algorithm, error) {
-	tpmAlgo, err := tpm2legacy.HashToAlgorithm(algo)
+func GetPCRHashAlgo(alg crypto.Hash) (tpm2legacy.Algorithm, error) {
+	tpmAlgo, err := tpm2legacy.HashToAlgorithm(alg)
 	if err != nil {
 		return tpm2legacy.AlgUnknown, fmt.Errorf("unable to determine hash algorithm: %v", err)
 	}
@@ -171,7 +255,7 @@ func GetPCRHashAlgo(algo crypto.Hash) (tpm2legacy.Algorithm, error) {
 	}
 }
 
-func (tpm *TPM) QuoteGeneralPurposePCRs(nonce []byte, pcrsToQuote []int, bank crypto.Hash) ([]byte, error) {
+func (tpm *TPM) QuoteGeneralPurposePCRs(nonce []byte, pcrsToQuote []int, bankHash crypto.Hash, keyType KeyType) ([]byte, error) {
 	tpm.mtx.Lock()
 	defer tpm.mtx.Unlock()
 	// Custom function to return both found status and the PCR value
@@ -180,7 +264,7 @@ func (tpm *TPM) QuoteGeneralPurposePCRs(nonce []byte, pcrsToQuote []int, bank cr
 		return nil, fmt.Errorf("cannot compute Quote on provided PCR set %v: boot reserved PCRs where included: %v", foundPCR, bootReservedPCRs)
 	}
 
-	pcrHashAlgo, err := GetPCRHashAlgo(bank)
+	pcrHashAlgo, err := GetPCRHashAlgo(bankHash)
 	if err != nil {
 		return nil, fmt.Errorf("cannot compute Quote on selected PCR bank: %v", err)
 	}
@@ -190,7 +274,19 @@ func (tpm *TPM) QuoteGeneralPurposePCRs(nonce []byte, pcrsToQuote []int, bank cr
 		PCRs: pcrsToQuote,
 	}
 
-	AIK, err := client.NewCachedKey(tpm.rwc, tpm2legacy.HandleOwner, client.AKTemplateRSA(), tpm.aikHandle)
+	var template tpm2legacy.Public
+	switch keyType {
+	case RSA:
+		template = client.AKTemplateRSA()
+		break
+	case ECC:
+		template = client.AKTemplateECC()
+		break
+	default:
+		return nil, fmt.Errorf("unsupported key type: %v", keyType)
+	}
+
+	AIK, err := client.NewCachedKey(tpm.rwc, tpm2legacy.HandleOwner, template, tpm.aikHandle)
 	if err != nil {
 		return nil, fmt.Errorf("error while retrieving AIK: %v", err)
 	}
@@ -206,13 +302,13 @@ func (tpm *TPM) QuoteGeneralPurposePCRs(nonce []byte, pcrsToQuote []int, bank cr
 	return quoteJSON, nil
 }
 
-func (tpm *TPM) QuoteBootPCRs(nonce []byte, bank crypto.Hash) ([]byte, error) {
+func (tpm *TPM) QuoteBootPCRs(nonce []byte, bankHash crypto.Hash, keyType KeyType) ([]byte, error) {
 	tpm.mtx.Lock()
 	defer tpm.mtx.Unlock()
 
-	pcrHashAlgo, err := GetPCRHashAlgo(bank)
+	pcrHashAlgo, err := GetPCRHashAlgo(bankHash)
 	if err != nil {
-		return nil, fmt.Errorf("cannot compute Quote on selected PCR bank: %v", err)
+		return nil, fmt.Errorf("cannot compute Quote on selected PCR bankHash: %v", err)
 	}
 
 	bootPCRs := tpm2legacy.PCRSelection{
@@ -220,7 +316,19 @@ func (tpm *TPM) QuoteBootPCRs(nonce []byte, bank crypto.Hash) ([]byte, error) {
 		PCRs: bootReservedPCRs,
 	}
 
-	AIK, err := client.NewCachedKey(tpm.rwc, tpm2legacy.HandleOwner, client.AKTemplateRSA(), tpm.aikHandle)
+	var template tpm2legacy.Public
+	switch keyType {
+	case RSA:
+		template = client.AKTemplateRSA()
+		break
+	case ECC:
+		template = client.AKTemplateECC()
+		break
+	default:
+		return nil, fmt.Errorf("unsupported key type: %v", keyType)
+	}
+
+	AIK, err := client.NewCachedKey(tpm.rwc, tpm2legacy.HandleOwner, template, tpm.aikHandle)
 	if err != nil {
 		return nil, fmt.Errorf("error while retrieving AIK: %v", err)
 	}
@@ -253,15 +361,24 @@ func (tpm *TPM) ActivateAIKCredential(aikCredential, aikEncryptedSecret []byte) 
 		return nil, fmt.Errorf("creating auth session failed: %v", err)
 	}
 	// Set PolicySecret on the endorsement handle, enabling EK use
-	auth := tpm2legacy.AuthCommand{Session: tpm2legacy.HandlePasswordSession, Attributes: tpm2legacy.AttrContinueSession}
+	auth := tpm2legacy.AuthCommand{
+		Session:    tpm2legacy.HandlePasswordSession,
+		Attributes: tpm2legacy.AttrContinueSession,
+	}
 	if _, _, err = tpm2legacy.PolicySecret(tpm.rwc, tpm2legacy.HandleEndorsement, auth, session, nil, nil, nil, 0); err != nil {
 		return nil, fmt.Errorf("policy secret failed: %v", err)
 	}
 
 	// Create authorization commands, linking session and password auth
 	auths := []tpm2legacy.AuthCommand{
-		{Session: tpm2legacy.HandlePasswordSession, Attributes: tpm2legacy.AttrContinueSession},
-		{Session: session, Attributes: tpm2legacy.AttrContinueSession},
+		{
+			Session:    tpm2legacy.HandlePasswordSession,
+			Attributes: tpm2legacy.AttrContinueSession,
+		},
+		{
+			Session:    session,
+			Attributes: tpm2legacy.AttrContinueSession,
+		},
 	}
 
 	// Attempt to activate the credential
@@ -272,7 +389,7 @@ func (tpm *TPM) ActivateAIKCredential(aikCredential, aikEncryptedSecret []byte) 
 	return challengeSecret, nil
 }
 
-func (tpm *TPM) SignWithAIK(message []byte) ([]byte, error) {
+func (tpm *TPM) SignWithAIK(message []byte, keyType KeyType) ([]byte, error) {
 	tpm.mtx.Lock()
 	defer tpm.mtx.Unlock()
 
@@ -280,7 +397,19 @@ func (tpm *TPM) SignWithAIK(message []byte) ([]byte, error) {
 		return nil, fmt.Errorf("AIK is not already created")
 	}
 
-	AIK, err := client.NewCachedKey(tpm.rwc, tpm2legacy.HandleOwner, client.AKTemplateRSA(), tpm.aikHandle)
+	var template tpm2legacy.Public
+	switch keyType {
+	case RSA:
+		template = client.AKTemplateRSA()
+		break
+	case ECC:
+		template = client.AKTemplateECC()
+		break
+	default:
+		return nil, fmt.Errorf("unsupported key type: %v", keyType)
+	}
+
+	AIK, err := client.NewCachedKey(tpm.rwc, tpm2legacy.HandleOwner, template, tpm.aikHandle)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve AIK from TPM")
 	}
