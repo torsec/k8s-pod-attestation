@@ -40,6 +40,7 @@ type WorkerChallenge struct {
 type WorkerChallengeResponse struct {
 	SimpleResponse `json:",inline"`
 	Evidence       *RatsEvidence `json:"evidence,omitempty"`
+	HashAlgo       crypto.Hash   `json:"hashAlgo"`
 }
 
 type RegistrationAcknowledge struct {
