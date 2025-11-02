@@ -16,7 +16,7 @@ type NewTenantRequest struct {
 }
 
 type NewTPMCaCertRequest struct {
-	TPMCaCert string `json:"tpmCaCert"`
+	TPMCaCert []byte `json:"tpmCaCert"`
 }
 
 type NewTPMVendorRequest struct {
