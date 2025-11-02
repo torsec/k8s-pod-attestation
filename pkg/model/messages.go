@@ -86,10 +86,9 @@ type PodAttestationRequest struct {
 }
 
 type AttestationRequest struct {
-	Nonce     []byte      `json:"nonce"`
-	Offset    int64       `json:"offset"`
-	PCRBank   crypto.Hash `json:"pcrBank"`
-	Signature *Signature  `json:"signature,omitempty"`
+	Nonce     []byte     `json:"nonce"`
+	Offset    int64      `json:"offset"`
+	Signature *Signature `json:"signature,omitempty"`
 }
 
 func (ar *AttestationRequest) ToJSON() ([]byte, error) {
