@@ -2,7 +2,6 @@ package pod_handler
 
 import (
 	"crypto/x509"
-	"encoding/base64"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	clusterInteraction "github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
@@ -78,7 +77,7 @@ func (s *Server) secureDeployment(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "Pod successfully deployed"})
 }
 
-func (s *Server) deployResourceByKind(resourceKind, manifest, tenantName string) error {
+func (s *Server) deployResourceByKind(resourceKind string, manifest []byte, tenantName string) error {
 	var err error
 	switch resourceKind {
 	case "Pod":
@@ -118,7 +117,7 @@ func (s *Server) deployResourceByKind(resourceKind, manifest, tenantName string)
 }
 
 // request pod deployment
-func (s *Server) deployPod(podManifest, tenantName string) error {
+func (s *Server) deployPod(podManifest []byte, tenantName string) error {
 	tenantIdResponse, err := s.registrarClient.GetTenantIdByName(tenantName)
 	if err != nil {
 		return fmt.Errorf("error retrieving tenant ID: %v", err)
@@ -126,12 +125,7 @@ func (s *Server) deployPod(podManifest, tenantName string) error {
 
 	tenantId := tenantIdResponse.Message
 
-	podManifestContent, err := base64.StdEncoding.DecodeString(podManifest)
-	if err != nil {
-		return fmt.Errorf("error decoding pod manifest: %v", err)
-	}
-
-	deployedPod, err := s.clusterInteractor.CreateTenantPodFromManifest(podManifestContent, tenantId)
+	deployedPod, err := s.clusterInteractor.CreateTenantPodFromManifest(podManifest, tenantId)
 	if err != nil {
 		return fmt.Errorf("error creating pod: %v", err)
 	}
@@ -140,7 +134,7 @@ func (s *Server) deployPod(podManifest, tenantName string) error {
 }
 
 // request deployment of a Deployment
-func (s *Server) deployDeployment(deploymentManifest, tenantName string) error {
+func (s *Server) deployDeployment(deploymentManifest []byte, tenantName string) error {
 	tenantIdResponse, err := s.registrarClient.GetTenantIdByName(tenantName)
 	if err != nil {
 		return err
@@ -148,12 +142,7 @@ func (s *Server) deployDeployment(deploymentManifest, tenantName string) error {
 
 	tenantId := tenantIdResponse.Message
 
-	deploymentManifestContent, err := base64.StdEncoding.DecodeString(deploymentManifest)
-	if err != nil {
-		return fmt.Errorf("error decoding deployment manifest: %v", err)
-	}
-
-	deployedDeployment, err := s.clusterInteractor.CreateTenantDeploymentFromManifest(deploymentManifestContent, tenantId)
+	deployedDeployment, err := s.clusterInteractor.CreateTenantDeploymentFromManifest(deploymentManifest, tenantId)
 	if err != nil {
 		return fmt.Errorf("error creating deployment: %v", err)
 	}
@@ -162,7 +151,7 @@ func (s *Server) deployDeployment(deploymentManifest, tenantName string) error {
 }
 
 // request deployment of a ReplicaSet
-func (s *Server) deployReplicaSet(replicaSetManifest, tenantName string) error {
+func (s *Server) deployReplicaSet(replicaSetManifest []byte, tenantName string) error {
 	tenantIdResponse, err := s.registrarClient.GetTenantIdByName(tenantName)
 	if err != nil {
 		return err
@@ -170,12 +159,7 @@ func (s *Server) deployReplicaSet(replicaSetManifest, tenantName string) error {
 
 	tenantId := tenantIdResponse.Message
 
-	replicaSetManifestContent, err := base64.StdEncoding.DecodeString(replicaSetManifest)
-	if err != nil {
-		return fmt.Errorf("error decoding replicaSet manifest: %v", err)
-	}
-
-	deployedReplicaSet, err := s.clusterInteractor.CreateTenantReplicaSetFromManifest(replicaSetManifestContent, tenantId)
+	deployedReplicaSet, err := s.clusterInteractor.CreateTenantReplicaSetFromManifest(replicaSetManifest, tenantId)
 	if err != nil {
 		return fmt.Errorf("error creating replicaSet: %v", err)
 	}
@@ -184,7 +168,7 @@ func (s *Server) deployReplicaSet(replicaSetManifest, tenantName string) error {
 }
 
 // request deployment of a DaemonSet
-func (s *Server) deployDaemonSet(daemonSetManifest, tenantName string) error {
+func (s *Server) deployDaemonSet(daemonSetManifest []byte, tenantName string) error {
 	tenantIdResponse, err := s.registrarClient.GetTenantIdByName(tenantName)
 	if err != nil {
 		return err
@@ -192,12 +176,7 @@ func (s *Server) deployDaemonSet(daemonSetManifest, tenantName string) error {
 
 	tenantId := tenantIdResponse.Message
 
-	daemonSetManifestContent, err := base64.StdEncoding.DecodeString(daemonSetManifest)
-	if err != nil {
-		return fmt.Errorf("error decoding daemonSet manifest: %v", err)
-	}
-
-	deployedDaemonSet, err := s.clusterInteractor.CreateTenantDaemonSetFromManifest(daemonSetManifestContent, tenantId)
+	deployedDaemonSet, err := s.clusterInteractor.CreateTenantDaemonSetFromManifest(daemonSetManifest, tenantId)
 	if err != nil {
 		return fmt.Errorf("error creating daemonSet: %v", err)
 	}
@@ -206,7 +185,7 @@ func (s *Server) deployDaemonSet(daemonSetManifest, tenantName string) error {
 }
 
 // request deployment of a statefulSet
-func (s *Server) deployStatefulSet(statefulSetManifest, tenantName string) error {
+func (s *Server) deployStatefulSet(statefulSetManifest []byte, tenantName string) error {
 	tenantIdResponse, err := s.registrarClient.GetTenantIdByName(tenantName)
 	if err != nil {
 		return err
@@ -214,12 +193,7 @@ func (s *Server) deployStatefulSet(statefulSetManifest, tenantName string) error
 
 	tenantId := tenantIdResponse.Message
 
-	statefulSetManifestContent, err := base64.StdEncoding.DecodeString(statefulSetManifest)
-	if err != nil {
-		return fmt.Errorf("error decoding statefulSet manifest: %v", err)
-	}
-
-	deployedStatefulSet, err := s.clusterInteractor.CreateTenantStatefulSetFromManifest(statefulSetManifestContent, tenantId)
+	deployedStatefulSet, err := s.clusterInteractor.CreateTenantStatefulSetFromManifest(statefulSetManifest, tenantId)
 	if err != nil {
 		return fmt.Errorf("error creating statefulSet: %v", err)
 	}
@@ -236,7 +210,7 @@ func (s *Server) requestPodAttestation(c *gin.Context) {
 
 	verifySignatureRequest := &model.VerifySignatureRequest{
 		Name:      podAttestationRequest.TenantName,
-		Message:   base64.StdEncoding.EncodeToString([]byte(podAttestationRequest.PodName)),
+		Message:   []byte(podAttestationRequest.PodName),
 		Signature: podAttestationRequest.Signature,
 	}
 

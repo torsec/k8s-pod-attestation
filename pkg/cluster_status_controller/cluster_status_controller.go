@@ -5,7 +5,8 @@ import (
 	"fmt"
 	clusterInteraction "github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
-	"k8s.io/apimachinery/pkg/runtime"
+	"github.com/torsec/k8s-pod-attestation/pkg/model"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
 	"os"
@@ -25,16 +26,16 @@ func (csc *ClusterStatusController) Init(defaultResync int) {
 }
 
 func (csc *ClusterStatusController) addAgentCRDHandling(obj interface{}) {
-	logger.Info("Agent CRD Added: %s", formatAgentCRD(obj))
+	logger.Info("Agent CRD Added: %s", obj)
 }
 
 func (csc *ClusterStatusController) updateAgentCRDHandling(oldObj, newObj interface{}) {
-	logger.Info("Agent CRD Modified: %s", formatAgentCRD(newObj))
+	logger.Info("Agent CRD Modified: %s", newObj)
 	csc.checkAgentStatus(newObj)
 }
 
 func (csc *ClusterStatusController) deleteAgentCRDHandling(obj interface{}) {
-	logger.Info("Agent CRD Deleted: %s", formatAgentCRD(obj))
+	logger.Info("Agent CRD Deleted: %s", obj)
 }
 
 func extractNodeName(agentName string) (string, error) {
@@ -84,12 +85,23 @@ func (csc *ClusterStatusController) WatchAgentCRDs() {
 }
 
 func (csc *ClusterStatusController) checkAgentStatus(obj interface{}) {
-	spec := formatAgentCRD(obj)
+	unstructuredObj, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		logger.Error("expected *unstructured.Unstructured but got %T", obj)
+		return
+	}
 
-	if spec["nodeStatus"] == clusterInteraction.UntrustedPodStatus {
-		nodeName, err := extractNodeName(spec["agentName"].(string))
+	var agent clusterInteraction.Agent
+	err := agent.FromUnstructured(unstructuredObj)
+	if err != nil {
+		logger.Error("failed to parse attestation request: %v", err)
+		return
+	}
+
+	if agent.Spec.NodeStatus == model.UntrustedNodeStatus {
+		nodeName, err := extractNodeName(agent.Spec.AgentName)
 		if err != nil {
-			logger.Error("invalid 'agentName' format: '%s'", spec["agentName"])
+			logger.Error("invalid 'agentName' format: '%s'", agent.Spec.AgentName)
 			return
 		}
 
@@ -107,55 +119,16 @@ func (csc *ClusterStatusController) checkAgentStatus(obj interface{}) {
 		return
 	}
 
-	podStatusInterface, exists := spec["podStatus"]
-	if !exists {
-		logger.Error("missing 'podStatus' field in Agent CRD")
-		return
-	}
-
-	podStatus, ok := podStatusInterface.([]interface{})
-	if !ok {
-		logger.Error("unable to parse 'podStatus' field in Agent CRD")
-		return
-	}
-
-	for _, ps := range podStatus {
-		pod := ps.(map[string]interface{})
-		podName, ok := pod["podName"].(string)
-		if !ok {
-			logger.Error("unable to parse 'podName' field in 'podStatus'")
-			continue
-		}
-		status, ok := pod["status"].(string)
-		if !ok {
-			logger.Error("unable to parse 'status' field in 'podStatus'")
-			continue
-		}
-
-		if status == clusterInteraction.UntrustedPodStatus {
-			logger.Warning("detected untrusted pod: '%s'", podName)
-			_, err := csc.clusterInteractor.DeletePod(podName)
+	for _, pod := range agent.Spec.PodStatus {
+		if pod.Status == model.UntrustedPodStatus {
+			logger.Warning("detected untrusted pod: '%s'", pod.PodName)
+			_, err := csc.clusterInteractor.DeletePod(pod.PodName)
 			if err != nil {
-				logger.Error("error deleting pod '%s': %v", podName, err)
+				logger.Error("error deleting pod '%s': %v", pod.PodName, err)
 			}
-			logger.Success("untrusted pod: '%s' successfully deleted", podName)
+			logger.Success("untrusted pod: '%s' successfully deleted", pod.PodName)
 		}
 	}
-}
-
-func formatAgentCRD(obj interface{}) map[string]interface{} {
-	agentCRD, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-	if err != nil {
-		logger.Error("missing 'spec' field in Agent CRD")
-		return nil
-	}
-
-	spec, specExists := agentCRD["spec"].(map[string]interface{})
-	if !specExists {
-		logger.Error("missing 'spec' field in Agent CRD")
-		return nil
-	}
-	return spec
 }
 
 // setupSignalHandler sets up a signal handler for graceful termination.

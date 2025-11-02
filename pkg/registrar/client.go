@@ -12,11 +12,11 @@ import (
 
 type Client struct {
 	registrarHost         string
-	registrarPort         int
+	registrarPort         int32
 	invokerTlsCertificate *x509.Certificate
 }
 
-func (c *Client) Init(registrarHost string, registrarPort int, invokerTlsCertificate *x509.Certificate) {
+func (c *Client) Init(registrarHost string, registrarPort int32, invokerTlsCertificate *x509.Certificate) {
 	c.registrarHost = registrarHost
 	c.registrarPort = registrarPort
 	c.invokerTlsCertificate = invokerTlsCertificate
@@ -225,7 +225,7 @@ func (c *Client) StoreTPMVendor(tpmVendor *model.TPMVendor) (*model.RegistrarRes
 	return &registrarResponse, nil
 }
 
-func (c *Client) StoreTPMCaCertificate(certificate *model.TPMCACertificate) (*model.RegistrarResponse, error) {
+func (c *Client) StoreTPMCaCertificate(certificate *TPMCACertificate) (*model.RegistrarResponse, error) {
 	registrarURL := fmt.Sprintf("http://%s:%d%s", c.registrarHost, c.registrarPort, StoreTPMCaCertificateUrl)
 	jsonData, err := json.Marshal(certificate)
 
@@ -322,7 +322,7 @@ func (c *Client) VerifyWorkerSignature(verifySignatureRequest *model.VerifySigna
 	return &registrarResponse, nil
 }
 
-func (c *Client) CreateTenant(tenant *model.Tenant) (*model.RegistrarResponse, error) {
+func (c *Client) CreateTenant(tenant *Tenant) (*model.RegistrarResponse, error) {
 	createTenantURL := fmt.Sprintf("http://%s:%d%s", c.registrarHost, c.registrarPort, TenantCreateUrl)
 
 	jsonData, err := json.Marshal(tenant)

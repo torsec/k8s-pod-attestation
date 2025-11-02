@@ -16,9 +16,9 @@ import (
 )
 
 type TPMVendor struct {
-	VendorId string `json:"vendorId,omitempty"`
-	Name     string `json:"vendorName"`
-	TCGId    string `json:"TCGId"`
+	Id    string `json:"id,omitempty"`
+	Name  string `json:"Name"`
+	TCGId string `json:"TCGId"`
 }
 
 type ECDSASignature struct {
@@ -174,18 +174,17 @@ func VerifyMessage(publicKey crypto.PublicKey, message, signature []byte, hashAl
 		return rsa.VerifyPKCS1v15(key, hashAlgo, hashed, signature)
 
 	case *ecdsa.PublicKey:
-		var sig ecdsaSignature
-		if _, err := asn1.Unmarshal(signature, &sig); err != nil {
-			return fmt.Errorf("failed to unmarshal ECDSA signature: %v", err)
+		rawSig, err := ECDSASignatureFromASN1(signature)
+		if err != nil {
+			return fmt.Errorf("failed to parse ECDSA signature: %v", err)
 		}
 
-		if !ecdsa.Verify(key, hashed, sig.R, sig.S) {
+		if !ecdsa.Verify(key, hashed, rawSig.R, rawSig.S) {
 			return fmt.Errorf("invalid ECDSA signature")
 		}
 		return nil
 
 	case ed25519.PublicKey:
-		// Hash ignored, verify directly
 		if !ed25519.Verify(key, message, signature) {
 			return fmt.Errorf("invalid Ed25519 signature")
 		}
@@ -371,17 +370,21 @@ func handleTPMSubjectAltName(cert *x509.Certificate, tpmVendors []TPMVendor) err
 }
 
 // VerifyEKCertificateChain verifies the provided certificate chain from PEM strings
-func VerifyEKCertificateChain(ekCert, intermediateCACert, rootCACert *x509.Certificate, tpmVendors []TPMVendor) error {
+func VerifyEKCertificateChain(ekCert *x509.Certificate, intermediateCACerts []*x509.Certificate, rootCACert *x509.Certificate, tpmVendors []TPMVendor) error {
 	roots := x509.NewCertPool()
 	roots.AddCert(rootCACert)
 
-	intermediates := x509.NewCertPool()
-	intermediates.AddCert(intermediateCACert)
-
 	opts := x509.VerifyOptions{
-		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
-		Roots:         roots,
-		Intermediates: intermediates,
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+		Roots:     roots,
+	}
+
+	if len(intermediateCACerts) > 0 {
+		intermediates := x509.NewCertPool()
+		for _, cert := range intermediateCACerts {
+			intermediates.AddCert(cert)
+		}
+		opts.Intermediates = intermediates
 	}
 
 	err := handleTPMSubjectAltName(ekCert, tpmVendors)
@@ -389,7 +392,7 @@ func VerifyEKCertificateChain(ekCert, intermediateCACert, rootCACert *x509.Certi
 		return fmt.Errorf("EK Certificate verification failed: %v", err)
 	}
 
-	if _, err := ekCert.Verify(opts); err != nil {
+	if _, err = ekCert.Verify(opts); err != nil {
 		return fmt.Errorf("EK Certificate verification failed: %v", err)
 	}
 	return nil
@@ -408,4 +411,8 @@ func VerifyIntermediateCaCertificateChain(intermediateCACert, rootCACert *x509.C
 		return fmt.Errorf("TPM Intermediate CA Certificate verification failed: %v", err)
 	}
 	return nil
+}
+
+func IsRootCaCert(cert *x509.Certificate) bool {
+	return cert.IsCA && cert.Issuer.CommonName == cert.Subject.CommonName
 }

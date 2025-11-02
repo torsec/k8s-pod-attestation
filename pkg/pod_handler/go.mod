@@ -5,9 +5,9 @@ go 1.24.5
 require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction v0.0.0-20251021124929-170ede04c79a
-	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20251013125547-d35c3f466aff
+	github.com/torsec/k8s-pod-attestation/pkg/crypto v0.0.0-20251022125136-979375e8e618
 	github.com/torsec/k8s-pod-attestation/pkg/logger v0.0.0-20250722091327-ad82fb00ad6b
-	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20251021124929-170ede04c79a
+	github.com/torsec/k8s-pod-attestation/pkg/model v0.0.0-20251102112404-d8e0d264249b
 	github.com/torsec/k8s-pod-attestation/pkg/registrar v0.0.0-20250722091327-ad82fb00ad6b
 )
 
@@ -36,8 +36,12 @@ require (
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-attestation v0.5.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/go-tpm v0.9.5 // indirect
+	github.com/google/go-sev-guest v0.9.3 // indirect
+	github.com/google/go-tdx-guest v0.2.3-0.20231011100059-4cf02bed9d33 // indirect
+	github.com/google/go-tpm v0.9.6 // indirect
+	github.com/google/go-tpm-tools v0.4.2 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/google/logger v1.1.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -50,10 +54,12 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
+	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/torsec/k8s-pod-attestation/pkg/ima v0.0.0-20251101171744-b3b48e1404bf // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	github.com/veraison/cmw v0.2.0 // indirect

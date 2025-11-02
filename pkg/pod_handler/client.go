@@ -12,17 +12,17 @@ import (
 
 type Client struct {
 	podHandlerHost        string
-	podHandlerPort        int
+	podHandlerPort        int32
 	invokerTlsCertificate *x509.Certificate
 }
 
-func (c *Client) Init(podHandlerHost string, podHandlerPort int, invokerTlsCertificate *x509.Certificate) {
+func (c *Client) Init(podHandlerHost string, podHandlerPort int32, invokerTlsCertificate *x509.Certificate) {
 	c.podHandlerHost = podHandlerHost
 	c.podHandlerPort = podHandlerPort
 	c.invokerTlsCertificate = invokerTlsCertificate
 }
 
-func (c *Client) SecurePodDeployment(podDeploymentRequest model.DeploymentRequest) (*model.PodHandlerResponse, error) {
+func (c *Client) SecureDeployment(podDeploymentRequest model.DeploymentRequest) (*model.PodHandlerResponse, error) {
 	completeUrl := fmt.Sprintf("http://%s:%d%s", c.podHandlerHost, c.podHandlerPort, DeployResourceUrl)
 
 	jsonData, err := json.Marshal(podDeploymentRequest)
