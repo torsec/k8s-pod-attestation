@@ -105,7 +105,7 @@ func (e *ErroredEntries) ToString() string {
 type WorkerNode struct {
 	WorkerId string `json:"workerId"`
 	Name     string `json:"name"`
-	AIK      string `json:"AIK"`
+	AIK      []byte `json:"AIK"`
 }
 
 type Signature struct {
