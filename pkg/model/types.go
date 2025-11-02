@@ -2,6 +2,7 @@ package model
 
 import (
 	"crypto"
+	"encoding/json"
 	"fmt"
 	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 )
@@ -45,6 +46,60 @@ type ErroredEntries struct {
 	NotRun      []NotRunEntry      `json:"notRun,omitempty"`
 	Absent      []AbsentEntry      `json:"absent,omitempty"`
 	Mismatching []MismatchingEntry `json:"mismatching,omitempty"`
+}
+
+func (e *ErroredEntries) ToString() string {
+	type notRunEntryJSON struct {
+		Id           string   `json:"id"`
+		HashAlg      string   `json:"hashAlg"`
+		ExpectedHash []string `json:"expectedHash"`
+	}
+	type absentEntryJSON struct {
+		Id         string `json:"id"`
+		HashAlg    string `json:"hashAlg"`
+		ActualHash string `json:"actualHash,omitempty"`
+	}
+	type mismatchingEntryJSON struct {
+		Id           string   `json:"id"`
+		HashAlg      string   `json:"hashAlg"`
+		ActualHash   string   `json:"actualHash,omitempty"`
+		ExpectedHash []string `json:"expectedHash,omitempty"`
+	}
+
+	out := struct {
+		NotRun      []notRunEntryJSON      `json:"notRun,omitempty"`
+		Absent      []absentEntryJSON      `json:"absent,omitempty"`
+		Mismatching []mismatchingEntryJSON `json:"mismatching,omitempty"`
+	}{}
+
+	for _, n := range e.NotRun {
+		out.NotRun = append(out.NotRun, notRunEntryJSON{
+			Id:           n.Id,
+			HashAlg:      n.HashAlg.String(),
+			ExpectedHash: n.ExpectedHash,
+		})
+	}
+	for _, a := range e.Absent {
+		out.Absent = append(out.Absent, absentEntryJSON{
+			Id:         a.Id,
+			HashAlg:    a.HashAlg.String(),
+			ActualHash: a.ActualHash,
+		})
+	}
+	for _, m := range e.Mismatching {
+		out.Mismatching = append(out.Mismatching, mismatchingEntryJSON{
+			Id:           m.Id,
+			HashAlg:      m.HashAlg.String(),
+			ActualHash:   m.ActualHash,
+			ExpectedHash: m.ExpectedHash,
+		})
+	}
+
+	jsonData, err := json.Marshal(out)
+	if err != nil {
+		return fmt.Sprintf(`{"error": "failed to marshal errored entries: %v"}`, err)
+	}
+	return string(jsonData)
 }
 
 type WorkerNode struct {

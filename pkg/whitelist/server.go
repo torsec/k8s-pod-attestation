@@ -2,6 +2,7 @@ package whitelist
 
 import (
 	"context"
+	"crypto"
 	"crypto/x509"
 	"errors"
 	"github.com/gin-gonic/gin"
@@ -13,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -56,26 +56,26 @@ type Server struct {
 }
 
 type ImageWhitelist struct {
-	ImageName   string                   `json:"imageName" bson:"imageName"`
-	ImageDigest string                   `json:"imageDigest" bson:"imageDigest"`
-	ValidFiles  []model.PodFileWhitelist `json:"validFiles" json:"validFiles"`
+	Name       string                `json:"name" bson:"name"`
+	Digest     string                `json:"digest" bson:"digest"`
+	ValidFiles []model.FileWhitelist `json:"validFiles" json:"validFiles"`
 }
 
 // OsWhitelist represents the structure of our stored document in MongoDB.
 // It categorizes valid digests by hash algorithm.
 type OsWhitelist struct {
-	OSName       string              `json:"osName" bson:"osName"`
-	ValidDigests map[string][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
+	Name         string                   `json:"name" bson:"name"`
+	ValidDigests map[crypto.Hash][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
 }
 
 type ContainerDependencyWhitelist struct {
-	FilePath     string              `json:"filePath" bson:"filePath"`
-	ValidDigests map[string][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
+	FilePath     string                   `json:"filePath" bson:"filePath"`
+	ValidDigests map[crypto.Hash][]string `json:"validDigests" bson:"validDigests"` // Hash algorithm as the key
 }
 
 type ContainerRuntimeWhitelist struct {
-	ContainerRuntimeName string                         `json:"containerRuntimeName" bson:"containerRuntimeName"`
-	ValidFiles           []ContainerDependencyWhitelist `json:"validFiles" json:"validFiles"`
+	Name       string                         `json:"name" bson:"name"`
+	ValidFiles []ContainerDependencyWhitelist `json:"validFiles" json:"validFiles"`
 }
 
 func (s *Server) Init(whitelistHost string, whitelistPort int, whitelistDbUri string, tlsCertificate *x509.Certificate) {
@@ -108,39 +108,57 @@ func (s *Server) initializeMongoDB() {
 func (s *Server) checkWorkerWhitelist(c *gin.Context) {
 	var checkRequest model.WorkerWhitelistCheckRequest
 	if err := c.ShouldBindJSON(&checkRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Invalid request body",
+				Status:  model.Error,
+			}})
 		return
 	}
 
-	var erroredEntries model.ErroredWhitelistEntries
+	var erroredEntries model.ErroredEntries
 	// Query MongoDB for the document matching the requested OS name
 	var osWhitelist OsWhitelist
-	err := s.workerWhitelist.FindOne(context.TODO(), bson.M{"osName": checkRequest.OsName}).Decode(&osWhitelist)
+	err := s.workerWhitelist.FindOne(context.TODO(), bson.M{"name": checkRequest.OsName}).Decode(&osWhitelist)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			absentEntry := model.AbsentWhitelistEntry{
+			absentEntry := model.AbsentEntry{
 				Id:         checkRequest.OsName,
 				HashAlg:    checkRequest.HashAlg,
 				ActualHash: checkRequest.BootAggregate,
 			}
-			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
-			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "OS whitelist not found", "erroredEntries": erroredEntries})
+			erroredEntries.Absent = append(erroredEntries.Absent, absentEntry)
+			c.JSON(http.StatusNotFound, model.WhitelistResponse{
+				SimpleResponse: model.SimpleResponse{
+					Status:  model.Error,
+					Message: "OS whitelist not found",
+				},
+				ErroredEntries: erroredEntries,
+			})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query worker whitelist"})
+			c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+				SimpleResponse: model.SimpleResponse{
+					Status:  model.Error,
+					Message: "Failed to query worker whitelist",
+				}})
 		}
 		return
 	}
 
 	// Check if the digest matches within the specified hash algorithm category
-	validDigests, exists := osWhitelist.ValidDigests[strings.ToLower(checkRequest.HashAlg)]
+	validDigests, exists := osWhitelist.ValidDigests[checkRequest.HashAlg]
 	if !exists {
-		absentEntry := model.AbsentWhitelistEntry{
+		absentEntry := model.AbsentEntry{
 			Id:         checkRequest.OsName,
 			HashAlg:    checkRequest.HashAlg,
 			ActualHash: checkRequest.BootAggregate,
 		}
-		erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
-		c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "No digests found for the specified hash algorithm"})
+		erroredEntries.Absent = append(erroredEntries.Absent, absentEntry)
+		c.JSON(http.StatusNotFound, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "No digests found for the specified hash algorithm",
+			}})
 		return
 	}
 
@@ -153,18 +171,28 @@ func (s *Server) checkWorkerWhitelist(c *gin.Context) {
 	}
 
 	if !matching {
-		mismatchedEntry := model.MismatchingWhitelistEntry{
+		mismatchedEntry := model.MismatchingEntry{
 			Id:           checkRequest.OsName,
 			HashAlg:      checkRequest.HashAlg,
 			ActualHash:   checkRequest.BootAggregate,
 			ExpectedHash: validDigests,
 		}
-		erroredEntries.MismatchingWhitelistEntries = append(erroredEntries.MismatchingWhitelistEntries, mismatchedEntry)
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Boot Aggregate does not match the stored whitelist", "erroredEntries": erroredEntries})
+		erroredEntries.Mismatching = append(erroredEntries.Mismatching, mismatchedEntry)
+		c.JSON(http.StatusUnauthorized, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Boot Aggregate does not match the stored whitelist",
+			},
+			ErroredEntries: erroredEntries,
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "Boot Aggregate matches the stored whitelist"})
+	c.JSON(http.StatusOK, model.WhitelistResponse{
+		SimpleResponse: model.SimpleResponse{
+			Status:  model.Success,
+			Message: "Boot Aggregate matches the stored whitelist",
+		}})
 }
 
 // appendToWorkerWhitelist handles the addition of a new valid OsWhitelist.
@@ -173,31 +201,52 @@ func (s *Server) appendToWorkerWhitelist(c *gin.Context) {
 
 	// Bind JSON input to the OsWhitelist struct
 	if err := c.ShouldBindJSON(&newOsWhitelist); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Invalid request body",
+			}})
 		return
 	}
 
 	// Check if the OSName already exists in the WorkerWhitelist
 	var existingOsWhitelist OsWhitelist
-	err := s.workerWhitelist.FindOne(context.TODO(), bson.M{"osName": newOsWhitelist.OSName}).Decode(&existingOsWhitelist)
+	err := s.workerWhitelist.FindOne(context.TODO(), bson.M{"name": newOsWhitelist.Name}).Decode(&existingOsWhitelist)
 	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query Worker whitelist"})
+		c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Failed to query Worker whitelist",
+			}})
 		return
 	}
 
-	if existingOsWhitelist.OSName == newOsWhitelist.OSName {
-		c.JSON(http.StatusConflict, gin.H{"status": model.Error, "message": "OS whitelist already exists"})
+	if existingOsWhitelist.Name == newOsWhitelist.Name {
+		c.JSON(http.StatusConflict, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "OS whitelist already exists",
+			},
+		})
 		return
 	}
 
 	// Insert the new OS whitelist
 	_, err = s.workerWhitelist.InsertOne(context.TODO(), newOsWhitelist)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to append new valid OS list to Worker whitelist"})
+		c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Failed to append new valid OS list to Worker whitelist",
+			}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "OS whitelist added successfully"})
+	c.JSON(http.StatusOK, model.WhitelistResponse{
+		SimpleResponse: model.SimpleResponse{
+			Status:  model.Success,
+			Message: "OS whitelist added successfully",
+		}})
 	return
 }
 
@@ -205,23 +254,39 @@ func (s *Server) appendToWorkerWhitelist(c *gin.Context) {
 func (s *Server) deleteFromWorkerWhitelist(c *gin.Context) {
 	osName, err := url.QueryUnescape(c.Query("osName"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid osName"})
+		c.JSON(http.StatusBadRequest, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Invalid os Name",
+			}})
 		return
 	}
 	// Attempt to delete the document with the matching OSName
-	result, err := s.workerWhitelist.DeleteOne(context.TODO(), bson.M{"osName": osName})
+	result, err := s.workerWhitelist.DeleteOne(context.TODO(), bson.M{"name": osName})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to delete the worker whitelist record"})
+		c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Failed to delete the worker whitelist record",
+			}})
 		return
 	}
 
 	// Check if any document was deleted
 	if result.DeletedCount == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Worker whitelist record not found"})
+		c.JSON(http.StatusNotFound, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Worker whitelist record not found",
+			}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "Worker whitelist record deleted successfully"})
+	c.JSON(http.StatusOK, model.WhitelistResponse{
+		SimpleResponse: model.SimpleResponse{
+			Status:  model.Success,
+			Message: "Worker whitelist record deleted successfully",
+		}})
 }
 
 // dropWorkerWhitelist drops the workerWhitelist collection from the MongoDB database.
@@ -229,10 +294,18 @@ func (s *Server) dropWorkerWhitelist(c *gin.Context) {
 	// Drop the workerWhitelist collection
 	err := s.workerWhitelist.Drop(context.TODO())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to drop Worker whitelist"})
+		c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Failed to drop Worker whitelist",
+			}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "Worker whitelist dropped successfully"})
+	c.JSON(http.StatusOK, model.WhitelistResponse{
+		SimpleResponse: model.SimpleResponse{
+			Status:  model.Success,
+			Message: "Worker whitelist dropped successfully",
+		}})
 	return
 }
 
@@ -240,42 +313,63 @@ func (s *Server) dropWorkerWhitelist(c *gin.Context) {
 func (s *Server) checkPodWhitelist(c *gin.Context) {
 	var checkRequest model.PodWhitelistCheckRequest
 	if err := c.ShouldBindJSON(&checkRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request body"})
+		c.JSON(http.StatusBadRequest,
+			model.WhitelistResponse{
+				SimpleResponse: model.SimpleResponse{
+					Message: "Invalid request body",
+					Status:  model.Error,
+				}})
 		return
 	}
 
-	var erroredEntries model.ErroredWhitelistEntries
+	var erroredEntries model.ErroredEntries
 	// Query for matching pod image
 	var imageWhitelist ImageWhitelist
-	err := s.podWhitelist.FindOne(context.TODO(), bson.M{"imageName": checkRequest.PodImageName}).Decode(&imageWhitelist)
+	err := s.podWhitelist.FindOne(context.TODO(), bson.M{"name": checkRequest.ImageName}).Decode(&imageWhitelist)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			absentEntry := model.AbsentWhitelistEntry{
-				Id:         checkRequest.PodImageName,
-				ActualHash: checkRequest.PodImageDigest,
+			absentEntry := model.AbsentEntry{
+				Id:         checkRequest.ImageName,
+				ActualHash: checkRequest.ImageDigest,
 			}
-			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
-			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Pod image not found", "erroredEntries": erroredEntries})
+			erroredEntries.Absent = append(erroredEntries.Absent, absentEntry)
+			c.JSON(http.StatusNotFound, model.WhitelistResponse{
+				SimpleResponse: model.SimpleResponse{
+					Status:  model.Error,
+					Message: "Pod image not found",
+				},
+				ErroredEntries: erroredEntries,
+			})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query Pod whitelist"})
+			c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+				SimpleResponse: model.SimpleResponse{
+					Status:  model.Error,
+					Message: "Failed to query Pod whitelist",
+				}})
 		}
 		return
 	}
 
-	if imageWhitelist.ImageDigest != checkRequest.PodImageDigest {
-		mismatchedEntry := model.MismatchingWhitelistEntry{
-			Id:           checkRequest.PodImageDigest,
-			ActualHash:   checkRequest.PodImageDigest,
-			ExpectedHash: []string{imageWhitelist.ImageDigest},
+	if imageWhitelist.Digest != checkRequest.ImageDigest {
+		mismatchedEntry := model.MismatchingEntry{
+			Id:           checkRequest.ImageName,
+			ActualHash:   checkRequest.ImageDigest,
+			ExpectedHash: []string{imageWhitelist.Digest},
 		}
-		erroredEntries.MismatchingWhitelistEntries = append(erroredEntries.MismatchingWhitelistEntries, mismatchedEntry)
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Provided Pod image digest does not match stored image digest", "erroredEntries": erroredEntries})
+		erroredEntries.Mismatching = append(erroredEntries.Mismatching, mismatchedEntry)
+		c.JSON(http.StatusUnauthorized, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Provided Pod image digest does not match stored image digest",
+			},
+			ErroredEntries: erroredEntries,
+		})
 		return
 	}
 
 	for _, validFile := range imageWhitelist.ValidFiles {
 		found := false
-		for _, podFile := range checkRequest.PodFiles {
+		for _, podFile := range checkRequest.Files {
 			if validFile.FilePath == podFile.FilePath {
 				found = true
 				break
@@ -283,17 +377,17 @@ func (s *Server) checkPodWhitelist(c *gin.Context) {
 		}
 
 		if !found {
-			notRunEntry := model.NotRunWhitelistEntry{
+			notRunEntry := model.NotRunEntry{
 				Id:           validFile.FilePath,
 				HashAlg:      checkRequest.HashAlg,
-				ExpectedHash: validFile.ValidDigests[strings.ToLower(checkRequest.HashAlg)],
+				ExpectedHash: validFile.ValidDigests[checkRequest.HashAlg],
 			}
-			erroredEntries.NotRunWhitelistEntries = append(erroredEntries.NotRunWhitelistEntries, notRunEntry)
+			erroredEntries.NotRun = append(erroredEntries.NotRun, notRunEntry)
 		}
 	}
 
 	// Iterate through the pod files to check if they match the stored whitelist
-	for _, podFile := range checkRequest.PodFiles {
+	for _, podFile := range checkRequest.Files {
 		found := false
 		exists := false
 		matching := false
@@ -303,15 +397,15 @@ func (s *Server) checkPodWhitelist(c *gin.Context) {
 			// Check if the file paths match
 			if podFile.FilePath == validFile.FilePath {
 				found = true
-				validDigests, exists = validFile.ValidDigests[strings.ToLower(checkRequest.HashAlg)]
+				validDigests, exists = validFile.ValidDigests[checkRequest.HashAlg]
 
 				if !exists {
-					absentEntry := model.AbsentWhitelistEntry{
+					absentEntry := model.AbsentEntry{
 						Id:         podFile.FilePath,
 						HashAlg:    checkRequest.HashAlg,
 						ActualHash: podFile.FileHash,
 					}
-					erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
+					erroredEntries.Absent = append(erroredEntries.Absent, absentEntry)
 					break
 				}
 
@@ -324,32 +418,41 @@ func (s *Server) checkPodWhitelist(c *gin.Context) {
 				}
 
 				if !matching {
-					mismatchedEntry := model.MismatchingWhitelistEntry{
+					mismatchedEntry := model.MismatchingEntry{
 						Id:           podFile.FilePath,
 						HashAlg:      checkRequest.HashAlg,
 						ActualHash:   podFile.FileHash,
 						ExpectedHash: validDigests,
 					}
-					erroredEntries.MismatchingWhitelistEntries = append(erroredEntries.MismatchingWhitelistEntries, mismatchedEntry)
+					erroredEntries.Mismatching = append(erroredEntries.Mismatching, mismatchedEntry)
 				}
 			}
 		}
 
 		if !found {
-			absentEntry := model.AbsentWhitelistEntry{
+			absentEntry := model.AbsentEntry{
 				Id:         podFile.FilePath,
 				HashAlg:    checkRequest.HashAlg,
 				ActualHash: podFile.FileHash,
 			}
-			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
+			erroredEntries.Absent = append(erroredEntries.Absent, absentEntry)
 		}
 	}
 
 	// If no match is found for the current pod file
-	if len(erroredEntries.AbsentWhitelistEntries) > 0 || len(erroredEntries.NotRunWhitelistEntries) > 0 || len(erroredEntries.MismatchingWhitelistEntries) > 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "File hash does not match the stored whitelist", "erroredEntries": erroredEntries})
+	if len(erroredEntries.Absent) > 0 || len(erroredEntries.NotRun) > 0 || len(erroredEntries.Mismatching) > 0 {
+		c.JSON(http.StatusUnauthorized, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "file hash does not match the stored whitelist",
+			},
+			ErroredEntries: erroredEntries})
 	} else {
-		c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "All pod files match the stored whitelist"})
+		c.JSON(http.StatusOK, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Success,
+				Message: "All pod files match the stored whitelist",
+			}})
 	}
 }
 
@@ -358,12 +461,16 @@ func (s *Server) appendImageToPodWhitelist(c *gin.Context) {
 	var imageWhitelist ImageWhitelist
 	// Bind JSON input to the ImageWhitelist struct
 	if err := c.ShouldBindJSON(&imageWhitelist); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Invalid request body",
+			}})
 		return
 	}
 
 	// Query to check if the imageName already exists
-	filter := bson.M{"imageName": imageWhitelist.ImageName}
+	filter := bson.M{"name": imageWhitelist.Name}
 	var existingImageWhitelist ImageWhitelist
 	err := s.podWhitelist.FindOne(context.TODO(), filter).Decode(&existingImageWhitelist)
 
@@ -372,20 +479,36 @@ func (s *Server) appendImageToPodWhitelist(c *gin.Context) {
 			// If the image does not exist, insert it
 			_, err := s.podWhitelist.InsertOne(context.TODO(), imageWhitelist)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to append new image whitelist"})
+				c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+					SimpleResponse: model.SimpleResponse{
+						Status:  model.Error,
+						Message: "Failed to append new image whitelist",
+					}})
 				return
 			}
-			c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "New image whitelist added successfully"})
+			c.JSON(http.StatusOK, model.WhitelistResponse{
+				SimpleResponse: model.SimpleResponse{
+					Status:  model.Success,
+					Message: "New image whitelist added successfully",
+				}})
 			return
 		} else {
 			// If any other error occurs during query
-			c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query Pod whitelist"})
+			c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+				SimpleResponse: model.SimpleResponse{
+					Status:  model.Error,
+					Message: "Failed to query Pod whitelist",
+				}})
 			return
 		}
 	}
 
 	// If the image already exists, return a conflict message
-	c.JSON(http.StatusConflict, gin.H{"status": model.Error, "message": "Image whitelist already exists"})
+	c.JSON(http.StatusConflict, model.WhitelistResponse{
+		SimpleResponse: model.SimpleResponse{
+			Status:  model.Error,
+			Message: "Image whitelist already exists",
+		}})
 }
 
 // appendFilesToExistingImageWhitelistByImageName adds new valid files to an existing ImageWhitelist for the given imageName.
@@ -393,52 +516,80 @@ func (s *Server) appendFilesToImage(c *gin.Context) {
 	var appendFilesRequest model.AppendFilesToImageRequest
 	// Bind JSON input to the list of new valid files
 	if err := c.ShouldBindJSON(&appendFilesRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Invalid request body",
+			}})
 		return
 	}
 
 	// Check if the image whitelist exists
-	filter := bson.M{"imageName": appendFilesRequest.ImageName}
-	update := bson.M{"$addToSet": bson.M{"validFiles": bson.M{"$each": appendFilesRequest.NewFiles}}}
+	filter := bson.M{"name": appendFilesRequest.ImageName}
+	update := bson.M{"$addToSet": bson.M{"validFiles": bson.M{"$each": appendFilesRequest.Files}}}
 
 	// Update the existing ImageWhitelist with new valid files
 	_, err := s.podWhitelist.UpdateOne(context.TODO(), filter, update)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to append files: no whitelist for Pod image:" + appendFilesRequest.ImageName})
+		c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Failed to append files: no whitelist for Pod image:" + appendFilesRequest.ImageName,
+			}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "Files added to Pod image whitelist successfully"})
+	c.JSON(http.StatusOK, model.WhitelistResponse{
+		SimpleResponse: model.SimpleResponse{
+			Status:  model.Success,
+			Message: "Files added to Pod image whitelist successfully",
+		}})
 }
 
 // deleteFileFromPodWhitelist deletes a file and its digests under a given imageName and filePath in the pod whitelist.
 func (s *Server) deleteFileFromImage(c *gin.Context) {
 	imageName, err := url.QueryUnescape(c.Query("imageName"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Invalid imageName"})
+		c.JSON(http.StatusNotFound, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Invalid imageName",
+			}})
 		return
 	}
 	filePath, err := url.QueryUnescape(c.Query("filePath"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Invalid filePath"})
+		c.JSON(http.StatusNotFound, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Invalid filePath",
+			}})
 		return
 	}
 
 	// Query MongoDB for the pod image whitelist by imageName
-	filter := bson.M{"imageName": imageName}
+	filter := bson.M{"name": imageName}
 	var imageWhitelist ImageWhitelist
 	err = s.podWhitelist.FindOne(context.TODO(), filter).Decode(&imageWhitelist)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Pod image not found"})
+			c.JSON(http.StatusNotFound, model.WhitelistResponse{
+				SimpleResponse: model.SimpleResponse{
+					Status:  model.Error,
+					Message: "Pod image not found",
+				}})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query Pod whitelist"})
+			c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+				SimpleResponse: model.SimpleResponse{
+					Status:  model.Error,
+					Message: "Failed to query Pod whitelist",
+				}})
 		}
 		return
 	}
 
 	// Search for the file by filePath and remove it along with its digests
-	var updatedValidFiles []model.PodFileWhitelist
+	var updatedValidFiles []model.FileWhitelist
 	fileFound := false
 
 	for _, validFile := range imageWhitelist.ValidFiles {
@@ -451,7 +602,11 @@ func (s *Server) deleteFileFromImage(c *gin.Context) {
 	}
 
 	if !fileFound {
-		c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "File path not found in the whitelist"})
+		c.JSON(http.StatusNotFound, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "file path not found in the whitelist",
+			}})
 		return
 	}
 
@@ -459,11 +614,19 @@ func (s *Server) deleteFileFromImage(c *gin.Context) {
 	update := bson.M{"$set": bson.M{"validFiles": updatedValidFiles}} // fixed the field name here
 	_, err = s.podWhitelist.UpdateOne(context.TODO(), filter, update)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to update Pod whitelist"})
+		c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Failed to update Pod whitelist",
+			}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "File and associated digests removed from the whitelist"})
+	c.JSON(http.StatusOK, model.WhitelistResponse{
+		SimpleResponse: model.SimpleResponse{
+			Status:  model.Success,
+			Message: "file and associated digests removed from the whitelist",
+		}})
 }
 
 // dropPodWhitelist drops the podWhitelist collection from the MongoDB database.
@@ -471,10 +634,18 @@ func (s *Server) dropPodWhitelist(c *gin.Context) {
 	// Drop the podWhitelist collection
 	err := s.podWhitelist.Drop(context.TODO())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to drop Pod whitelist"})
+		c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Failed to drop Pod whitelist",
+			}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "Pod whitelist dropped successfully"})
+	c.JSON(http.StatusOK, model.WhitelistResponse{
+		SimpleResponse: model.SimpleResponse{
+			Status:  model.Success,
+			Message: "Pod whitelist dropped successfully",
+		}})
 	return
 }
 
@@ -482,31 +653,45 @@ func (s *Server) dropPodWhitelist(c *gin.Context) {
 func (s *Server) checkContainerRuntimeWhitelist(c *gin.Context) {
 	var checkRequest model.ContainerRuntimeCheckRequest
 	if err := c.ShouldBindJSON(&checkRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Invalid request body",
+			}})
 		return
 	}
 
-	var erroredEntries model.ErroredWhitelistEntries
+	var erroredEntries model.ErroredEntries
 	// Query MongoDB for the document matching the requested Container Runtime name
 	var existingContainerRuntimeWhitelist ContainerRuntimeWhitelist
-	err := s.containerRuntimeWhitelist.FindOne(context.TODO(), bson.M{"containerRuntimeName": checkRequest.ContainerRuntimeName}).Decode(&existingContainerRuntimeWhitelist)
+	err := s.containerRuntimeWhitelist.FindOne(context.TODO(), bson.M{"name": checkRequest.Name}).Decode(&existingContainerRuntimeWhitelist)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			absentEntry := model.AbsentWhitelistEntry{
-				Id:      checkRequest.ContainerRuntimeName,
+			absentEntry := model.AbsentEntry{
+				Id:      checkRequest.Name,
 				HashAlg: checkRequest.HashAlg,
 			}
-			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
-			c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Container Runtime whitelist not found", "erroredEntries": erroredEntries})
+			erroredEntries.Absent = append(erroredEntries.Absent, absentEntry)
+			c.JSON(http.StatusNotFound, model.WhitelistResponse{
+				SimpleResponse: model.SimpleResponse{
+					Status:  model.Error,
+					Message: "Container Runtime whitelist not found",
+				},
+				ErroredEntries: erroredEntries,
+			})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query Container Runtime whitelist"})
+			c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+				SimpleResponse: model.SimpleResponse{
+					Status:  model.Error,
+					Message: "Failed to query Container Runtime whitelist",
+				}})
 		}
 		return
 	}
 
 	for _, validFile := range existingContainerRuntimeWhitelist.ValidFiles {
 		found := false
-		for _, containerRuntimeDependency := range checkRequest.ContainerRuntimeDependencies {
+		for _, containerRuntimeDependency := range checkRequest.Dependencies {
 			if validFile.FilePath == containerRuntimeDependency.FilePath {
 				found = true
 				break
@@ -514,17 +699,17 @@ func (s *Server) checkContainerRuntimeWhitelist(c *gin.Context) {
 		}
 
 		if !found {
-			notRunEntry := model.NotRunWhitelistEntry{
+			notRunEntry := model.NotRunEntry{
 				Id:           validFile.FilePath,
 				HashAlg:      checkRequest.HashAlg,
-				ExpectedHash: validFile.ValidDigests[strings.ToLower(checkRequest.HashAlg)],
+				ExpectedHash: validFile.ValidDigests[checkRequest.HashAlg],
 			}
-			erroredEntries.NotRunWhitelistEntries = append(erroredEntries.NotRunWhitelistEntries, notRunEntry)
+			erroredEntries.NotRun = append(erroredEntries.NotRun, notRunEntry)
 		}
 	}
 
 	// Iterate through the pod files to check if they match the stored whitelist
-	for _, containerRuntimeDependency := range checkRequest.ContainerRuntimeDependencies {
+	for _, containerRuntimeDependency := range checkRequest.Dependencies {
 		found := false
 		matching := false
 		exists := false
@@ -534,15 +719,15 @@ func (s *Server) checkContainerRuntimeWhitelist(c *gin.Context) {
 			// Check if the file paths match
 			if containerRuntimeDependency.FilePath == validFile.FilePath {
 				found = true
-				validDigests, exists = validFile.ValidDigests[strings.ToLower(checkRequest.HashAlg)]
+				validDigests, exists = validFile.ValidDigests[checkRequest.HashAlg]
 
 				if !exists {
-					absentEntry := model.AbsentWhitelistEntry{
+					absentEntry := model.AbsentEntry{
 						Id:         containerRuntimeDependency.FilePath,
 						HashAlg:    checkRequest.HashAlg,
 						ActualHash: containerRuntimeDependency.FileHash,
 					}
-					erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
+					erroredEntries.Absent = append(erroredEntries.Absent, absentEntry)
 					break
 				}
 
@@ -555,31 +740,41 @@ func (s *Server) checkContainerRuntimeWhitelist(c *gin.Context) {
 				}
 
 				if !matching {
-					mismatchedEntry := model.MismatchingWhitelistEntry{
+					mismatchedEntry := model.MismatchingEntry{
 						Id:           containerRuntimeDependency.FilePath,
 						HashAlg:      checkRequest.HashAlg,
 						ActualHash:   containerRuntimeDependency.FileHash,
 						ExpectedHash: validDigests,
 					}
-					erroredEntries.MismatchingWhitelistEntries = append(erroredEntries.MismatchingWhitelistEntries, mismatchedEntry)
+					erroredEntries.Mismatching = append(erroredEntries.Mismatching, mismatchedEntry)
 				}
 			}
 		}
 
 		if !found {
-			absentEntry := model.AbsentWhitelistEntry{
+			absentEntry := model.AbsentEntry{
 				Id:         containerRuntimeDependency.FilePath,
 				HashAlg:    checkRequest.HashAlg,
 				ActualHash: containerRuntimeDependency.FileHash,
 			}
-			erroredEntries.AbsentWhitelistEntries = append(erroredEntries.AbsentWhitelistEntries, absentEntry)
+			erroredEntries.Absent = append(erroredEntries.Absent, absentEntry)
 		}
 	}
 
-	if len(erroredEntries.MismatchingWhitelistEntries) > 0 || len(erroredEntries.AbsentWhitelistEntries) > 0 || len(erroredEntries.NotRunWhitelistEntries) > 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "File hash does not match the stored whitelist", "erroredEntries": erroredEntries})
+	if len(erroredEntries.Mismatching) > 0 || len(erroredEntries.Absent) > 0 || len(erroredEntries.NotRun) > 0 {
+		c.JSON(http.StatusUnauthorized, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "file hash does not match the stored whitelist",
+			},
+			ErroredEntries: erroredEntries,
+		})
 	} else {
-		c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "All Container Runtime dependency files match the stored whitelist"})
+		c.JSON(http.StatusOK, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Success,
+				Message: "All Container Runtime dependency files match the stored whitelist",
+			}})
 	}
 }
 
@@ -589,31 +784,51 @@ func (s *Server) appendToContainerRuntimeWhitelist(c *gin.Context) {
 
 	// Bind JSON input to the OsWhitelist struct
 	if err := c.ShouldBindJSON(&newContainerRuntimeWhitelist); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Invalid request body",
+			}})
 		return
 	}
 
 	// Check if the Container Runtime already exists in the Container Runtime whitelist
 	var existingContainerRuntimeWhitelist ContainerRuntimeWhitelist
-	err := s.containerRuntimeWhitelist.FindOne(context.TODO(), bson.M{"containerRuntimeName": newContainerRuntimeWhitelist.ContainerRuntimeName}).Decode(&existingContainerRuntimeWhitelist)
+	err := s.containerRuntimeWhitelist.FindOne(context.TODO(), bson.M{"name": newContainerRuntimeWhitelist.Name}).Decode(&existingContainerRuntimeWhitelist)
 	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to query Container Runtime whitelist"})
+		c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Failed to query Container Runtime whitelist",
+			}})
 		return
 	}
 
-	if existingContainerRuntimeWhitelist.ContainerRuntimeName == newContainerRuntimeWhitelist.ContainerRuntimeName {
-		c.JSON(http.StatusConflict, gin.H{"status": model.Error, "message": "Container Runtime whitelist already exists"})
+	if existingContainerRuntimeWhitelist.Name == newContainerRuntimeWhitelist.Name {
+		c.JSON(http.StatusConflict, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Container Runtime whitelist already exists",
+			}})
 		return
 	}
 
 	// Insert the new OS whitelist
 	_, err = s.containerRuntimeWhitelist.InsertOne(context.TODO(), newContainerRuntimeWhitelist)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to append new valid Container Runtime list to Container Runtime whitelist"})
+		c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Failed to append new valid Container Runtime list to Container Runtime whitelist",
+			}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "Container Runtime whitelist added successfully"})
+	c.JSON(http.StatusOK, model.WhitelistResponse{
+		SimpleResponse: model.SimpleResponse{
+			Status:  model.Success,
+			Message: "Container Runtime whitelist added successfully",
+		}})
 	return
 }
 
@@ -621,23 +836,39 @@ func (s *Server) appendToContainerRuntimeWhitelist(c *gin.Context) {
 func (s *Server) deleteFromContainerRuntimeWhitelist(c *gin.Context) {
 	containerRuntimeName, err := url.QueryUnescape(c.Query("containerRuntimeName"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid containerRuntimeName"})
+		c.JSON(http.StatusBadRequest, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Invalid containerRuntimeName",
+			}})
 		return
 	}
 	// Attempt to delete the document with the matching OSName
-	result, err := s.containerRuntimeWhitelist.DeleteOne(context.TODO(), bson.M{"containerRuntimeName": containerRuntimeName})
+	result, err := s.containerRuntimeWhitelist.DeleteOne(context.TODO(), bson.M{"name": containerRuntimeName})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to delete the Container Runtime whitelist record"})
+		c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Failed to delete the Container Runtime whitelist record",
+			}})
 		return
 	}
 
 	// Check if any document was deleted
 	if result.DeletedCount == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"status": model.Error, "message": "Container Runtime whitelist record not found"})
+		c.JSON(http.StatusNotFound, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Container Runtime whitelist record not found",
+			}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "Container Runtime whitelist record deleted successfully"})
+	c.JSON(http.StatusOK, model.WhitelistResponse{
+		SimpleResponse: model.SimpleResponse{
+			Status:  model.Success,
+			Message: "Container Runtime whitelist record deleted successfully",
+		}})
 }
 
 // dropContainerRuntimeWhitelist drops the containerRuntimeWhitelist collection from the MongoDB database.
@@ -645,10 +876,18 @@ func (s *Server) dropContainerRuntimeWhitelist(c *gin.Context) {
 	// Drop the workerWhitelist collection
 	err := s.containerRuntimeWhitelist.Drop(context.TODO())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Failed to drop Container Runtime whitelist"})
+		c.JSON(http.StatusInternalServerError, model.WhitelistResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: "Failed to drop Container Runtime whitelist",
+			}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "Container Runtime whitelist dropped successfully"})
+	c.JSON(http.StatusOK, model.WhitelistResponse{
+		SimpleResponse: model.SimpleResponse{
+			Status:  model.Success,
+			Message: "Container Runtime whitelist dropped successfully",
+		}})
 	return
 }
 

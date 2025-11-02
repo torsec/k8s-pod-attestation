@@ -12,11 +12,11 @@ import (
 
 type Client struct {
 	whitelistHost         string
-	whitelistPort         int
+	whitelistPort         int32
 	invokerTlsCertificate *x509.Certificate
 }
 
-func (c *Client) Init(whitelistHost string, whitelistPort int, invokerTlsCertificate *x509.Certificate) {
+func (c *Client) Init(whitelistHost string, whitelistPort int32, invokerTlsCertificate *x509.Certificate) {
 	c.whitelistHost = whitelistHost
 	c.whitelistPort = whitelistPort
 	c.invokerTlsCertificate = invokerTlsCertificate
@@ -54,7 +54,7 @@ func (c *Client) CheckWorkerWhitelist(workerWhitelistCheckRequest *model.WorkerW
 	return &whitelistResponse, nil
 }
 
-func (c *Client) AppendToWorkerWhitelist(osWhitelist *model.OsWhitelist) (*model.WhitelistResponse, error) {
+func (c *Client) AppendToWorkerWhitelist(osWhitelist *OsWhitelist) (*model.WhitelistResponse, error) {
 	completeUrl := fmt.Sprintf("http://%s:%d%s", c.whitelistHost, c.whitelistPort, AppendToWorkerWhitelistUrl)
 	jsonData, err := json.Marshal(osWhitelist)
 	if err != nil {
@@ -192,7 +192,7 @@ func (c *Client) CheckPodWhitelist(podWhitelistCheckRequest *model.PodWhitelistC
 	return &whitelistResponse, nil
 }
 
-func (c *Client) AppendImageToPodWhitelist(imageWhitelist *model.ImageWhitelist) (*model.WhitelistResponse, error) {
+func (c *Client) AppendImageToPodWhitelist(imageWhitelist *ImageWhitelist) (*model.WhitelistResponse, error) {
 	completeUrl := fmt.Sprintf("http://%s:%d%s", c.whitelistHost, c.whitelistPort, AppendToPodWhitelistUrl)
 	jsonData, err := json.Marshal(imageWhitelist)
 	if err != nil {
@@ -325,7 +325,7 @@ func (c *Client) CheckContainerRuntimeWhitelist(containerRuntimeCheckRequest *mo
 	return &whitelistResponse, nil
 }
 
-func (c *Client) AppendToContainerRuntimeWhitelist(containerRuntimeWhitelist *model.ContainerRuntimeWhitelist) (*model.WhitelistResponse, error) {
+func (c *Client) AppendToContainerRuntimeWhitelist(containerRuntimeWhitelist *ContainerRuntimeWhitelist) (*model.WhitelistResponse, error) {
 	completeUrl := fmt.Sprintf("http://%s:%d%s", c.whitelistHost, c.whitelistPort, AppendToContainerRuntimeWhitelistUrl)
 	jsonData, err := json.Marshal(containerRuntimeWhitelist)
 	if err != nil {
