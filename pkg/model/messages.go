@@ -12,7 +12,7 @@ const Error = "error"
 
 type NewTenantRequest struct {
 	Name      string `json:"name"`
-	PublicKey string `json:"publicKey"`
+	PublicKey []byte `json:"publicKey"`
 }
 
 type NewTPMCaCertRequest struct {
