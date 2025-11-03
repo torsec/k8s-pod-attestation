@@ -57,7 +57,7 @@ spec:
       serviceAccountName: worker-handler-sa
       containers:
         - name: worker-handler
-          image: franczar/k8s-attestation-worker-handler:latest
+          image: franczar/k8s-attestation-worker-handler:dev
           env:
             - name: ATTESTATION_NAMESPACES
               value: '["it6-ns"]'

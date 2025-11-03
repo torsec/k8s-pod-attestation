@@ -50,7 +50,7 @@ spec:
     spec:
       containers:
         - name: pod-watcher
-          image: franczar/k8s-attestation-pod-watcher:latest
+          image: franczar/k8s-attestation-pod-watcher:dev
           env:
             - name: ATTESTATION_NAMESPACES
               value: '["it6-ns"]'

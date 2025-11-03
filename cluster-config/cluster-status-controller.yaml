@@ -50,7 +50,7 @@ spec:
     spec:
       containers:
         - name: cluster-status-controller
-          image: franczar/k8s-attestation-cluster-status-controller:latest
+          image: franczar/k8s-attestation-cluster-status-controller:dev
           volumeMounts:
             - name: kube-config
               mountPath: /root/.kube

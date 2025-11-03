@@ -53,7 +53,7 @@ spec:
     spec:
       containers:
         - name: pod-handler
-          image: franczar/k8s-attestation-pod-handler:latest
+          image: franczar/k8s-attestation-pod-handler:dev
           env:
             - name: ATTESTATION_NAMESPACES
               value: '["it6-ns"]'
