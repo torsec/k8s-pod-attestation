@@ -16,6 +16,7 @@ spec:
       containers:
         - name: {{ .Values.registrar.container.name }}
           image: "{{ .Values.registrar.image.repository }}:{{ .Values.registrar.image.tag }}"
+          imagePullPolicy: Always
           env:
             - name: REGISTRAR_PORT
               value: {{ .Values.registrar.container.port | quote }}

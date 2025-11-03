@@ -54,6 +54,7 @@ spec:
       containers:
         - name: {{ .Values.podHandler.container.name }}
           image: "{{ .Values.podHandler.image.repository }}:{{ .Values.podHandler.image.tag }}"
+          imagePullPolicy: Always
           env:
             - name: ATTESTATION_NAMESPACES
               value: {{ .Values.attestationNamespaces | quote}}

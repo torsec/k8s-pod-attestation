@@ -51,6 +51,7 @@ spec:
       containers:
         - name: {{ .Values.podWatcher.container.name }}
           image: "{{ .Values.podWatcher.image.repository }}:{{ .Values.podWatcher.image.tag }}"
+          imagePullPolicy: Always
           env:
             - name: ATTESTATION_NAMESPACES
               value: {{ .Values.attestationNamespaces | quote}}

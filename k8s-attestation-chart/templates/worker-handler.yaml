@@ -58,6 +58,7 @@ spec:
       containers:
         - name: {{ .Values.workerHandler.container.name }}
           image: "{{ .Values.workerHandler.image.repository }}:{{ .Values.workerHandler.image.tag }}"
+          imagePullPolicy: Always
           env:
             - name: ATTESTATION_NAMESPACES
               value: {{ .Values.attestationNamespaces | quote}}

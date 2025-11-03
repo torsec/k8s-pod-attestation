@@ -228,8 +228,8 @@ kubernetesConfigVolume:
 attestationNamespaces: "[\"it6-ns\"]"                                         # namespaces to monitor for pod attestation
 kubeConfigPath: /home/node/.kube                                              # path to kube config on the host
 namespace: attestation-system                                                 # attestation system namespace
-imaMountPath: /root/ascii_runtime_measurements                                # IMA mount path on the container
-imaMlPath: /sys/kernel/security/integrity/ima/ascii_runtime_measurements      # IMA measurements file path on the host
+imaMountPath: /root/binary_runtime_measurements                                # IMA mount path on the container
+imaMlPath: /sys/kernel/security/integrity/ima/binary_runtime_measurements      # IMA measurements file path on the host
 tpmPath: /dev/tpm0                                                            # TPM device path on host
 
 

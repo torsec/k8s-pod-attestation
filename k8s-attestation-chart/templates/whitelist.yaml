@@ -16,6 +16,7 @@ spec:
       containers:
         - name: {{ .Values.whitelistProvider.container.name }}
           image: "{{ .Values.whitelistProvider.image.repository }}:{{ .Values.whitelistProvider.image.tag }}"
+          imagePullPolicy: Always
           env:
             - name: WHITELIST_PORT
               value: {{ .Values.whitelistProvider.container.port | quote }}

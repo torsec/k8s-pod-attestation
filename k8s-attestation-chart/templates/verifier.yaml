@@ -58,6 +58,7 @@ spec:
       containers:
         - name: {{ .Values.verifier.container.name }}
           image: "{{ .Values.verifier.image.repository }}:{{ .Values.verifier.image.tag }}"
+          imagePullPolicy: Always
           env:
             - name: REGISTRAR_HOST
               value: {{ .Values.registrar.env.host }}

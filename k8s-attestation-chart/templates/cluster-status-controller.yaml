@@ -51,6 +51,7 @@ spec:
       containers:
         - name: {{ .Values.clusterStatusController.container.name }}
           image: "{{ .Values.clusterStatusController.image.repository }}:{{ .Values.clusterStatusController.image.tag }}"
+          imagePullPolicy: Always
           volumeMounts:
             - name: {{ .Values.kubernetesConfigVolume.name }}
               mountPath: {{ .Values.kubernetesConfigVolume.mountPath }}
