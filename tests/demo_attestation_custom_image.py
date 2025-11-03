@@ -49,7 +49,10 @@ def verify_signature(name, message, signature):
     data = {
         'tenantName': name,
         'manifest': message,  # Send the entire YAML content as the message
-        'signature': signature
+        'signature': {
+            "rawSignature": signature,
+            "hashAlg": 5 # sha256
+        }
     }
     response = requests.post(POD_DEPLOYMENT_URL, headers=headers, data=json.dumps(data))
     if response.status_code == 200:

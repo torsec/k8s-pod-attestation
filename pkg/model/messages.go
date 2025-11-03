@@ -4,7 +4,7 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
-	"github.com/torsec/k8s-pod-attestation/pkg/ima"
+	"github.com/franc-zar/go-ima/pkg"
 )
 
 const Success = "success"

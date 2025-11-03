@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"io"
 	"net/http"
@@ -193,7 +194,7 @@ func (c *Client) GetWorkerIdByName(nodeName string) (*model.RegistrarResponse, e
 	return &registrarResponse, nil
 }
 
-func (c *Client) StoreTPMVendor(tpmVendor *model.TPMVendor) (*model.RegistrarResponse, error) {
+func (c *Client) StoreTPMVendor(tpmVendor *cryptoUtils.TPMVendor) (*model.RegistrarResponse, error) {
 	registrarURL := fmt.Sprintf("http://%s:%d%s", c.registrarHost, c.registrarPort, StoreTPMVendorUrl)
 	jsonData, err := json.Marshal(tpmVendor)
 

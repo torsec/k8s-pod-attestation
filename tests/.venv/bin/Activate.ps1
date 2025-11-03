@@ -9,7 +9,7 @@ in a Python virtual environment. Makes use of the command line switches as
 well as the `pyvenv.cfg` file values present in the virtual environment.
 
 .Parameter VenvDir
-Path to the directory that contains the virtual environment to activate. The
+file to the directory that contains the virtual environment to activate. The
 default value for this is the parent of the directory that the Activate.ps1
 script is located within.
 
@@ -74,31 +74,31 @@ function global:deactivate ([switch]$NonDestructive) {
     # Revert to original values
 
     # The prior prompt:
-    if (Test-Path -Path Function:_OLD_VIRTUAL_PROMPT) {
-        Copy-Item -Path Function:_OLD_VIRTUAL_PROMPT -Destination Function:prompt
-        Remove-Item -Path Function:_OLD_VIRTUAL_PROMPT
+    if (Test-file -file Function:_OLD_VIRTUAL_PROMPT) {
+        Copy-Item -file Function:_OLD_VIRTUAL_PROMPT -Destination Function:prompt
+        Remove-Item -file Function:_OLD_VIRTUAL_PROMPT
     }
 
     # The prior PYTHONHOME:
-    if (Test-Path -Path Env:_OLD_VIRTUAL_PYTHONHOME) {
-        Copy-Item -Path Env:_OLD_VIRTUAL_PYTHONHOME -Destination Env:PYTHONHOME
-        Remove-Item -Path Env:_OLD_VIRTUAL_PYTHONHOME
+    if (Test-file -file Env:_OLD_VIRTUAL_PYTHONHOME) {
+        Copy-Item -file Env:_OLD_VIRTUAL_PYTHONHOME -Destination Env:PYTHONHOME
+        Remove-Item -file Env:_OLD_VIRTUAL_PYTHONHOME
     }
 
     # The prior PATH:
-    if (Test-Path -Path Env:_OLD_VIRTUAL_PATH) {
-        Copy-Item -Path Env:_OLD_VIRTUAL_PATH -Destination Env:PATH
-        Remove-Item -Path Env:_OLD_VIRTUAL_PATH
+    if (Test-file -file Env:_OLD_VIRTUAL_PATH) {
+        Copy-Item -file Env:_OLD_VIRTUAL_PATH -Destination Env:PATH
+        Remove-Item -file Env:_OLD_VIRTUAL_PATH
     }
 
     # Just remove the VIRTUAL_ENV altogether:
-    if (Test-Path -Path Env:VIRTUAL_ENV) {
-        Remove-Item -Path env:VIRTUAL_ENV
+    if (Test-file -file Env:VIRTUAL_ENV) {
+        Remove-Item -file env:VIRTUAL_ENV
     }
 
     # Just remove VIRTUAL_ENV_PROMPT altogether.
-    if (Test-Path -Path Env:VIRTUAL_ENV_PROMPT) {
-        Remove-Item -Path env:VIRTUAL_ENV_PROMPT
+    if (Test-file -file Env:VIRTUAL_ENV_PROMPT) {
+        Remove-Item -file env:VIRTUAL_ENV_PROMPT
     }
 
     # Just remove the _PYTHON_VENV_PROMPT_PREFIX altogether:
@@ -108,7 +108,7 @@ function global:deactivate ([switch]$NonDestructive) {
 
     # Leave deactivate function in the global namespace if requested:
     if (-not $NonDestructive) {
-        Remove-Item -Path function:deactivate
+        Remove-Item -file function:deactivate
     }
 }
 
@@ -126,7 +126,7 @@ If the value starts with a `'` or a `"` then the first and last character is
 stripped from the value before being captured.
 
 .Parameter ConfigDir
-Path to the directory that contains the `pyvenv.cfg` file.
+file to the directory that contains the `pyvenv.cfg` file.
 #>
 function Get-PyVenvConfig(
     [String]
@@ -135,15 +135,15 @@ function Get-PyVenvConfig(
     Write-Verbose "Given ConfigDir=$ConfigDir, obtain values in pyvenv.cfg"
 
     # Ensure the file exists, and issue a warning if it doesn't (but still allow the function to continue).
-    $pyvenvConfigPath = Join-Path -Resolve -Path $ConfigDir -ChildPath 'pyvenv.cfg' -ErrorAction Continue
+    $pyvenvConfigPath = Join-file -Resolve -file $ConfigDir -ChildPath 'pyvenv.cfg' -ErrorAction Continue
 
     # An empty map will be returned if no config file is found.
     $pyvenvConfig = @{ }
 
     if ($pyvenvConfigPath) {
 
-        Write-Verbose "File exists, parse `ephemeralKey = value` lines"
-        $pyvenvConfigContent = Get-Content -Path $pyvenvConfigPath
+        Write-Verbose "file exists, parse `ephemeralKey = value` lines"
+        $pyvenvConfigContent = Get-Content -file $pyvenvConfigPath
 
         $pyvenvConfigContent | ForEach-Object {
             $keyval = $PSItem -split "\s*=\s*", 2
@@ -167,8 +167,8 @@ function Get-PyVenvConfig(
 <# Begin Activate script --------------------------------------------------- #>
 
 # Determine the containing directory of this script
-$VenvExecPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
-$VenvExecDir = Get-Item -Path $VenvExecPath
+$VenvExecPath = Split-file -Parent $MyInvocation.MyCommand.Definition
+$VenvExecDir = Get-Item -file $VenvExecPath
 
 Write-Verbose "Activation script is located in path: '$VenvExecPath'"
 Write-Verbose "VenvExecDir Fullname: '$($VenvExecDir.FullName)"
@@ -203,8 +203,8 @@ else {
     }
     else {
         Write-Verbose "  Setting prompt based on parent's directory's name. (Is the directory name passed to venv module when creating the virtual environment)"
-        Write-Verbose "  Got leaf-name of $VenvDir='$(Split-Path -Path $venvDir -Leaf)'"
-        $Prompt = Split-Path -Path $venvDir -Leaf
+        Write-Verbose "  Got leaf-name of $VenvDir='$(Split-file -file $venvDir -Leaf)'"
+        $Prompt = Split-file -file $venvDir -Leaf
     }
 }
 
@@ -226,7 +226,7 @@ if (-not $Env:VIRTUAL_ENV_DISABLE_PROMPT) {
     # Set the prompt to include the env name
     # Make sure _OLD_VIRTUAL_PROMPT is global
     function global:_OLD_VIRTUAL_PROMPT { "" }
-    Copy-Item -Path function:prompt -Destination function:_OLD_VIRTUAL_PROMPT
+    Copy-Item -file function:prompt -Destination function:_OLD_VIRTUAL_PROMPT
     New-Variable -Name _PYTHON_VENV_PROMPT_PREFIX -Description "Python virtual environment prompt prefix" -Scope Global -Option ReadOnly -Visibility Public -Value $Prompt
 
     function global:prompt {
@@ -237,11 +237,11 @@ if (-not $Env:VIRTUAL_ENV_DISABLE_PROMPT) {
 }
 
 # Clear PYTHONHOME
-if (Test-Path -Path Env:PYTHONHOME) {
-    Copy-Item -Path Env:PYTHONHOME -Destination Env:_OLD_VIRTUAL_PYTHONHOME
-    Remove-Item -Path Env:PYTHONHOME
+if (Test-file -file Env:PYTHONHOME) {
+    Copy-Item -file Env:PYTHONHOME -Destination Env:_OLD_VIRTUAL_PYTHONHOME
+    Remove-Item -file Env:PYTHONHOME
 }
 
 # Add the venv to the PATH
-Copy-Item -Path Env:PATH -Destination Env:_OLD_VIRTUAL_PATH
-$Env:PATH = "$VenvExecDir$([System.IO.Path]::PathSeparator)$Env:PATH"
+Copy-Item -file Env:PATH -Destination Env:_OLD_VIRTUAL_PATH
+$Env:PATH = "$VenvExecDir$([System.IO.file]::PathSeparator)$Env:PATH"

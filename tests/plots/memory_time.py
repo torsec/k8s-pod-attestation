@@ -271,7 +271,7 @@ mem_kubernetes = []
 for line in kubernetes_join.strip().split("\n"):
     _, process, cpu, mem = line.split(", ")
     
-    # Sum CPU and Memory usage for the "Kubernetes" process (sum of all cluster-components)
+    # Sum CPU and Memory usage for the "Kubernetes" process (sum of all cmd)
     if process in ["kube-apiserver", "kube-controller-manager", "etcd"]:
         cpu_kubernetes.append(float(cpu))
         mem_kubernetes.append(float(mem))

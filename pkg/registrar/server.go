@@ -176,7 +176,7 @@ func (s *Server) storeTPMCACertificate(c *gin.Context) {
 func (s *Server) getTPMVendorById(vendorTCGIdentifier string) (*cryptoUtils.TPMVendor, error) {
 	var tpmVendor cryptoUtils.TPMVendor
 	query := "SELECT vendorId, name, TCGIdentifier FROM tpm_vendors WHERE TCGIdentifier = ?"
-	err := s.db.QueryRow(query, vendorTCGIdentifier).Scan(&tpmVendor.VendorId, &tpmVendor.Name, &tpmVendor.TCGId)
+	err := s.db.QueryRow(query, vendorTCGIdentifier).Scan(&tpmVendor.Id, &tpmVendor.Name, &tpmVendor.TCGId)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("TPM Vendor not found")
 	} else if err != nil {
@@ -252,7 +252,7 @@ func (s *Server) verifyWorkerEKCertificate(c *gin.Context) {
 		return
 	}
 
-	err = cryptoUtils.VerifyEKCertificateChain(tpmEkCertificate, intermediateCACert, rootCACert, getKnownTPMManufacturers())
+	err = cryptoUtils.VerifyEKCertificateChain(tpmEkCertificate, []*x509.Certificate{intermediateCACert}, rootCACert, getKnownTPMManufacturers())
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Certificate verification failed", "status": model.Error})
 		return

@@ -107,7 +107,7 @@ func computeDigest(pcrBytes, nonce []byte, hashAlgorithm int) ([]byte, error) {
 /*
 func main() {
 
-	rwc, err := simulator.GetWithFixedSeedInsecure(1073741825) //tpmutil.OpenTPM("/dev/tpm0")
+	rwc, err := simulator.GetWithFixedSeedInsecure(1073741825) //tpmutil.Open("/dev/tpm0")
 	if err != nil {
 		logger.Fatalf("can't open TPM: %v", err)
 	}
@@ -607,7 +607,7 @@ func computeIMAEntryHashes(packedDep, packedCgroup, packedFileHash, packedFilePa
 
 func main() {
 	log.Printf(strings.ToLower("SHA256"))
-	rwc, err := simulator.GetWithFixedSeedInsecure(1073741825) //tpmutil.OpenTPM("/dev/tpm0")
+	rwc, err := simulator.GetWithFixedSeedInsecure(1073741825) //tpmutil.Open("/dev/tpm0")
 	if err != nil {
 		log.Fatalf("can't open TPM: %v", err)
 	}
@@ -734,7 +734,7 @@ func main() {
 		}
 		logger.Printf("Valid certificate tpm")
 
-		rwc, err := tpmutil.OpenTPM("/dev/tpm0") //simulator.GetWithFixedSeedInsecure(1073741825)
+		rwc, err := tpmutil.Open("/dev/tpm0") //simulator.GetWithFixedSeedInsecure(1073741825)
 		if err != nil {
 			logger.Fatalf("can't open TPM: %v", err)
 		}

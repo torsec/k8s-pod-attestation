@@ -16,6 +16,7 @@ import (
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"github.com/torsec/k8s-pod-attestation/pkg/registrar"
+	"github.com/torsec/k8s-pod-attestation/pkg/tpm"
 	"github.com/torsec/k8s-pod-attestation/pkg/tpm_attestation"
 	"github.com/torsec/k8s-pod-attestation/pkg/whitelist"
 	corev1 "k8s.io/api/core/v1"
@@ -29,6 +30,7 @@ import (
 
 const ephemeralKeySize = 16
 const defaultHashAlgorithm = crypto.SHA256
+const defaultTPMKeyType = tpm.RSA
 
 type WorkerHandler struct {
 	clusterInteractor cluster_interaction.ClusterInteraction
@@ -143,7 +145,7 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 	}
 
 	wh.agentClient = &agent.Client{}
-	wh.agentClient.Init(agentHost, agentPort, nil)
+	wh.agentClient.Init(agentHost, int32(agentPort), nil)
 
 	logger.Info("successfully deployed agent on node '%s'; service port: %d", node.GetName(), agentPort)
 
@@ -181,7 +183,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 	// Call Agent to identify worker data
-	workerCredentials, err := wh.agentClient.WorkerRegistrationCredentials()
+	workerCredentials, err := wh.agentClient.WorkerRegistrationCredentials(defaultTPMKeyType.String())
 	if err != nil {
 		logger.Error("Failed to start get worker credentials and identification data: %v", err)
 		return false

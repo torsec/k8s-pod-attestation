@@ -14,8 +14,8 @@ import (
 
 const symBlockSize = 16
 
-func ValidateAIKPublicData(aikNameData, aikPublicArea []byte, aikTemplate tpm2legacy.Public) (crypto.PublicKey, error) {
-	retrievedName, err := tpm2legacy.DecodeName(bytes.NewBuffer(aikNameData))
+func ValidateAIKPublicData(aikName, aikPublicArea []byte, aikTemplate tpm2legacy.Public) (crypto.PublicKey, error) {
+	retrievedName, err := tpm2legacy.DecodeName(bytes.NewBuffer(aikName))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode AIK Name")
 	}
@@ -54,8 +54,8 @@ func ValidateAIKPublicData(aikNameData, aikPublicArea []byte, aikTemplate tpm2le
 	return AIKPub, nil
 }
 
-func GenerateCredentialActivation(AIKNameData []byte, ekPublic crypto.PublicKey, activateCredentialSecret []byte) ([]byte, []byte, error) {
-	retrievedName, err := tpm2legacy.DecodeName(bytes.NewBuffer(AIKNameData))
+func GenerateCredentialActivation(AIKName []byte, ekPublic crypto.PublicKey, activateCredentialSecret []byte) ([]byte, []byte, error) {
+	retrievedName, err := tpm2legacy.DecodeName(bytes.NewBuffer(AIKName))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decode AIK Name")
 	}

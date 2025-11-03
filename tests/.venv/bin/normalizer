@@ -1,4 +1,4 @@
-#!/home/francesco/projects/tesi/K8s-Pod-Attestation/cluster-components/tests/.venv/bin/python
+#!/home/francesco/projects/tesi/K8s-Pod-Attestation/cmd/tests/.venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

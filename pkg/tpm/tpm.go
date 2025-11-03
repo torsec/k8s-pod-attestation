@@ -191,7 +191,10 @@ func (tpm *TPM) GetWorkerEKandCertificate(keyType KeyType) ([]byte, []byte, erro
 		pemEKCert = []byte("EK Certificate not provided")
 	}
 
-	pemPublicEK := cryptoUtils.EncodePublicKeyToPEM(EK.PublicKey())
+	pemPublicEK, err := cryptoUtils.EncodePublicKeyToPEM(EK.PublicKey())
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to encode public key: %v", err)
+	}
 	return pemPublicEK, pemEKCert, nil
 }
 
