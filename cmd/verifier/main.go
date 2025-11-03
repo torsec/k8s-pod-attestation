@@ -56,8 +56,8 @@ func getEnv(key, defaultValue string) string {
 
 func main() {
 	loadEnvironmentVariables()
-	registrarClient.Init(registrarHost, registrarPort, nil)
-	whitelistClient.Init(whitelistHost, whitelistPort, nil)
+	registrarClient.Init(registrarHost, int32(registrarPort), nil)
+	whitelistClient.Init(whitelistHost, int32(whitelistPort), nil)
 	attestationVerifier.Init(defaultResync, attestationSecret, verifierPrivateKey, &registrarClient, &whitelistClient)
 	attestationVerifier.WatchAttestationRequestCRDs()
 }

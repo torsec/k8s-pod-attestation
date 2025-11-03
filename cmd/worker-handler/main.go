@@ -83,16 +83,16 @@ func main() {
 	loadEnvironmentVariables()
 
 	agentConfig = model.AgentConfig{
-		TPMPath:                 tpmPath,
-		IMAMountPath:            imaMountPath,
-		IMAMeasurementLogPath:   imaMlPath,
-		ImageName:               agentImageName,
-		AgentPort:               agentPort,
-		AgentNodePortAllocation: agentNodePortAllocation,
+		TPMPath:                    tpmPath,
+		IMAMeasurementLogMountPath: imaMountPath,
+		IMAMeasurementLogPath:      imaMlPath,
+		ImageName:                  agentImageName,
+		AgentPort:                  agentPort,
+		AgentNodePortAllocation:    agentNodePortAllocation,
 	}
 
-	registrarClient.Init(registrarHost, registrarPort, nil)
-	whitelistClient.Init(whitelistHost, whitelistPort, nil)
-	workerHandler.Init(verifierPublicKey, attestationEnabledNamespaces, defaultResync, &registrarClient, &agentConfig, &whitelistClient)
+	registrarClient.Init(registrarHost, int32(registrarPort), nil)
+	whitelistClient.Init(whitelistHost, int32(whitelistPort), nil)
+	workerHandler.Init([]byte(verifierPublicKey), attestationEnabledNamespaces, defaultResync, &registrarClient, &agentConfig, &whitelistClient)
 	workerHandler.WatchNodes()
 }

@@ -1,6 +1,12 @@
 #!/bin/bash
-tag=${1:-latest}
+set -e
 
-docker build -t franczar/k8s-attestation-verifier:"$tag" .
-docker tag franczar/k8s-attestation-verifier:"$tag" franczar/k8s-attestation-verifier:"$tag"
-docker push franczar/k8s-attestation-verifier:"$tag"
+TAG=${1:-latest}
+IMAGE="franczar/k8s-attestation-verifier"
+
+cd "$(dirname "$0")/../.."
+
+docker build -t "${IMAGE}:${TAG}" -f cmd/verifier/Dockerfile .
+docker push "${IMAGE}:${TAG}"
+
+echo "✅ Successfully built and pushed ${IMAGE}:${TAG}"

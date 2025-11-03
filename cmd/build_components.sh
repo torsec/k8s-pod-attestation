@@ -1,22 +1,28 @@
 #!/bin/bash
+set -euo pipefail
 
-# Loop through all directories in the current directory
+# Get tag from first argument, default to "latest"
+TAG=${1:-latest}
+
+# Loop through all subdirectories in cmd
 for dir in */; do
-    # Enter the directory
-    cd "$dir" || continue
-    
-    # Find any .sh file in the directory
-    sh_file=$(ls *.sh 2>/dev/null | head -n 1)
-
     echo "------------------------------------------------------------------------------------"
+    echo "Processing directory: $dir"
+
+    # Enter the directory
+    cd "$dir"
+
+    # Find the first .sh file
+    sh_file=$(find . -maxdepth 1 -type f -name "*.sh" | head -n 1)
+
     if [ -n "$sh_file" ]; then
-        echo "Running $sh_file in $dir"
-        chmod +x "$sh_file"  # Ensure it's executable
-        ./$sh_file
+        echo "Running $sh_file in $dir with tag: $TAG"
+        chmod +x "$sh_file"
+        ./"$sh_file" "$TAG"
     else
         echo "Skipping $dir (no .sh file found)"
     fi
-    
-    # Return to the parent directory
+
+    # Return to parent directory
     cd ..
 done

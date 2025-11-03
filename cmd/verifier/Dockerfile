@@ -1,29 +1,27 @@
-# Use a Golang base image
+# ---- Build stage ----
 FROM golang:1.24 AS builder
 
-# Set the working directory inside the container
+# Set the working directory
 WORKDIR /app
 
-# Copy the Go module files
-COPY go.mod go.processed ./
-
-# Download Go dependencies
+# Copy module files and download dependencies
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the rest of the application source code
+# Copy the entire source code
 COPY . .
 
-# Build the Go binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o verifier .
+# Build the verifier binary (from cmd/verifier if that's where main.go is)
+RUN CGO_ENABLED=0 GOOS=linux go build -o verifier ./cmd/verifier
 
-# Use a minimal base image for the final container
+# ---- Runtime stage ----
 FROM alpine:latest
 
-# Set the working directory inside the container
+# Set the working directory in the runtime container
 WORKDIR /app
 
-# Copy the binary built in the previous stage
+# Copy the built binary from builder stage
 COPY --from=builder /app/verifier .
 
-# Run the controller binary
+# Run the binary
 CMD ["./verifier"]

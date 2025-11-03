@@ -1,29 +1,22 @@
-# Use a Golang base image
+# ---- Builder stage ----
 FROM golang:1.24 AS builder
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy the Go module files
-COPY go.mod go.processed ./
-
-# Download Go dependencies
+# Copy module files from project root
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the rest of the application source code
+# Copy all source code
 COPY . .
 
-# Build the Go binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o cluster-status-controller .
+# Build only the cluster-status-controller binary
+RUN CGO_ENABLED=0 GOOS=linux go build -o cluster-status-controller ./cmd/cluster-status-controller
 
-# Use a minimal base image for the final container
+# ---- Final stage ----
 FROM alpine:latest
 
-# Set the working directory inside the container
 WORKDIR /app
-
-# Copy the binary built in the previous stage
 COPY --from=builder /app/cluster-status-controller .
 
-# Run the controller binary
 CMD ["./cluster-status-controller"]

@@ -1,33 +1,33 @@
-# Use the official Golang image as the base image
-FROM golang:1.23 AS builder
+# ---- Build stage ----
+FROM golang:1.24 AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy the Go modules files and download dependencies
-COPY go.mod go.processed ./
+# Copy Go module files and download dependencies
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the entire application source code into the container
+# Copy the entire source code
 COPY . .
 
-# Build the Go application
-RUN CGO_ENABLED=0 GOOS=linux go build -o registrar .
+# Build the Go application (specifically the registrar command)
+RUN CGO_ENABLED=0 GOOS=linux go build -o registrar ./cmd/registrar
 
-# Start a new image for the final container
+# ---- Runtime stage ----
 FROM alpine:latest
 
-# Install SQLite in the final image
-RUN apk add --no-cache sqlite
+# Install SQLite and CA certificates
+RUN apk add --no-cache sqlite ca-certificates
 
-# Set the working directory for the final image
+# Set working directory
 WORKDIR /app
 
-# Copy the compiled Go application from the builder stage
-COPY --from=builder /app/registrar /app/registrar
+# Copy binary from builder stage
+COPY --from=builder /app/registrar .
 
-# Expose the port that the application will run on
+# Expose the application's port
 EXPOSE 8080
 
-# Run the application
+# Run the registrar binary
 CMD ["./registrar"]

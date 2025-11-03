@@ -1,30 +1,27 @@
-# Use the official Golang image as the base image
+# ---- Builder stage ----
 FROM golang:1.24 AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy the Go modules files and download dependencies
-COPY go.mod go.processed ./
+# Copy Go module files from the project root
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the application source code
+# Copy the rest of the source code
 COPY . .
 
-# Build the Go application
-RUN CGO_ENABLED=0 GOOS=linux go build -o pod-handler .
+# Build only the pod-handler binary
+RUN CGO_ENABLED=0 GOOS=linux go build -o pod-handler ./cmd/pod-handler
 
-# Start a new image for the final container
+# ---- Final image ----
 FROM alpine:latest
 
-# Set the working directory in the final image
 WORKDIR /app
-
-# Copy the compiled Go application from the builder stage
 COPY --from=builder /app/pod-handler .
 
-# Expose the port that the application will run on
+# Expose port if your app listens on it
 EXPOSE 8080
 
-# Run the Go application
+# Run the binary
 CMD ["./pod-handler"]

@@ -1,5 +1,5 @@
-# Use a Golang base image for building the binary
-FROM golang:1.24 as builder
+# ---- Builder stage ----
+FROM golang:1.24 AS builder
 
 # Install OpenSSL library before building
 RUN apt-get update && apt-get install -y libssl-dev
@@ -7,32 +7,31 @@ RUN apt-get update && apt-get install -y libssl-dev
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy the Go module files
-COPY go.mod ./
+# Copy Go module files from the project root (two levels up)
+COPY go.mod go.sum ./
 
-# Download Go dependencies
+# Download dependencies
 RUN go mod download
 
-# Copy the rest of the application source code
-COPY . .
+# Copy the entire project source
+COPY ../.. .
 
-# Build the Go binary with CGO enabled
-RUN CGO_ENABLED=1 GOOS=linux go build -o agent .
+# Build the agent binary
+RUN CGO_ENABLED=1 GOOS=linux go build -o agent ./cmd/agent
 
-# Use Debian Bookworm as the base image for the final container
+# ---- Runtime stage ----
 FROM debian:bookworm-slim
 
-# Install OpenSSL 3 libraries and ca-certificates
-RUN apt-get update && apt-get install -y libssl3 libssl-dev ca-certificates
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
-# Set the working directory inside the container
 WORKDIR /app
-
-# Copy the binary built in the previous stage
 COPY --from=builder /app/agent .
 
-# Ensure the library path is set for OpenSSL
+# Set library path for OpenSSL
 ENV LD_LIBRARY_PATH=/usr/lib:/usr/local/lib
 
-# Run the controller binary
+# Run the agent
 CMD ["./agent"]
