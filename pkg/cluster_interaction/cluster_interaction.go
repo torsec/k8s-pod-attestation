@@ -2,6 +2,7 @@ package cluster_interaction
 
 import (
 	"context"
+	"crypto"
 	"fmt"
 	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
@@ -122,6 +123,8 @@ const (
 const (
 	ControlPlaneLabel = "node-role.kubernetes.io/control-plane"
 )
+
+const DefaultHashAlgo = crypto.SHA256
 
 func NewAgent(agentName string) *Agent {
 	return &Agent{
@@ -269,9 +272,14 @@ func NewAttestationRequest(podName, podUid, tenantId, agentName, agentIP string)
 	}
 }
 
-func (ar *AttestationRequest) ComputeHMAC(key []byte) {
+func (ar *AttestationRequest) ComputeHMAC(key []byte) error {
 	integrityMessage := []byte(fmt.Sprintf("%s::%s::%s::%s::%s", ar.Spec.PodName, ar.Spec.PodUid, ar.Spec.TenantId, ar.Spec.AgentName, ar.Spec.AgentIP))
-	ar.Spec.HMAC = cryptoUtils.ComputeHMAC(integrityMessage, key)
+	hmac, err := cryptoUtils.ComputeHMAC(integrityMessage, key, DefaultHashAlgo)
+	if err != nil {
+		return fmt.Errorf("failed to compute HMAC: %v", err)
+	}
+	ar.Spec.HMAC = hmac
+	return nil
 }
 
 func (ar *AttestationRequest) ValidateHMAC(key []byte) (bool, error) {
@@ -279,7 +287,7 @@ func (ar *AttestationRequest) ValidateHMAC(key []byte) (bool, error) {
 		return false, fmt.Errorf("missing HMAC in Attestation request")
 	}
 	integrityMessage := []byte(fmt.Sprintf("%s::%s::%s::%s::%s", ar.Spec.PodName, ar.Spec.PodUid, ar.Spec.TenantId, ar.Spec.AgentName, ar.Spec.AgentIP))
-	err := cryptoUtils.VerifyHMAC(integrityMessage, key, ar.Spec.HMAC)
+	err := cryptoUtils.VerifyHMAC(integrityMessage, key, ar.Spec.HMAC, DefaultHashAlgo)
 	if err != nil {
 		return false, fmt.Errorf("failed to validate Attestation request HMAC: %v", err)
 	}
@@ -846,7 +854,7 @@ func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, agentConfig *model.
 							},
 							VolumeMounts: []v1.VolumeMount{
 								{Name: "tpm-device", MountPath: agentConfig.TPMPath},
-								{Name: "ima-measurements", MountPath: agentConfig.IMAMountPath, ReadOnly: true},
+								{Name: "ima-measurements", MountPath: agentConfig.IMAMeasurementLogMountPath, ReadOnly: true},
 							},
 							SecurityContext: &v1.SecurityContext{
 								Privileged: &privileged,
