@@ -12,7 +12,7 @@ headers = {'Content-Type': 'application/json'}
 store_worker_data = {
     "name": "Debian GNU/Linux 12 (bookworm)",
     "validDigests": {
-        3: [],
+        3: ["6ad34776ca6e7492a30fb43957d7820a89add1c1"],
         5: ["7b6436b0c98f62380866d9432c2af0ee08ce16a171bda6951aecd95ee1307d61"]
     }
 }
