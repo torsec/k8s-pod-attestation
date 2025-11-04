@@ -23,7 +23,7 @@ POD_ATTEST_URL = f'{POD_HANDLER_BASE_URL}/pod/attest'
 # Convert the public key to PEM format
 def public_key_to_pem(public_key):
     pem_key = public_key.save_pkcs1(format='PEM')
-    return pem_key.decode()
+    return pem_key
 
 
 def create_tenant(name, public_key):
