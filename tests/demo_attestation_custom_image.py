@@ -30,7 +30,7 @@ def create_tenant(name, public_key):
     headers = {'Content-Type': 'application/json'}
     data = {
         'name': name,
-        'publicKey': base64.b64encode(public_key_to_pem(public_key)).decode()  # Pass public key in PEM format
+        'publicKey': base64.b64encode(public_key_to_pem(public_key))  # Pass public key in PEM format
     }
     response = requests.post(CREATE_TENANT_URL, headers=headers, data=json.dumps(data))
     if response.status_code == 201:
