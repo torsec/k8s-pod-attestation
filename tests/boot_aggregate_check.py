@@ -14,11 +14,7 @@ boot_pcrs = [
 ]
 
 hash = sha1()
-prev = b"\x00" * 20
 for b in boot_pcrs:
-    b = bytes.fromhex(b)
-    to_hash = prev + b
-    hash.update(prev)
-    prev = b
+    hash.update(bytes.fromhex(b))
 
 print("boot_aggregate:", hash.hexdigest())
