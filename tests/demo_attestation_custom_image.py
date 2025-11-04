@@ -13,7 +13,7 @@ REGISTRAR_BASE_URL = 'http://localhost:30000'  # Ensure this matches your pod-ha
 POD_HANDLER_BASE_URL = 'http://localhost:30001'
 CREATE_TENANT_URL = f'{REGISTRAR_BASE_URL}/tenant/create'
 VERIFY_SIGNATURE_URL = f'{REGISTRAR_BASE_URL}/tenant/verify'
-POD_DEPLOYMENT_URL = f'{POD_HANDLER_BASE_URL}/pod/deploy'
+POD_DEPLOYMENT_URL = f'{POD_HANDLER_BASE_URL}/resource/deploy'
 POD_ATTEST_URL = f'{POD_HANDLER_BASE_URL}/pod/attest'
 
 # Generate RSA keys (for demonstration purposes)
