@@ -10,7 +10,7 @@ headers = {'Content-Type': 'application/json'}
 
 # Test data for storing a worker whitelist
 store_worker_data = {
-    "osName": "Debian GNU/Linux 12 (bookworm)",
+    "name": "Debian GNU/Linux 12 (bookworm)",
     "validDigests": {
         3: [],
         5: ["7b6436b0c98f62380866d9432c2af0ee08ce16a171bda6951aecd95ee1307d61"]
@@ -18,7 +18,7 @@ store_worker_data = {
 }
 
 store_container_runtime_data = {
-    "containerRuntimeName": "/usr/bin/containerd-shim-runc-v2",
+    "name": "containerd",
     "validFiles": [
         {
             "filePath": "/usr/bin/containerd-shim-runc-v2",
@@ -78,7 +78,7 @@ check_worker_data = {
 
 # Test data for appending new OS to the worker whitelist
 worker_data_to_append = {
-    "osName": "Debian GNU/Linux 12 (bookworm)",
+    "name": "Debian GNU/Linux 12 (bookworm)",
     "validDigests": {
         3: [],
         5: ["6341e6b2646a79a70e57653007a1f310169421ec9bdd9f1a5648f75ade005af2"]
@@ -86,8 +86,8 @@ worker_data_to_append = {
 }
 
 store_pod_data = {
-    "imageName": "docker.io/library/grayscaler:offline",
-    "imageDigest": "sha256:f88d4dc06dcfeb1951730be5ff37a893806632ff64c9645ef22ada5e6199a2de",
+    "name": "docker.io/library/grayscaler:offline",
+    "digest": "sha256:f88d4dc06dcfeb1951730be5ff37a893806632ff64c9645ef22ada5e6199a2de",
     "validFiles": [
         {
             "filePath": "/usr/local/lib/python3.11/lib-dynload/_datetime.cpython-311-x86_64-linux-gnu.so",
@@ -589,8 +589,8 @@ store_pod_data = {
 }
 
 test_custom_pod_data = {
-    "imageName": "franczar/app-to-attest:latest",
-    "imageDigest": "docker.io/franczar/app-to-attest@sha256:277537fef9604983cad6ddba0845ee5d708738a7d4cb5892d696f408ce90dfcb",
+    "name": "franczar/app-to-attest:latest",
+    "digest": "docker.io/franczar/app-to-attest@sha256:277537fef9604983cad6ddba0845ee5d708738a7d4cb5892d696f408ce90dfcb",
     "validFiles": [
         {
             "filePath": "/bin/busybox",
@@ -628,8 +628,8 @@ test_custom_pod_data = {
 
 # Test data for checking a pod whitelist
 check_pod_data = {
-    "podImageName": "nginx:1.21",
-    "podFiles": [
+    "imageName": "nginx:1.21",
+    "files": [
         {
             "filePath": "/bin/sh",
             "fileHash": "c157a79031e1c40f85931829bc5fc552"
