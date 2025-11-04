@@ -1,11 +1,12 @@
 import base64
 import json
 import random
-import requests
-import rsa
 import sys
 import time
 from datetime import datetime
+
+import requests
+import rsa
 
 # Define API endpoints
 REGISTRAR_BASE_URL = 'http://localhost:30000'  # Ensure this matches your pod-handler URL
@@ -48,6 +49,7 @@ def verify_signature(name, message, signature):
     headers = {'Content-Type': 'application/json'}
     data = {
         'tenantName': name,
+        'resourceKind': 'Pod',
         'manifest': message,  # Send the entire YAML content as the message
         'signature': {
             "rawSignature": signature,
