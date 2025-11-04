@@ -68,7 +68,10 @@ def pod_attestation(name, podName, signature):
     data = {
         'tenantName': name,
         'podName': podName,  # Send the entire YAML content as the message
-        'signature': signature
+        'signature':  {
+            "rawSignature": signature,
+            "hashAlg": 5 # sha256
+        }
     }
     print(data)
     response = requests.post(POD_ATTEST_URL, headers=headers, data=json.dumps(data))
