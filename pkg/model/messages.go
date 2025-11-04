@@ -35,12 +35,12 @@ type WorkerCredentialsResponse struct {
 type WorkerChallenge struct {
 	AIKCredential      []byte `json:"AIKCredential"`
 	AIKEncryptedSecret []byte `json:"AIKEncryptedSecret"`
+	VerifierPk         []byte `json:"verifierPk"`
 }
 
 type WorkerChallengeResponse struct {
 	SimpleResponse `json:",inline"`
-	Evidence       *RatsEvidence `json:"evidence,omitempty"`
-	HashAlgo       crypto.Hash   `json:"hashAlgo"`
+	Evidence       json.RawMessage `json:"evidence,omitempty"`
 }
 
 type RegistrationAcknowledge struct {

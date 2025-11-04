@@ -14,7 +14,7 @@ import (
 
 const symBlockSize = 16
 
-func ValidateAIKPublicData(aikName, aikPublicArea []byte, aikTemplate tpm2legacy.Public) (crypto.PublicKey, error) {
+func ValidateAIKPublic(aikName, aikPublicArea []byte, aikTemplate tpm2legacy.Public) (crypto.PublicKey, error) {
 	retrievedName, err := tpm2legacy.DecodeName(bytes.NewBuffer(aikName))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode AIK Name")
@@ -89,12 +89,12 @@ func ValidateQuoteStructure(quote *pb.Quote, nonce []byte) error {
 		return fmt.Errorf("quote extraData %v did not match expected extraData %v", attestationData.ExtraData, nonce)
 	}
 
-	pcrHashAlgo, err := ToCryptoHash(quote.GetPcrs().GetHash())
+	_, aikHashAlgo, err := GetQuoteSignature(quote)
 	if err != nil {
-		return fmt.Errorf("failed to parse hash algorithm: %v", err)
+		return fmt.Errorf("failed to get aik hash algo: %v", err)
 	}
 
-	err = validatePCRDigest(attestedQuoteInfo, quote.GetPcrs(), pcrHashAlgo)
+	err = validatePCRDigest(attestedQuoteInfo, quote.GetPcrs(), aikHashAlgo)
 	if err != nil {
 		return fmt.Errorf("PCRs digest validation failed: %v", err)
 	}
@@ -128,15 +128,12 @@ func GetPCRHashAlgorithm(quote *pb.Quote) (crypto.Hash, error) {
 }
 
 func GetPCRDigest(quote *pb.Quote) ([]byte, error) {
-	attestationData, err := tpm2legacy.DecodeAttestationData(quote.GetQuote())
+	hashAlgo, err := GetPCRHashAlgorithm(quote)
 	if err != nil {
-		return nil, fmt.Errorf("decoding quote attestation data failed: %v", err)
+		return nil, fmt.Errorf("failed to get PCR hash algorithm: %v", err)
 	}
-	attestedQuoteInfo := attestationData.AttestedQuoteInfo
-	if attestedQuoteInfo == nil {
-		return nil, fmt.Errorf("attestation data does not contain quote info")
-	}
-	return attestedQuoteInfo.PCRDigest, nil
+	digest := pcrDigest(quote.GetPcrs(), hashAlgo)
+	return digest, nil
 }
 
 func GetQuoteSignature(quote *pb.Quote) ([]byte, crypto.Hash, error) {
@@ -189,9 +186,9 @@ func validatePCRDigest(quoteInfo *tpm2legacy.QuoteInfo, pcrs *pb.PCRs, hash cryp
 	if !samePCRSelection(pcrs, quoteInfo.PCRSelection) {
 		return fmt.Errorf("given PCRs and Quote do not have the same PCR selection")
 	}
-	pcrDigest := pcrDigest(pcrs, hash)
-	if subtle.ConstantTimeCompare(quoteInfo.PCRDigest, pcrDigest) == 0 {
-		return fmt.Errorf("given PCRs digest not matching")
+	digest := pcrDigest(pcrs, hash)
+	if subtle.ConstantTimeCompare(quoteInfo.PCRDigest, digest) == 0 {
+		return fmt.Errorf("given PCRs digest not matching: want %x, got %x", quoteInfo.PCRDigest, digest)
 	}
 	return nil
 }

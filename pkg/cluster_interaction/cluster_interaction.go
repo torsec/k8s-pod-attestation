@@ -843,8 +843,9 @@ func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, agentConfig *model.
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:  agentContainerName,
-							Image: agentConfig.ImageName,
+							Name:            agentContainerName,
+							Image:           agentConfig.ImageName,
+							ImagePullPolicy: v1.PullAlways,
 							Env: []v1.EnvVar{
 								{Name: "AGENT_PORT", Value: strconv.Itoa(int(agentConfig.AgentPort))},
 								{Name: "TPM_PATH", Value: agentConfig.TPMPath},

@@ -15,24 +15,23 @@ import (
 )
 
 type Server struct {
-	agentHost         string
-	agentPort         int32
-	tlsCertificate    *x509.Certificate
-	workerId          string
-	mlPath            string
-	verifierPublicKey *crypto.PublicKey
-	tpm               *tpm.TPM
-	router            *gin.Engine
-	imaReservedPcr    uint32
-	templateHashAlgo  crypto.Hash
-	fileHashAlgo      crypto.Hash
-	keysType          tpm.KeyType
+	agentHost        string
+	agentPort        int32
+	tlsCertificate   *x509.Certificate
+	workerId         string
+	mlPath           string
+	verifierPk       crypto.PublicKey
+	tpm              *tpm.TPM
+	router           *gin.Engine
+	imaReservedPcr   uint32
+	templateHashAlgo crypto.Hash
+	fileHashAlgo     crypto.Hash
+	keysType         tpm.KeyType
 }
 
 const (
 	GetWorkerRegistrationCredentialsUrl = "/agent/worker/registration/credentials"
 	WorkerRegistrationChallengeUrl      = "/agent/worker/registration/challenge"
-	AcknowledgeRegistrationUrl          = "/agent/worker/registration/acknowledge"
 	PodAttestationUrl                   = "/agent/pod/attest"
 )
 
@@ -55,46 +54,6 @@ func (s *Server) SetHost(host string) {
 
 func (s *Server) SetPort(port int32) {
 	s.agentPort = port
-}
-
-func (s *Server) acknowledgeRegistration(c *gin.Context) {
-	var acknowledge model.RegistrationAcknowledge
-	var err error
-
-	if err = c.BindJSON(&acknowledge); err != nil {
-		c.JSON(http.StatusBadRequest, model.WorkerRegistrationConfirm{
-			SimpleResponse: model.SimpleResponse{
-				Message: "Invalid request payload",
-				Status:  model.Error,
-			}})
-		return
-	}
-
-	if acknowledge.Status != model.Success {
-		c.JSON(http.StatusOK, model.WorkerRegistrationConfirm{
-			SimpleResponse: model.SimpleResponse{
-				Message: "Agent acknowledged failure of registration",
-				Status:  model.Error,
-			}})
-		return
-	}
-
-	*s.verifierPublicKey, err = cryptoUtils.DecodePublicKeyFromPEM(acknowledge.VerifierPublicKey)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, model.WorkerRegistrationConfirm{
-			SimpleResponse: model.SimpleResponse{
-				Message: "Failed to decode verifier public key from PEM",
-				Status:  model.Error,
-			}})
-		return
-	}
-
-	c.JSON(http.StatusCreated, model.WorkerRegistrationConfirm{
-		SimpleResponse: model.SimpleResponse{
-			Message: "Agent acknowledged success of registration and obtained Verifier Public Key",
-			Status:  model.Success,
-		}})
-	return
 }
 
 func createAttestationEvidence(quote []byte, imaMl []byte) (*model.RatsEvidence, error) {
@@ -134,7 +93,7 @@ func createCredentialActivationEvidence(hmac, quote []byte) (*model.RatsEvidence
 	return evidence, nil
 }
 
-func (s *Server) challengeWorker(c *gin.Context) {
+func (s *Server) registrationChallenge(c *gin.Context) {
 	var workerChallenge model.WorkerChallenge
 	// Bind the JSON request body to the struct
 	if err := c.BindJSON(&workerChallenge); err != nil {
@@ -194,8 +153,30 @@ func (s *Server) challengeWorker(c *gin.Context) {
 		return
 	}
 
+	evidenceJSON, err := evidence.ToJSON()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, model.WorkerChallengeResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Failed to parse to json credential activation evidence",
+				Status:  model.Error,
+			},
+		})
+		return
+	}
+
+	s.verifierPk, err = cryptoUtils.DecodePublicKeyFromPEM(workerChallenge.VerifierPk)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, model.WorkerChallengeResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Agent received invalid verifier public key",
+				Status:  model.Error,
+			},
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, model.WorkerChallengeResponse{
-		Evidence: evidence,
+		Evidence: evidenceJSON,
 		SimpleResponse: model.SimpleResponse{
 			Message: "Worker registration challenge decrypted and verified successfully",
 			Status:  model.Success,
@@ -205,14 +186,15 @@ func (s *Server) challengeWorker(c *gin.Context) {
 }
 
 func (s *Server) getWorkerRegistrationCredentials(c *gin.Context) {
-	keyType, err := tpm.KeyTypeFromString(c.Param("keyType"))
+	keyType, err := tpm.KeyTypeFromString(c.Query("keyType"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, model.WorkerChallengeResponse{
+		c.JSON(http.StatusBadRequest, model.WorkerCredentialsResponse{
 			SimpleResponse: model.SimpleResponse{
 				Message: "Invalid EK key type",
 				Status:  model.Error,
 			},
 		})
+		return
 	}
 	s.workerId = uuid.New().String()
 	ekCert, err := s.tpm.GetWorkerEKCertificate(keyType)
@@ -236,6 +218,8 @@ func (s *Server) getWorkerRegistrationCredentials(c *gin.Context) {
 		})
 		return
 	}
+
+	s.keysType = keyType
 
 	c.JSON(http.StatusOK, model.WorkerCredentialsResponse{
 		UUID:          s.workerId,
@@ -263,7 +247,7 @@ func (s *Server) podAttestation(c *gin.Context) {
 		return
 	}
 
-	err := attestationRequest.VerifySignature(s.verifierPublicKey)
+	err := attestationRequest.VerifySignature(s.verifierPk)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, model.AttestationResponse{
 			SimpleResponse: model.SimpleResponse{
@@ -330,8 +314,7 @@ func (s *Server) Start() {
 
 	// Define routes for the Tenant API
 	s.router.GET(GetWorkerRegistrationCredentialsUrl, s.getWorkerRegistrationCredentials) // GET worker identifying data (newly generated UUID, AIK, EK)
-	s.router.POST(WorkerRegistrationChallengeUrl, s.challengeWorker)                      // POST challenge worker for Registration
-	s.router.POST(AcknowledgeRegistrationUrl, s.acknowledgeRegistration)
+	s.router.POST(WorkerRegistrationChallengeUrl, s.registrationChallenge)                // POST challenge worker for Registration
 
 	s.router.POST(PodAttestationUrl, s.podAttestation) // POST attestation against one Pod running upon Worker of this agent
 

@@ -3,13 +3,10 @@ package worker_handler
 import (
 	"context"
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/rsa"
 	"encoding/hex"
 	"encoding/json"
 	"github.com/google/go-tpm-tools/client"
 	pb "github.com/google/go-tpm-tools/proto/tpm"
-	"github.com/google/go-tpm/legacy/tpm2"
 	"github.com/torsec/k8s-pod-attestation/pkg/agent"
 	"github.com/torsec/k8s-pod-attestation/pkg/cluster_interaction"
 	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
@@ -179,13 +176,18 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 
 	err = wh.agentClient.WaitForAgent(1*time.Second, 1*time.Minute)
 	if err != nil {
-		logger.Error("Error while contacting Agent: %v", err.Error())
+		logger.Error("Error while contacting Agent: %v", err)
 		return false
 	}
 	// Call Agent to identify worker data
 	workerCredentials, err := wh.agentClient.WorkerRegistrationCredentials(defaultTPMKeyType.String())
 	if err != nil {
 		logger.Error("Failed to start get worker credentials and identification data: %v", err)
+		return false
+	}
+
+	if workerCredentials.Status != model.Success {
+		logger.Error("Agent registration failed with credentials: %v", workerCredentials.Message)
 		return false
 	}
 
@@ -212,20 +214,8 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	}
 
 	ek := ekCert.PublicKey
-	var template tpm2.Public
-	switch ek.(type) {
-	case *rsa.PublicKey:
-		template = client.AKTemplateRSA()
-		break
-	case *ecdsa.PublicKey:
-		template = client.AKTemplateECC()
-		break
-	default:
-		logger.Error("Unsupported Key type")
-		return false
-	}
 
-	aikPublicKey, err := tpm_attestation.ValidateAIKPublicData(workerCredentials.AIKName, workerCredentials.AIKPublicArea, template)
+	aikPublicKey, err := tpm_attestation.ValidateAIKPublic(workerCredentials.AIKName, workerCredentials.AIKPublicArea, client.AKTemplateRSA())
 	if err != nil {
 		logger.Error("Failed to validate received Worker AIK: %v", err)
 		return false
@@ -252,6 +242,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	workerChallenge := &model.WorkerChallenge{
 		AIKCredential:      encodedCredentialBlob,
 		AIKEncryptedSecret: encodedEncryptedSecret,
+		VerifierPk:         wh.verifierPublicKey,
 	}
 
 	// Send challenge request to the agent
@@ -261,7 +252,18 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 
-	hmac, err := challengeResponse.Evidence.GetClaim(model.CredentialActivationHMACClaimKey)
+	if challengeResponse.Status != model.Success {
+		logger.Error("Failed to get challenge response: %v", challengeResponse.Message)
+		return false
+	}
+
+	evidence, err := model.EvidenceFromJSON(challengeResponse.Evidence)
+	if err != nil {
+		logger.Error("Failed to parse evidence: %v", err)
+		return false
+	}
+
+	hmac, err := evidence.GetClaim(model.CredentialActivationHMACClaimKey)
 	if err != nil {
 		logger.Error("Failed to get hmac value: %v", err)
 		return false
@@ -274,7 +276,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 
-	quoteJSON, err := challengeResponse.Evidence.GetClaim(model.IMAPcrQuoteClaimKey)
+	quoteJSON, err := evidence.GetClaim(model.IMAPcrQuoteClaimKey)
 	if err != nil {
 		logger.Error("Failed to get quote: %v", err)
 		return false
@@ -300,10 +302,16 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 
+	quoteHashAlgo, err := tpm_attestation.ToCryptoHash(quote.GetPcrs().GetHash())
+	if err != nil {
+		logger.Error("Failed to get quote hash algo: %v", err)
+		return false
+	}
+
 	workerWhitelistCheckRequest := &model.WorkerWhitelistCheckRequest{
 		OsName:        newWorker.Status.NodeInfo.OSImage,
 		BootAggregate: hex.EncodeToString(bootAggregate),
-		HashAlg:       challengeResponse.HashAlgo,
+		HashAlg:       quoteHashAlgo,
 	}
 
 	whitelistResponse, err := wh.whitelistClient.CheckWorkerWhitelist(workerWhitelistCheckRequest)
@@ -317,18 +325,14 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 
-	attestedDependencies, err := json.Marshal(workerWhitelistCheckRequest)
-	if err != nil {
-		logger.Error("Failed to marshal attested entries as json")
-	}
-
-	logger.Success("Attestation of Worker node '%s' completed with success; Successfully attested dependencies: %s", newWorker.GetName(), attestedDependencies)
+	logger.Success("Attestation of Worker node '%s' completed with success; Successfully attested boot dependencies;", newWorker.GetName())
 
 	aikPublicPem, err := cryptoUtils.EncodePublicKeyToPEM(aikPublicKey)
 	if err != nil {
 		logger.Error("Failed to encode AIK public key: %v", err)
 		return false
 	}
+
 	if aikPublicPem == nil {
 		logger.Error("Failed to parse AIK Public Key to PEM format")
 		return false
@@ -341,30 +345,13 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	}
 
 	// Create a new worker
-	createWorkerResponse, err := wh.registrarClient.CreateWorker(workerNode)
+	workerResponse, err := wh.registrarClient.CreateWorker(workerNode)
 	if err != nil {
 		logger.Error("Failed to create Worker Node: %v", err)
-	}
-
-	registrationAcknowledge := &model.RegistrationAcknowledge{
-		SimpleResponse: model.SimpleResponse{
-			Message: createWorkerResponse.Message,
-			Status:  createWorkerResponse.Status,
-		},
-	}
-
-	if createWorkerResponse.Status == model.Success {
-		registrationAcknowledge.VerifierPublicKey = wh.verifierPublicKey
-	}
-
-	registrationConfirm, err := wh.agentClient.WorkerRegistrationAcknowledge(registrationAcknowledge)
-	if err != nil {
-		logger.Error("Failed to acknowledge Worker Node about registration result: %v", err)
 		return false
 	}
-
-	if registrationConfirm.Status != model.Success {
-		logger.Error("Worker Node registration confirmation failed: %s", registrationConfirm.Message)
+	if workerResponse.Status != model.Success {
+		logger.Error("Failed to create new Worker: %v", workerResponse.Message)
 		return false
 	}
 

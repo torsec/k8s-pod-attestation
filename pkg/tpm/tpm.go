@@ -29,7 +29,8 @@ const (
 )
 
 func KeyTypeFromString(s string) (KeyType, error) {
-	switch strings.ToUpper(s) {
+	s = strings.ToUpper(strings.TrimSpace(s))
+	switch s {
 	case "RSA":
 		return RSA, nil
 	case "ECC":
@@ -208,13 +209,13 @@ func (tpm *TPM) CreateAIK(keyType KeyType) ([]byte, []byte, error) {
 
 	switch keyType {
 	case RSA:
-		AIK, err = client.EndorsementKeyRSA(tpm.rwc)
+		AIK, err = client.AttestationKeyRSA(tpm.rwc)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to get RSA EK: %v", err)
 		}
 		break
 	case ECC:
-		AIK, err = client.EndorsementKeyECC(tpm.rwc)
+		AIK, err = client.AttestationKeyECC(tpm.rwc)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to get ECC EK: %v", err)
 		}
@@ -376,24 +377,14 @@ func (tpm *TPM) ActivateAIKCredential(aikCredential, aikEncryptedSecret []byte) 
 		return nil, fmt.Errorf("creating auth session failed: %v", err)
 	}
 	// Set PolicySecret on the endorsement handle, enabling EK use
-	auth := tpm2legacy.AuthCommand{
-		Session:    tpm2legacy.HandlePasswordSession,
-		Attributes: tpm2legacy.AttrContinueSession,
-	}
+	auth := tpm2legacy.AuthCommand{Session: tpm2legacy.HandlePasswordSession, Attributes: tpm2legacy.AttrContinueSession}
 	if _, _, err = tpm2legacy.PolicySecret(tpm.rwc, tpm2legacy.HandleEndorsement, auth, session, nil, nil, nil, 0); err != nil {
 		return nil, fmt.Errorf("policy secret failed: %v", err)
 	}
 
 	// Create authorization commands, linking session and password auth
 	auths := []tpm2legacy.AuthCommand{
-		{
-			Session:    tpm2legacy.HandlePasswordSession,
-			Attributes: tpm2legacy.AttrContinueSession,
-		},
-		{
-			Session:    session,
-			Attributes: tpm2legacy.AttrContinueSession,
-		},
+		auth, {Session: session, Attributes: tpm2legacy.AttrContinueSession},
 	}
 
 	// Attempt to activate the credential
@@ -401,6 +392,12 @@ func (tpm *TPM) ActivateAIKCredential(aikCredential, aikEncryptedSecret []byte) 
 	if err != nil {
 		return nil, fmt.Errorf("AIK activate_credential failed: %v", err)
 	}
+
+	err = tpm2legacy.FlushContext(tpm.rwc, session)
+	if err != nil {
+		return nil, fmt.Errorf("failed to flush session: %v", err)
+	}
+
 	return challengeSecret, nil
 }
 

@@ -109,41 +109,6 @@ func (c *Client) WorkerRegistrationChallenge(workerChallenge *model.WorkerChalle
 	return &challengeResponse, nil
 }
 
-func (c *Client) WorkerRegistrationAcknowledge(acknowledge *model.RegistrationAcknowledge) (*model.WorkerRegistrationConfirm, error) {
-	completeUrl := fmt.Sprintf("http://%s:%d%s", c.agentHost, c.agentPort, AcknowledgeRegistrationUrl)
-
-	// Marshal the attestation request to JSON
-	jsonPayload, err := json.Marshal(acknowledge)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal Registration acknowledge request: %v", err)
-	}
-
-	// Make the POST request to the agent
-	resp, err := http.Post(completeUrl, "application/json", bytes.NewBuffer(jsonPayload))
-	if err != nil {
-		return nil, fmt.Errorf("failed to send Registration acknowledge request: %v", err)
-	}
-
-	// Read response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			return
-		}
-	}(resp.Body)
-
-	var registrationConfirm model.WorkerRegistrationConfirm
-	if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&registrationConfirm); err != nil {
-		return nil, fmt.Errorf("failed to decode response: received %s: %v", string(body), err)
-	}
-	return &registrationConfirm, nil
-}
-
 func (c *Client) PodAttestation(attestationRequest *model.AttestationRequest) (*model.AttestationResponse, error) {
 	completeUrl := fmt.Sprintf("http://%s:%d%s", c.agentHost, c.agentPort, PodAttestationUrl)
 

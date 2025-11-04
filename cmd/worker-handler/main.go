@@ -49,10 +49,10 @@ func loadEnvironmentVariables() {
 		logger.Fatal("failed to parse WHITELIST_PORT: %v", err)
 	}
 	verifierPublicKey = getEnv("VERIFIER_PUBLIC_KEY", "")
-	imaMountPath = getEnv("IMA_MOUNT_PATH", "/root/ascii_runtime_measurements")
-	imaMlPath = getEnv("IMA_ML_PATH", "/sys/kernel/security/integrity/ima/ascii_runtime_measurements")
+	imaMountPath = getEnv("IMA_MOUNT_PATH", "/root/binary_runtime_measurements")
+	imaMlPath = getEnv("IMA_ML_PATH", "/sys/kernel/security/integrity/ima/binary_runtime_measurements")
 	tpmPath = getEnv("TPM_PATH", "/dev/tpm0")
-	agentImageName = getEnv("AGENT_IMAGE_NAME", "franczar/k8s-attestation-agent:latest")
+	agentImageName = getEnv("AGENT_IMAGE_NAME", "franczar/k8s-attestation-agent:dev")
 	defaultResyncEnv := getEnv("DEFAULT_RESYNC", "3")
 	defaultResync, err = strconv.Atoi(defaultResyncEnv)
 	if err != nil {
