@@ -71,7 +71,7 @@ def pod_attestation(name, pod_name, signature):
     headers = {'Content-Type': 'application/json'}
     data = {
         'tenantName': name,
-        'podName': pod_name,
+        'podName': base64.b64encode(pod_name).decode(),
         'signature': {
             "rawSignature": signature,
             "hashAlg": 5
