@@ -110,7 +110,7 @@ spec:
     signature = sign_message(to_sign)
 
     # Verify the signature
-    if verify_signature(tenant_name, to_sign, signature):
+    if verify_signature(tenant_name, base64.b64encode(to_sign.encode()).decode(), signature):
         pods_to_attest.append(pod_name)
 
 signatures = []
