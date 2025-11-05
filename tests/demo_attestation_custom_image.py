@@ -2,8 +2,6 @@ import base64
 import json
 import random
 import sys
-import time
-from datetime import datetime
 
 import requests
 import rsa
@@ -80,40 +78,44 @@ def pod_attestation(name, podName, signature):
     else:
         print('Pod attestation request failed:', response.text)
 
+
 # Usage
 tenant_name = f'Tenant-{random.randint(0, 500)}'
-message = '''
+# Create a new tenant with the public key in PEM format
+create_tenant(tenant_name, public_key)
+
+pods_to_attest = []
+n_pods = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+
+for i in range(0, n_pods):
+    # Usage
+    pod_name = f'pod-{random.randint(0, 2000000)}'
+
+    message = f'''
 apiVersion: v1
 kind: Pod
 metadata:
-  name: pod-to-attest
+  name: {pod_name}
   namespace: it6-ns
 spec:
-  nodeName: worker
   containers:
   - name: alpine-container
     image: franczar/app-to-attest:latest
     command: ["sh", "-c", "echo Hello Kubernetes! && sleep 3600"]
 '''
+    to_sign = message
 
-pod_name = "pod-to-attest"
+    # Sign the YAML content (message)
+    signature = sign_message(to_sign)
 
-# Create a new tenant with the public key in PEM format
-create_tenant(tenant_name, public_key)
+    # Verify the signature
+    if verify_signature(tenant_name, to_sign, signature):
+        pods_to_attest.append(pod_name)
 
-# Sign the YAML content (message)
-signature = sign_message(message)
+signatures = []
+for pod_name in pods_to_attest:
+    signature = sign_message(pod_name)   # or sign_message(to_sign) if you want to sign the YAML
+    signatures.append(signature)
 
-# Verify the signature
-verify_signature(tenant_name, base64.b64encode(message.encode()).decode(), signature)
-
-signature = sign_message(pod_name)
-
-time.sleep(20)
-
-n = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-avg = 0.0
-for i in range(0, n):
-    start_time = datetime.now()
-    print(f"start: {start_time.strftime('%H:%M:%S.%f')[:-3]}")
-    pod_attestation(tenant_name, pod_name, signature)
+for i, pod_name in enumerate(pods_to_attest):
+    pod_attestation(tenant_name, pod_name, signatures[i])
