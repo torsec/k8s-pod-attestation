@@ -125,5 +125,4 @@ spec:
     # Perform pod attestation
     for pod_name in pods_to_attest:
         signature = sign_message(pod_name)
-        encoded_name = base64.b64encode(pod_name.encode()).decode()
-        pod_attestation(tenant_name, encoded_name, signature)
+        pod_attestation(tenant_name, pod_name, signature)
