@@ -40,7 +40,7 @@ type Verifier struct {
 	attestationSecret []byte
 	privateKey        crypto.PrivateKey
 	validator         *ima.Validator
-	podsIntegrity     map[string]ima.Integrity
+	podsIntegrity     map[string]*ima.Integrity
 }
 
 func (v *Verifier) Init(defaultResync int, attestationSecret []byte, privateKey crypto.PrivateKey, registrarClient *registrar.Client, whitelistClient *whitelist.Client) {
@@ -54,7 +54,7 @@ func (v *Verifier) Init(defaultResync int, attestationSecret []byte, privateKey 
 	v.privateKey = privateKey
 	v.registrarClient = registrarClient
 	v.whitelistClient = whitelistClient
-	v.podsIntegrity = make(map[string]ima.Integrity)
+	v.podsIntegrity = make(map[string]*ima.Integrity)
 }
 
 func (v *Verifier) createAgentAttestationRequest(attestationRequest *cluster_interaction.AttestationRequest) (*model.AttestationRequest, error) {
@@ -68,14 +68,15 @@ func (v *Verifier) createAgentAttestationRequest(attestationRequest *cluster_int
 		return nil, fmt.Errorf("failed to generate nonce for Attestation Request")
 	}
 
+	mlOffset := int64(0)
 	integrity, exists := v.podsIntegrity[attestationRequest.Spec.PodUid]
-	if !exists {
-		integrity = ima.Integrity{}
+	if exists {
+		mlOffset = integrity.Offset()
 	}
 
 	agentAttestationRequest := &model.AttestationRequest{
 		Nonce:  nonce,
-		Offset: integrity.Offset(),
+		Offset: mlOffset,
 	}
 
 	err = agentAttestationRequest.Sign(v.privateKey, DefaultHashAlgo)
@@ -112,7 +113,7 @@ func (v *Verifier) validatePodQuote(workerName string, podQuote *pb.Quote, nonce
 	}
 
 	if quoteSignatureValidationResponse.Status != model.Success {
-		return fmt.Errorf("invalid quote signature")
+		return fmt.Errorf("invalid quote signature: %v", quoteSignatureValidationResponse.Message)
 	}
 
 	return nil
@@ -126,23 +127,9 @@ func (v *Verifier) podAttestation(attestationRequest *cluster_interaction.Attest
 
 	v.agentClient.Init(attestationRequest.Spec.AgentIP, agentPort, nil)
 
-	integrity, exists := v.podsIntegrity[attestationRequest.Spec.PodUid]
-	if !exists {
-		integrity = ima.Integrity{}
-	}
-	nonce, err := cryptoUtils.GetNonce(AttestationNonceSize)
+	agentAttestationRequest, err := v.createAgentAttestationRequest(attestationRequest)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate nonce for Attestation Request")
-	}
-
-	agentAttestationRequest := &model.AttestationRequest{
-		Nonce:  nonce,
-		Offset: integrity.Offset(),
-	}
-
-	err = agentAttestationRequest.Sign(v.privateKey, DefaultHashAlgo)
-	if err != nil {
-		return nil, fmt.Errorf("error while signing Attestation Request: %v", err)
+		return nil, fmt.Errorf("error while creating Agent Attestation Request: %v", err)
 	}
 
 	attestationResponse, err := v.agentClient.PodAttestation(agentAttestationRequest)
@@ -160,7 +147,12 @@ func (v *Verifier) podAttestation(attestationRequest *cluster_interaction.Attest
 		return nil, fmt.Errorf("error while verifying Attestation Evidence: invalid Worker name")
 	}
 
-	quoteRaw, err := attestationResponse.Evidence.GetClaim(model.IMAPcrQuoteClaimKey)
+	evidence, err := model.EvidenceFromJSON(attestationResponse.Evidence)
+	if err != nil {
+		return nil, fmt.Errorf("error while verifying Attestation Evidence: %v", err)
+	}
+
+	quoteRaw, err := evidence.GetClaim(model.IMAPcrQuoteClaimKey)
 	if err != nil {
 		return &model.AttestationResult{
 			Agent: attestationRequest.Spec.AgentName,
@@ -169,19 +161,7 @@ func (v *Verifier) podAttestation(attestationRequest *cluster_interaction.Attest
 				Result: model.UntrustedNodeStatus,
 				Reason: "failed to get quote claim",
 			},
-		}, fmt.Errorf("failed to get quote claim")
-	}
-
-	imaMlRaw, err := attestationResponse.Evidence.GetClaim(model.IMAMeasurementLogClaimKey)
-	if err != nil {
-		return &model.AttestationResult{
-			Agent: attestationRequest.Spec.AgentName,
-			Result: model.NodeResult{
-				Name:   workerName,
-				Result: model.UntrustedNodeStatus,
-				Reason: "failed to get measurement list claim",
-			},
-		}, fmt.Errorf("failed to get measurement list claim")
+		}, fmt.Errorf("failed to get quote claim: %v", err)
 	}
 
 	// Parse inputQuote JSON
@@ -198,16 +178,28 @@ func (v *Verifier) podAttestation(attestationRequest *cluster_interaction.Attest
 		}, fmt.Errorf("failed to process evidence quote")
 	}
 
-	err = v.validatePodQuote(workerName, quote, nonce)
+	err = v.validatePodQuote(workerName, quote, agentAttestationRequest.Nonce)
 	if err != nil {
 		return &model.AttestationResult{
 			Agent: attestationRequest.Spec.AgentName,
 			Result: model.NodeResult{
 				Name:   workerName,
 				Result: model.UntrustedNodeStatus,
-				Reason: "Error while validating Worker Quote",
+				Reason: fmt.Sprintf("Error while validating Worker Quote: %v", err),
 			},
-		}, fmt.Errorf("error while validating Worker Quote")
+		}, fmt.Errorf("error while validating Worker Quote: %v", err)
+	}
+
+	imaMlRaw, err := evidence.GetClaim(model.IMAMeasurementLogClaimKey)
+	if err != nil {
+		return &model.AttestationResult{
+			Agent: attestationRequest.Spec.AgentName,
+			Result: model.NodeResult{
+				Name:   workerName,
+				Result: model.UntrustedNodeStatus,
+				Reason: "failed to get measurement list claim",
+			},
+		}, fmt.Errorf("failed to get measurement list claim: %v", err)
 	}
 
 	imaMl := ima.NewMeasurementListFromRaw(imaMlRaw, 0)
@@ -225,11 +217,21 @@ func (v *Verifier) podAttestation(attestationRequest *cluster_interaction.Attest
 
 	expected := quote.GetPcrs().GetPcrs()[attestationResponse.ImaPcr]
 
-	integrity.PcrIndex = attestationResponse.ImaPcr
-	integrity.TemplateHashAlgo = attestationResponse.TemplateHashAlgo
-	integrity.FileHashAlgo = attestationResponse.FileHashAlgo
+	integrity, exists := v.podsIntegrity[attestationRequest.Spec.PodUid]
+	if !exists {
+		integrity, err = ima.NewIntegrity(
+			attestationResponse.ImaPcr,
+			attestationResponse.TemplateHashAlgo,
+			attestationResponse.FileHashAlgo,
+			nil,
+			0,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create integrity tracker for attested pod")
+		}
+	}
 
-	validator := ima.NewCgPathValidator(imaMl, &integrity, cgPathTarget)
+	validator := ima.NewCgPathValidator(imaMl, integrity, cgPathTarget)
 	err = validator.MeasurementListAttestation(expected)
 	if err != nil {
 		return &model.AttestationResult{
@@ -237,9 +239,9 @@ func (v *Verifier) podAttestation(attestationRequest *cluster_interaction.Attest
 			Result: model.NodeResult{
 				Name:   workerName,
 				Result: model.UntrustedNodeStatus,
-				Reason: fmt.Sprintf("Failed to validate IMA Measurement log: %s", err),
+				Reason: fmt.Sprintf("Failed to validate IMA Measurement list: %s", err),
 			},
-		}, fmt.Errorf("failed to validate IMA Measurement log")
+		}, fmt.Errorf("failed to validate IMA Measurement list: %v", err)
 	}
 
 	podImageName, podImageDigest, err := v.clusterInteractor.GetPodImageDataByUid(attestationRequest.Spec.PodUid)
@@ -252,7 +254,7 @@ func (v *Verifier) podAttestation(attestationRequest *cluster_interaction.Attest
 				Result:   model.UntrustedPodStatus,
 				Reason:   "Failed to get image name and digest of attested Pod",
 			},
-		}, fmt.Errorf("failed to get image name of attested Pod")
+		}, fmt.Errorf("failed to get image name of attested Pod: %v", err)
 	}
 
 	podCheckRequest := &model.PodWhitelistCheckRequest{
@@ -277,7 +279,7 @@ func (v *Verifier) podAttestation(attestationRequest *cluster_interaction.Attest
 				Result: model.UntrustedNodeStatus,
 				Reason: "Failed to verify integrity of Container Runtime",
 			},
-		}, fmt.Errorf("failed to verify integrity of Container Runtime")
+		}, fmt.Errorf("failed to verify integrity of Container Runtime: %v", err)
 	}
 
 	if containerRuntimeValidationResponse.Status != model.Success {
@@ -300,7 +302,7 @@ func (v *Verifier) podAttestation(attestationRequest *cluster_interaction.Attest
 				Result:   model.UntrustedPodStatus,
 				Reason:   "Failed to verify integrity of files executed by attested Pod",
 			},
-		}, fmt.Errorf("failed to verify integrity of files executed by Pod")
+		}, fmt.Errorf("failed to verify integrity of files executed by Pod: %v", err)
 	}
 
 	if podValidationResponse.Status != model.Success {
@@ -327,7 +329,7 @@ func (v *Verifier) podAttestation(attestationRequest *cluster_interaction.Attest
 				Result:   model.UntrustedPodStatus,
 				Reason:   "Failed to create attestation result",
 			},
-		}, fmt.Errorf("failed to create attestation result")
+		}, fmt.Errorf("failed to create attestation result: %v", err)
 	}
 
 	// send to RabbitMQ topic
@@ -560,6 +562,7 @@ func (v *Verifier) addAttestationRequestHandling(obj interface{}) {
 	_, err = v.clusterInteractor.DeleteAttestationRequest(attestationRequest.Name)
 	if err != nil {
 		logger.Error("failed to delete Attestation Request: %v", err)
+		return
 	}
 
 	if attestationResult != nil {
@@ -568,7 +571,7 @@ func (v *Verifier) addAttestationRequestHandling(obj interface{}) {
 		} else {
 			logger.Success("Pod Attestation completed with positive outcome; agent: '%s', target: '%s' name: '%s', result: '%s'", attestationResult.Agent, attestationResult.Result.GetKind(), attestationResult.Result.GetName(), attestationResult.Result.GetResult())
 		}
-		_, err := v.clusterInteractor.UpdateAgentCRDWithAttestationResult(attestationResult)
+		_, err = v.clusterInteractor.UpdateAgentCRDWithAttestationResult(attestationResult)
 		if err != nil {
 			logger.Error("failed to update Agent CRD with Attestation Result: %v", err)
 			return

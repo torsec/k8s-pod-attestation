@@ -4,7 +4,7 @@ go 1.24.5
 
 require (
 	github.com/fatih/color v1.18.0
-	github.com/franc-zar/go-ima v0.0.0-20251102141745-7ba2457def15
+	github.com/franc-zar/go-ima v0.0.0-20251105113933-b1faede5b362
 	github.com/gin-gonic/gin v1.11.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/go-attestation v0.6.0

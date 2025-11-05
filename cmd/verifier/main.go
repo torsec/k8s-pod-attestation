@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto"
+	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
 	"github.com/torsec/k8s-pod-attestation/pkg/registrar"
 	"github.com/torsec/k8s-pod-attestation/pkg/verifier"
@@ -18,7 +20,7 @@ var (
 	whitelistHost       string
 	whitelistPort       int
 	attestationSecret   []byte
-	verifierPrivateKey  string
+	verifierPrivateKey  crypto.PrivateKey
 	defaultResync       int
 )
 
@@ -36,7 +38,11 @@ func loadEnvironmentVariables() {
 		logger.Fatal("failed to parse WHITELIST_PORT")
 	}
 
-	verifierPrivateKey = getEnv("VERIFIER_PRIVATE_KEY", "")
+	pemKey := getEnv("VERIFIER_PRIVATE_KEY", "")
+	verifierPrivateKey, err = cryptoUtils.DecodePrivateKeyFromPEM([]byte(pemKey))
+	if err != nil {
+		logger.Fatal("failed to decode PEM private key")
+	}
 	attestationSecret = []byte(getEnv("ATTESTATION_SECRET", ""))
 	defaultResyncEnv := getEnv("DEFAULT_RESYNC", "3")
 	defaultResync, err = strconv.Atoi(defaultResyncEnv)

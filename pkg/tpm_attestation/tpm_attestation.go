@@ -8,7 +8,6 @@ import (
 	pb "github.com/google/go-tpm-tools/proto/tpm"
 	tpm2legacy "github.com/google/go-tpm/legacy/tpm2"
 	"github.com/google/go-tpm/legacy/tpm2/credactivation"
-	"github.com/google/go-tpm/tpmutil"
 	cryptoUtils "github.com/torsec/k8s-pod-attestation/pkg/crypto"
 )
 
@@ -86,7 +85,7 @@ func ValidateQuoteStructure(quote *pb.Quote, nonce []byte) error {
 	}
 
 	if subtle.ConstantTimeCompare(attestationData.ExtraData, nonce) == 0 {
-		return fmt.Errorf("quote extraData %v did not match expected extraData %v", attestationData.ExtraData, nonce)
+		return fmt.Errorf("quote extraData %x did not match expected extraData %x", attestationData.ExtraData, nonce)
 	}
 
 	_, aikHashAlgo, err := GetQuoteSignature(quote)
@@ -142,24 +141,19 @@ func GetQuoteSignature(quote *pb.Quote) ([]byte, crypto.Hash, error) {
 		return nil, crypto.Hash(0), fmt.Errorf("failed to decode quote Signature")
 	}
 
-	var rawSig []byte
 	var hashAlg crypto.Hash
 
 	switch sig.Alg {
 	case tpm2legacy.AlgRSASSA, tpm2legacy.AlgRSAPSS:
-		rawSig, err = tpmutil.Pack(sig.RSA.Signature)
-		if err != nil {
-			return nil, crypto.Hash(0), fmt.Errorf("failed to pack RSA signature: %v", err)
-		}
 		hashAlg, err = sig.RSA.HashAlg.Hash()
 		if err != nil {
 			return nil, crypto.Hash(0), fmt.Errorf("failed to parse RSA signature hash algorithm: %v", err)
 		}
-		return rawSig, hashAlg, nil
+		return sig.RSA.Signature, hashAlg, nil
 
 	case tpm2legacy.AlgECDSA:
 		ecdsaSig := cryptoUtils.ECDSASignature{R: sig.ECC.R, S: sig.ECC.S}
-		rawSig, err = ecdsaSig.ToASN1()
+		rawSig, err := ecdsaSig.ToASN1()
 		if err != nil {
 			return nil, crypto.Hash(0), fmt.Errorf("failed to convert ECDSA signature to ASN.1 format: %v", err)
 		}

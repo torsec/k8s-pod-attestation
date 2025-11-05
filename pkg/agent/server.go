@@ -67,7 +67,7 @@ func createAttestationEvidence(quote []byte, imaMl []byte) (*model.RatsEvidence,
 		return nil, fmt.Errorf("failed to create quote claim to evidence: %v", err)
 	}
 
-	err = evidence.AddClaim(model.IMAPcrQuoteClaimKey, imaMl, model.EatJsonClaimMediaType)
+	err = evidence.AddClaim(model.IMAMeasurementLogClaimKey, imaMl, model.EatJsonClaimMediaType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add IMA measurement log claim to evidence: %v", err)
 	}
@@ -85,7 +85,7 @@ func createCredentialActivationEvidence(hmac, quote []byte) (*model.RatsEvidence
 	if err != nil {
 		return nil, fmt.Errorf("failed to add HMAC claim to evidence: %v", err)
 	}
-	err = evidence.AddClaim(model.IMAPcrQuoteClaimKey, quote, model.EatJsonClaimMediaType)
+	err = evidence.AddClaim(model.BootQuoteClaimKey, quote, model.EatJsonClaimMediaType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add Quote claim to evidence: %v", err)
 	}
@@ -270,6 +270,17 @@ func (s *Server) podAttestation(c *gin.Context) {
 	}
 
 	measurementList := ima.NewMeasurementListFromFile(s.mlPath, attestationRequest.Offset)
+	err = measurementList.Open(attestationRequest.Offset)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, model.AttestationResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: fmt.Sprintf("Failed to open Measurement List: %v", err),
+				Status:  model.Error,
+			},
+		})
+		return
+	}
+
 	mlContent, err := measurementList.ReadAll()
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, model.AttestationResponse{
@@ -294,18 +305,27 @@ func (s *Server) podAttestation(c *gin.Context) {
 
 	// TODO: Sign the evidence as JWT, agent must be provided with a pk to sign the evidence
 	// for now we just return the evidence as is
+	evidenceJSON, err := evidence.ToJSON()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, model.AttestationResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: "Failed to encode attestation evidence",
+				Status:  model.Error,
+			},
+		})
+		return
+	}
 
 	c.JSON(http.StatusOK, model.AttestationResponse{
 		SimpleResponse: model.SimpleResponse{
 			Message: "Pod attestation request successfully processed",
 			Status:  model.Success,
 		},
-		Evidence:         evidence,
+		Evidence:         evidenceJSON,
 		ImaPcr:           s.imaReservedPcr,
 		TemplateHashAlgo: s.templateHashAlgo,
 		FileHashAlgo:     s.fileHashAlgo,
 	})
-	return
 }
 
 func (s *Server) Start() {

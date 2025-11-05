@@ -2,6 +2,7 @@ import base64
 import json
 import random
 import sys
+import time
 
 import requests
 import rsa
@@ -117,5 +118,6 @@ for pod_name in pods_to_attest:
     signature = sign_message(pod_name)   # or sign_message(to_sign) if you want to sign the YAML
     signatures.append(signature)
 
+time.sleep(20)
 for i, pod_name in enumerate(pods_to_attest):
     pod_attestation(tenant_name, pod_name, signatures[i])

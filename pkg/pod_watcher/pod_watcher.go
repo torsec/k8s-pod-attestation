@@ -29,25 +29,31 @@ func (pw *PodWatcher) updatePodHandling(oldObj interface{}, newObj interface{}) 
 	oldPod := oldObj.(*corev1.Pod)
 	newPod := newObj.(*corev1.Pod)
 
-	if oldPod.Spec.NodeName != "" && newPod.Spec.NodeName != "" && oldPod.Spec.NodeName == newPod.Spec.NodeName {
-		// Pod is already tracked for attestation
+	isOldNamespaceEnabled := pw.clusterInteractor.IsNamespaceEnabledForAttestation(oldPod.GetNamespace())
+	isNewNamespaceEnabled := pw.clusterInteractor.IsNamespaceEnabledForAttestation(newPod.GetNamespace())
+
+	if !isOldNamespaceEnabled && !isNewNamespaceEnabled {
 		return
 	}
 
-	if oldPod.Spec.NodeName != "" && newPod.Spec.NodeName != "" && oldPod.Spec.NodeName != newPod.Spec.NodeName {
-		pw.changePodAgent(oldPod, newPod)
+	if oldPod.Spec.NodeName != "" && newPod.Spec.NodeName != "" && oldPod.Spec.NodeName == newPod.Spec.NodeName && oldPod.GetNamespace() == newPod.GetNamespace() {
+		// Pod is already tracked
+		return
 	}
 
-	if oldPod.Spec.NodeName == "" && newPod.Spec.NodeName != "" {
+	if oldPod.Spec.NodeName == "" && newPod.Spec.NodeName != "" && isNewNamespaceEnabled {
 		podStatus := model.NewPodStatus
 		reason := "Pod first time scheduled to a node"
 		err := pw.clusterInteractor.UpdatePodStatus(newPod.Spec.NodeName, newPod.Name, newPod.Annotations["tenantId"], reason, podStatus)
 		if err != nil {
 			logger.Error("error occurred while updating pod status for pod '%s': %v", newPod.Name, err)
 		}
-		logger.Success("pod '%s' added to node '%s'; starting pod attestation tracking", newPod.Name, newPod.Spec.NodeName)
-		return
+		logger.Success("pod '%s' scheduled to node '%s'; starting pod attestation tracking", newPod.Name, newPod.Spec.NodeName)
+	}
 
+	if oldPod.Spec.NodeName != "" && newPod.Spec.NodeName != "" && oldPod.Spec.NodeName != newPod.Spec.NodeName {
+		pw.changePodAgent(oldPod, newPod)
+		return
 	}
 }
 
@@ -66,6 +72,11 @@ func (pw *PodWatcher) addPodHandling(obj interface{}) {
 		return
 	}
 
+	if nodeName == "" {
+		logger.Info("pod '%s' not scheduled yet; pod attestation tracking will start after the pod is scheduled on a worker node", podName)
+		return
+	}
+
 	isNodeControlPlane, err := pw.clusterInteractor.NodeIsControlPlane(nodeName, nil)
 	if err != nil {
 		logger.Error("error occurred while checking if node is control plane: %v; skipping attestation tracking for pod '%s'", err, podName)
@@ -78,15 +89,11 @@ func (pw *PodWatcher) addPodHandling(obj interface{}) {
 		return
 	}
 
-	if nodeName != "" {
-		err = pw.clusterInteractor.UpdatePodStatus(nodeName, podName, pod.Annotations["tenantId"], reason, podStatus)
-		if err != nil {
-			logger.Error("error occurred while updating pod status for pod '%s': %v", podName, err)
-		}
-		logger.Success("pod '%s' added to node '%s'; starting pod attestation tracking", podName, nodeName)
-		return
+	err = pw.clusterInteractor.UpdatePodStatus(nodeName, podName, pod.Annotations["tenantId"], reason, podStatus)
+	if err != nil {
+		logger.Error("error occurred while updating pod status for pod '%s': %v", podName, err)
 	}
-	logger.Info("pod '%s' not scheduled yet; pod attestation tracking will start after the pod is scheduled on a valid worker", podName)
+	logger.Success("pod '%s' added to node '%s'; starting pod attestation tracking", podName, nodeName)
 }
 
 func (pw *PodWatcher) deletePodHandling(obj interface{}) {

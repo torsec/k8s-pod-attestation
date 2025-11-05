@@ -276,7 +276,7 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 		return false
 	}
 
-	quoteJSON, err := evidence.GetClaim(model.IMAPcrQuoteClaimKey)
+	quoteJSON, err := evidence.GetClaim(model.BootQuoteClaimKey)
 	if err != nil {
 		logger.Error("Failed to get quote: %v", err)
 		return false
@@ -293,6 +293,18 @@ func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploym
 	err = tpm_attestation.ValidateQuoteStructure(quote, quoteNonce)
 	if err != nil {
 		logger.Error("Failed to validate Worker Quote: %v", err)
+		return false
+	}
+
+	rawSig, hashAlgo, err := tpm_attestation.GetQuoteSignature(quote)
+	if err != nil {
+		logger.Error("Failed to get quote signature: %v", err)
+		return false
+	}
+
+	err = cryptoUtils.VerifyMessage(aikPublicKey, quote.Quote, rawSig, hashAlgo)
+	if err != nil {
+		logger.Error("Failed to verify quote signature: %v", err)
 		return false
 	}
 

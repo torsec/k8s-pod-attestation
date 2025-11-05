@@ -1009,7 +1009,7 @@ func (c *ClusterInteraction) CreateAgentCRDInstance(nodeName string) (bool, erro
 
 	for _, pod := range pods.Items {
 		// do not add pods that are not deployed within a namespace enabled for attestation
-		if c.IsNamespaceEnabledForAttestation(pod.GetNamespace()) {
+		if !c.IsNamespaceEnabledForAttestation(pod.GetNamespace()) {
 			continue
 		}
 

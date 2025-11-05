@@ -26,16 +26,15 @@ func (csc *ClusterStatusController) Init(defaultResync int) {
 }
 
 func (csc *ClusterStatusController) addAgentCRDHandling(obj interface{}) {
-	logger.Info("Agent CRD Added: %s", obj)
+	csc.checkAgentStatus(obj)
 }
 
 func (csc *ClusterStatusController) updateAgentCRDHandling(oldObj, newObj interface{}) {
-	logger.Info("Agent CRD Modified: %s", newObj)
 	csc.checkAgentStatus(newObj)
 }
 
 func (csc *ClusterStatusController) deleteAgentCRDHandling(obj interface{}) {
-	logger.Info("Agent CRD Deleted: %s", obj)
+	csc.checkAgentStatus(obj)
 }
 
 func extractNodeName(agentName string) (string, error) {
@@ -129,6 +128,7 @@ func (csc *ClusterStatusController) checkAgentStatus(obj interface{}) {
 			logger.Success("untrusted pod: '%s' successfully deleted", pod.PodName)
 		}
 	}
+	logger.Info("trust status for agent '%s': '%s'", agent.Spec.AgentName, agent.Spec)
 }
 
 // setupSignalHandler sets up a signal handler for graceful termination.
