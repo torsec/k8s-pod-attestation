@@ -120,4 +120,4 @@ for pod_name in pods_to_attest:
 
 time.sleep(20)
 for i, pod_name in enumerate(pods_to_attest):
-    pod_attestation(tenant_name, pod_name, signatures[i])
+    pod_attestation(tenant_name, base64.b64encode(pod_name.encode()).decode(), signatures[i])
