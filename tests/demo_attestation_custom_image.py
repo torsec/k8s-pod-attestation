@@ -7,92 +7,97 @@ import time
 import requests
 import rsa
 
-# Define API endpoints
-REGISTRAR_BASE_URL = 'http://localhost:30000'  # Ensure this matches your pod-handler URL
-POD_HANDLER_BASE_URL = 'http://localhost:30001'
+# --- API endpoints ---
+REGISTRAR_BASE_URL = 'http://localhost:30000'  # Pod registrar (tenant management)
+POD_HANDLER_BASE_URL = 'http://localhost:30001'  # Pod handler
 CREATE_TENANT_URL = f'{REGISTRAR_BASE_URL}/tenant/create'
 VERIFY_SIGNATURE_URL = f'{REGISTRAR_BASE_URL}/tenant/verify'
 POD_DEPLOYMENT_URL = f'{POD_HANDLER_BASE_URL}/resource/deploy'
 POD_ATTEST_URL = f'{POD_HANDLER_BASE_URL}/pod/attest'
 
-# Generate RSA keys (for demonstration purposes)
-(public_key, private_key) = rsa.newkeys(1024)
+# --- RSA key generation (demo only) ---
+public_key, private_key = rsa.newkeys(1024)
 
 
-# Convert the public key to PEM format
+# Convert the public key to PEM format (bytes)
 def public_key_to_pem(public_key):
-    pem_key = public_key.save_pkcs1(format='PEM')
-    return pem_key
+    return public_key.save_pkcs1(format='PEM')
 
 
+# --- Tenant creation ---
 def create_tenant(name, public_key):
     headers = {'Content-Type': 'application/json'}
     data = {
         'name': name,
-        'publicKey': base64.b64encode(public_key_to_pem(public_key)).decode()  # Pass public key in PEM format
+        'publicKey': base64.b64encode(public_key_to_pem(public_key)).decode()  # send PEM as base64
     }
     response = requests.post(CREATE_TENANT_URL, headers=headers, data=json.dumps(data))
     if response.status_code == 201:
-        print('Tenant created successfully')
+        print(f'[+] Tenant "{name}" created successfully')
     else:
-        print('Error creating tenant:', response.text)
+        print(f'[!] Error creating tenant: {response.status_code} -> {response.text}')
 
 
-def sign_message(message):
-    # Hash and sign the message
+# --- Sign message ---
+def sign_message(message: str) -> str:
     signature = rsa.sign(message.encode(), private_key, 'SHA-256')
     return base64.b64encode(signature).decode()
 
 
+# --- Verify signature / deploy pod ---
 def verify_signature(name, message, signature):
     headers = {'Content-Type': 'application/json'}
     data = {
         'tenantName': name,
         'resourceKind': 'Pod',
-        'manifest': message,  # Send the entire YAML content as the message
+        'manifest': message,  # base64 YAML content
         'signature': {
             "rawSignature": signature,
-            "hashAlg": 5 # sha256
+            "hashAlg": 5  # 5 → SHA-256
         }
     }
+
     response = requests.post(POD_DEPLOYMENT_URL, headers=headers, data=json.dumps(data))
     if response.status_code == 200:
-        print('Signature verification successful')
+        print(f'[+] Pod manifest verified for tenant "{name}"')
+        return True
     else:
-        print('Signature verification failed:', response.text)
+        print(f'[!] Verification failed: {response.status_code} -> {response.text}')
+        return False
 
 
-def pod_attestation(name, podName, signature):
+# --- Attest pod ---
+def pod_attestation(name, pod_name, signature):
     headers = {'Content-Type': 'application/json'}
     data = {
         'tenantName': name,
-        'podName': podName,  # Send the entire YAML content as the message
-        'signature':  {
+        'podName': pod_name,
+        'signature': {
             "rawSignature": signature,
-            "hashAlg": 5 # sha256
+            "hashAlg": 5
         }
     }
-    print(data)
+
+    print(f'[*] Sending attestation for pod: {pod_name}')
     response = requests.post(POD_ATTEST_URL, headers=headers, data=json.dumps(data))
     if response.status_code == 201:
-        print('Pod attestation request sent')
+        print(f'[+] Pod attestation request sent for "{pod_name}"')
     else:
-        print('Pod attestation request failed:', response.text)
+        print(f'[!] Pod attestation failed: {response.status_code} -> {response.text}')
 
 
-# Usage
-tenant_name = f'Tenant-{random.randint(0, 500)}'
-# Create a new tenant with the public key in PEM format
-create_tenant(tenant_name, public_key)
+# --- Main execution ---
+if __name__ == "__main__":
+    tenant_name = f'Tenant-{random.randint(0, 500)}'
+    create_tenant(tenant_name, public_key)
 
-pods_to_attest = []
-n_pods = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+    pods_to_attest = []
+    n_pods = int(sys.argv[1]) if len(sys.argv) > 1 else 1
 
-for i in range(0, n_pods):
-    # Usage
-    pod_name = f'pod-{random.randint(0, 2000000)}'
+    for i in range(n_pods):
+        pod_name = f'pod-{random.randint(0, 2_000_000)}'
 
-    message = f'''
+        manifest = f'''
 apiVersion: v1
 kind: Pod
 metadata:
@@ -104,20 +109,19 @@ spec:
     image: franczar/app-to-attest:latest
     command: ["sh", "-c", "echo Hello Kubernetes! && sleep 3600"]
 '''
-    to_sign = message
+        # Encode manifest for sending
+        encoded_manifest = base64.b64encode(manifest.encode()).decode()
 
-    # Sign the YAML content (message)
-    signature = sign_message(to_sign)
+        # Sign manifest
+        signature = sign_message(manifest)
 
-    # Verify the signature
-    if verify_signature(tenant_name, base64.b64encode(to_sign.encode()).decode(), signature):
-        pods_to_attest.append(pod_name)
+        # Verify and collect pod for attestation
+        if verify_signature(tenant_name, encoded_manifest, signature):
+            pods_to_attest.append((pod_name, signature))
 
-signatures = []
-for pod_name in pods_to_attest:
-    signature = sign_message(pod_name)   # or sign_message(to_sign) if you want to sign the YAML
-    signatures.append(signature)
+    # Wait for pods to be deployed
+    time.sleep(20)
 
-time.sleep(20)
-for i, pod_name in enumerate(pods_to_attest):
-    pod_attestation(tenant_name, base64.b64encode(pod_name.encode()).decode(), signatures[i])
+    # Perform pod attestation
+    for pod_name, signature in pods_to_attest:
+        pod_attestation(tenant_name, pod_name, signature)
