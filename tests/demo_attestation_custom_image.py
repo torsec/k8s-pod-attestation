@@ -71,7 +71,7 @@ def pod_attestation(name, pod_name, signature):
     headers = {'Content-Type': 'application/json'}
     data = {
         'tenantName': name,
-        'podName': base64.b64encode(pod_name.encode()).decode(),
+        'podName': pod_name,
         'signature': {
             "rawSignature": signature,
             "hashAlg": 5
@@ -117,11 +117,13 @@ spec:
 
         # Verify and collect pod for attestation
         if verify_signature(tenant_name, encoded_manifest, signature):
-            pods_to_attest.append((pod_name, signature))
+            pods_to_attest.append(pod_name)
 
     # Wait for pods to be deployed
     time.sleep(20)
 
     # Perform pod attestation
-    for pod_name, signature in pods_to_attest:
-        pod_attestation(tenant_name, pod_name, signature)
+    for pod_name in pods_to_attest:
+        signature = sign_message(pod_name)
+        encoded_name = base64.b64encode(pod_name.encode()).decode()
+        pod_attestation(tenant_name, encoded_name, signature)
