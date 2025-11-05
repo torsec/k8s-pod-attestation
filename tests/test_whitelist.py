@@ -21,11 +21,38 @@ store_container_runtime_data = {
     "name": "containerd",
     "validFiles": [
         {
+            "filePath": "/usr/bin/unpigz",
+            "validDigests": {
+                3: [],
+                5: [
+                    "ffdb0ad613a9d22b02816d1c67765f611c90fa98047b83917abe2c4677d0f4b3"
+                ]
+            }
+        },
+        {
+            "filePath": "runc",
+            "validDigests": {
+                3: [],
+                5: [
+                    "fffad1b63b8e56b2cd753cf36f2a25547641a87d52558150bcf240f8fa5e6670"
+                ]
+            }
+        },
+        {
+            "filePath": "/usr/bin/containerd",
+            "validDigests": {
+                3: [],
+                5: [
+                    "ce200028f578e904ee8dca1929144701cf279b221900f6e28ba12bade19079b9"
+                ]
+            }
+        },
+        {
             "filePath": "/usr/bin/containerd-shim-runc-v2",
             "validDigests": {
                 3: [],
                 5: [
-                    "74cc9274df40f375864dfd0e3fc3d6d3b898faec7abb4b82218ca3c3c43e75e6"
+                    "946f8441a28fc181a143e9c597d52b99fe00ce28b050a99f0dec835a7bec4cfc"
                 ]
             }
         },
