@@ -3,7 +3,7 @@ import json
 import requests
 
 # Base URL of the server
-BASE_URL = "http://localhost:30002"
+BASE_URL = "http://localhost:8080"
 
 # Headers for requests
 headers = {'Content-Type': 'application/json'}
