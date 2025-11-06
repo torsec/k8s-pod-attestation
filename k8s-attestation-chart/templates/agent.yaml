@@ -61,6 +61,6 @@ spec:
   selector:
     app: {{ .Values.agent.daemonSet.appLabel }}
   ports:
+    - protocol: TCP
       port: {{ .Values.agent.service.port }}
       targetPort: {{ .Values.agent.container.port }}
-      protocol: TCP
