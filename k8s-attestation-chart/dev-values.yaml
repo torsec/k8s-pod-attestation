@@ -32,7 +32,7 @@ podHandler:
   service:
     name: pod-handler
     port: 8080
-    type: ClusterIP  # internal-only service
+    type: ClusterIP
 
 
 ##################################################################################
@@ -152,7 +152,7 @@ whitelistProvider:
     dbUri: mongodb://whitelist-db-service:27017
 
   service:
-    name: whitelist-provider-service
+    name: whitelist-provider
     port: 8080
     type: ClusterIP  # internal-only service
 
@@ -180,7 +180,7 @@ whitelistDb:
     hostPath: /home/node/whitelist-db
 
   service:
-    name: whitelist-db-service
+    name: whitelist-db
     port: 27017
 
 

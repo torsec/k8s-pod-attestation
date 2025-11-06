@@ -12,9 +12,7 @@ spec:
       labels:
         app: {{ .Values.agent.daemonSet.appLabel }}
     spec:
-      hostname: "$(NODE_NAME)"
       subdomain: {{ .Values.agent.service.name }}
-
       containers:
         - name: {{ .Values.agent.container.name }}
           image: "{{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}"
@@ -54,7 +52,7 @@ metadata:
   name: {{ .Values.agent.service.name }}
   namespace: {{ .Values.namespace }}
 spec:
-  clusterIP: None  # headless service for per-node DNS
+  clusterIP: None  # headless service
   selector:
     app: {{ .Values.agent.daemonSet.appLabel }}
   ports:
