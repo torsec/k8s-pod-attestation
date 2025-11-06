@@ -224,12 +224,3 @@ type AttestationResult struct {
 	Agent  string
 	Result TargetResult
 }
-
-type AgentConfig struct {
-	TPMPath                    string `json:"TPMPath"`
-	IMAMeasurementLogMountPath string `json:"IMAMeasurementLogMountPath"`
-	IMAMeasurementLogPath      string `json:"IMAMeasurementLogPath"`
-	ImageName                  string `json:"imageName"`
-	AgentPort                  int32  `json:"agentPort"`
-	AgentNodePortAllocation    int32  `json:"agentNodePortAllocation"`
-}

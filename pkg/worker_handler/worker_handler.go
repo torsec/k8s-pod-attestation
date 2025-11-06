@@ -33,13 +33,13 @@ type WorkerHandler struct {
 	clusterInteractor cluster_interaction.ClusterInteraction
 	informerFactory   informers.SharedInformerFactory
 	registrarClient   *registrar.Client
-	agentConfig       *model.AgentConfig
 	agentClient       *agent.Client
+	agentPort         int32
 	whitelistClient   *whitelist.Client
 	verifierPublicKey []byte
 }
 
-func (wh *WorkerHandler) Init(verifierPublicKey []byte, attestationEnabledNamespaces []string, defaultResync int, registrarClient *registrar.Client, agentConfig *model.AgentConfig, whitelistClient *whitelist.Client) {
+func (wh *WorkerHandler) Init(verifierPublicKey []byte, attestationEnabledNamespaces []string, defaultResync int, registrarClient *registrar.Client, agentPort int32, whitelistClient *whitelist.Client) {
 	wh.verifierPublicKey = verifierPublicKey
 	wh.clusterInteractor.ConfigureKubernetesClient()
 	wh.clusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
@@ -49,7 +49,7 @@ func (wh *WorkerHandler) Init(verifierPublicKey []byte, attestationEnabledNamesp
 		logger.Error("Failed to initialize Worker Handler: %v", err)
 	}
 	wh.registrarClient = registrarClient
-	wh.agentConfig = agentConfig
+	wh.agentPort = agentPort
 	wh.whitelistClient = whitelistClient
 }
 
@@ -131,22 +131,7 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 
 	logger.Info("new worker node '%s' joined the cluster: starting registration", node.GetName())
 
-	_, agentDeploymentName, agentHost, agentPort, err := wh.clusterInteractor.DeployAgent(node, wh.agentConfig)
-	if err != nil {
-		logger.Error("Failed to start Agent on node '%s': %v; deleting node from cluster", node.GetName(), err)
-		_, err := wh.clusterInteractor.DeleteNode(node.GetName())
-		if err != nil {
-			logger.Fatal("Failed to delete node '%s': %v", node.GetName(), err)
-		}
-		return
-	}
-
-	wh.agentClient = &agent.Client{}
-	wh.agentClient.Init(agentHost, int32(agentPort), nil)
-
-	logger.Info("successfully deployed agent on node '%s'; service port: %d", node.GetName(), agentPort)
-
-	isNewWorkerRegistered := wh.workerRegistration(node, agentDeploymentName)
+	isNewWorkerRegistered := wh.workerRegistration(node)
 
 	if !isNewWorkerRegistered {
 		logger.Error("Failed to register node '%s'; deleting node from cluster", node.GetName())
@@ -167,18 +152,22 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 }
 
 // workerRegistration registers the worker node by calling the identification API
-func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node, agentDeploymentName string) bool {
-	err := wh.clusterInteractor.WaitForAllDeploymentPodsRunning(cluster_interaction.PodAttestationNamespace, agentDeploymentName, 1*time.Minute)
+func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node) bool {
+	agentName, err := wh.clusterInteractor.WaitForAgentReady(newWorker.GetName(), 1*time.Minute)
 	if err != nil {
-		logger.Error("Agent deployment not ready to run: %v", err)
+		logger.Error("Agent not ready to run: %v", err)
 		return false
 	}
 
-	err = wh.agentClient.WaitForAgent(1*time.Second, 1*time.Minute)
+	wh.agentClient = &agent.Client{}
+	wh.agentClient.Init(agentName, int32(8080), nil)
+
+	err = wh.agentClient.WaitForAgentServer(1*time.Second, 1*time.Minute)
 	if err != nil {
 		logger.Error("Error while contacting Agent: %v", err)
 		return false
 	}
+
 	// Call Agent to identify worker data
 	workerCredentials, err := wh.agentClient.WorkerRegistrationCredentials(defaultTPMKeyType.String())
 	if err != nil {

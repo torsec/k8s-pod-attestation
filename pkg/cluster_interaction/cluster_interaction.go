@@ -16,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -26,7 +25,6 @@ import (
 	"math"
 	"path/filepath"
 	"sigs.k8s.io/yaml"
-	"strconv"
 	"time"
 )
 
@@ -43,7 +41,6 @@ type AttestationRequestSpec struct {
 	PodUid    string    `json:"podUid"`
 	TenantId  string    `json:"tenantId"`
 	AgentName string    `json:"agentName"`
-	AgentIP   string    `json:"agentIP"`
 	Issued    time.Time `json:"issued"`
 	HMAC      []byte    `json:"hmac"`
 }
@@ -117,7 +114,7 @@ const (
 )
 
 const (
-	AgentServicePort int32 = 9090
+	AgentServicePort int32 = 8080
 )
 
 const (
@@ -250,7 +247,7 @@ func (ar *AttestationRequest) FromUnstructured(unstructuredObj *unstructured.Uns
 	return nil
 }
 
-func NewAttestationRequest(podName, podUid, tenantId, agentName, agentIP string) *AttestationRequest {
+func NewAttestationRequest(podName, podUid, tenantId, agentName string) *AttestationRequest {
 	attestationRequestName := fmt.Sprintf("attestation-request-%s", podName)
 	return &AttestationRequest{
 		TypeMeta: metav1.TypeMeta{
@@ -265,7 +262,6 @@ func NewAttestationRequest(podName, podUid, tenantId, agentName, agentIP string)
 			PodUid:    podUid,
 			TenantId:  tenantId,
 			AgentName: agentName,
-			AgentIP:   agentIP,
 			Issued:    time.Now(),
 			HMAC:      nil, // to be computed later
 		},
@@ -273,7 +269,7 @@ func NewAttestationRequest(podName, podUid, tenantId, agentName, agentIP string)
 }
 
 func (ar *AttestationRequest) ComputeHMAC(key []byte) error {
-	integrityMessage := []byte(fmt.Sprintf("%s::%s::%s::%s::%s", ar.Spec.PodName, ar.Spec.PodUid, ar.Spec.TenantId, ar.Spec.AgentName, ar.Spec.AgentIP))
+	integrityMessage := []byte(fmt.Sprintf("%s::%s::%s::%s", ar.Spec.PodName, ar.Spec.PodUid, ar.Spec.TenantId, ar.Spec.AgentName))
 	hmac, err := cryptoUtils.ComputeHMAC(integrityMessage, key, DefaultHashAlgo)
 	if err != nil {
 		return fmt.Errorf("failed to compute HMAC: %v", err)
@@ -286,7 +282,7 @@ func (ar *AttestationRequest) ValidateHMAC(key []byte) (bool, error) {
 	if ar.Spec.HMAC == nil || len(ar.Spec.HMAC) == 0 {
 		return false, fmt.Errorf("missing HMAC in Attestation request")
 	}
-	integrityMessage := []byte(fmt.Sprintf("%s::%s::%s::%s::%s", ar.Spec.PodName, ar.Spec.PodUid, ar.Spec.TenantId, ar.Spec.AgentName, ar.Spec.AgentIP))
+	integrityMessage := []byte(fmt.Sprintf("%s::%s::%s::%s", ar.Spec.PodName, ar.Spec.PodUid, ar.Spec.TenantId, ar.Spec.AgentName))
 	err := cryptoUtils.VerifyHMAC(integrityMessage, key, ar.Spec.HMAC, DefaultHashAlgo)
 	if err != nil {
 		return false, fmt.Errorf("failed to validate Attestation request HMAC: %v", err)
@@ -645,9 +641,12 @@ func (c *ClusterInteraction) GetAgentPort(agentName string) (int32, error) {
 	return -1, fmt.Errorf("no NodePort found for service %s", agentServiceName)
 }
 
-func (c *ClusterInteraction) CreateAndIssueAttestationRequestCRD(podName, podUid, tenantId, agentName, agentIP string, hmacKey []byte) (bool, error) {
-	attestationRequest := NewAttestationRequest(podName, podUid, tenantId, agentName, agentIP)
-	attestationRequest.ComputeHMAC(hmacKey)
+func (c *ClusterInteraction) CreateAndIssueAttestationRequestCRD(podName, podUid, tenantId, agentName string, hmacKey []byte) (bool, error) {
+	attestationRequest := NewAttestationRequest(podName, podUid, tenantId, agentName)
+	err := attestationRequest.ComputeHMAC(hmacKey)
+	if err != nil {
+		return false, fmt.Errorf("failed to compute hmac: %v", err)
+	}
 
 	// Convert to unstructured
 	unstructuredObj, err := attestationRequest.ToUnstructured()
@@ -726,11 +725,11 @@ func (c *ClusterInteraction) CheckPodStatus(nodeName, podName, tenantId string) 
 	return isPodTrusted, nil
 }
 
-func (c *ClusterInteraction) GetAttestationInformation(podName string) (string, string, string, error) {
+func (c *ClusterInteraction) GetAttestationInformation(podName string) (string, string, error) {
 	// Retrieve the Pod from the Kubernetes API
 	podList, err := c.ClientSet.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to retrieve pods: %v", err)
+		return "", "", fmt.Errorf("failed to retrieve pods: %v", err)
 	}
 
 	var podToAttest v1.Pod
@@ -744,32 +743,13 @@ func (c *ClusterInteraction) GetAttestationInformation(podName string) (string, 
 
 	// Check if the pod is in a Running state
 	if podToAttest.Status.Phase != v1.PodRunning {
-		return "", "", "", fmt.Errorf("pod: '%s' is not running", podName)
+		return "", "", fmt.Errorf("pod: '%s' is not running", podName)
 	}
 
 	podUID := podToAttest.GetUID()
 	nodeName := podToAttest.Spec.NodeName
 
-	// Retrieve the Node information using the nodeName
-	node, err := c.ClientSet.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to retrieve node '%s': %v", nodeName, err)
-	}
-
-	// Loop through the addresses of the node to find the InternalIP (within the cluster)
-	var agentIP string
-	for _, address := range node.Status.Addresses {
-		if address.Type == v1.NodeInternalIP {
-			agentIP = address.Address
-			break
-		}
-	}
-
-	if agentIP == "" {
-		return "", "", "", fmt.Errorf("no internal IP found for node: %s", nodeName)
-	}
-
-	return nodeName, agentIP, string(podUID), nil
+	return nodeName, string(podUID), nil
 }
 
 func (c *ClusterInteraction) GetWorkerInternalIP(worker *v1.Node) (string, error) {
@@ -805,131 +785,83 @@ func (c *ClusterInteraction) DeleteAgent(workerName string) error {
 	return nil
 }
 
-func (c *ClusterInteraction) DeployAgent(newWorker *v1.Node, agentConfig *model.AgentConfig) (bool, string, string, int, error) {
-	agentReplicas := int32(1)
-	privileged := true
-	charDeviceType := v1.HostPathCharDev
-	pathFileType := v1.HostPathFile
-	agentDeploymentName := fmt.Sprintf("agent-%s-deployment", newWorker.GetName())
-	agentContainerName := fmt.Sprintf("agent-%s", newWorker.GetName())
-	agentServiceName := fmt.Sprintf("agent-%s-service", newWorker.GetName())
-
-	agentHost, err := c.GetWorkerInternalIP(newWorker)
+// GetAgentName obtains the name of the attestation agent running on the same node as the attestation target pod with name "podName"
+func (c *ClusterInteraction) GetAgentName(podName string) (string, error) {
+	targetPod, err := c.ClientSet.CoreV1().Pods("").Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
-		return false, "", "", -1, fmt.Errorf("failed to get node '%s' internal IP address: %v", newWorker.GetName(), err)
+		return "", fmt.Errorf("failed to retrieve Pod '%s': %v", podName, err)
+	}
+	nodeName := targetPod.Spec.NodeName
+	if nodeName == "" {
+		return "", fmt.Errorf("no node name found for pod '%s'", podName)
 	}
 
-	agentNodePort := agentConfig.AgentNodePortAllocation
-
-	// Define the Deployment
-	agentDeployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      agentDeploymentName,
-			Namespace: PodAttestationNamespace,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &agentReplicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"app": "agent",
-				},
-			},
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"app": "agent",
-					},
-				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Name:            agentContainerName,
-							Image:           agentConfig.ImageName,
-							ImagePullPolicy: v1.PullAlways,
-							Env: []v1.EnvVar{
-								{Name: "AGENT_PORT", Value: strconv.Itoa(int(agentConfig.AgentPort))},
-								{Name: "TPM_PATH", Value: agentConfig.TPMPath},
-							},
-							Ports: []v1.ContainerPort{
-								{ContainerPort: agentConfig.AgentPort},
-							},
-							VolumeMounts: []v1.VolumeMount{
-								{Name: "tpm-device", MountPath: agentConfig.TPMPath},
-								{Name: "ima-measurements", MountPath: agentConfig.IMAMeasurementLogMountPath, ReadOnly: true},
-							},
-							SecurityContext: &v1.SecurityContext{
-								Privileged: &privileged,
-							},
-						},
-					},
-					Volumes: []v1.Volume{
-						{
-							Name: "tpm-device",
-							VolumeSource: v1.VolumeSource{
-								HostPath: &v1.HostPathVolumeSource{
-									Path: agentConfig.TPMPath,
-									Type: &charDeviceType,
-								},
-							},
-						},
-						{
-							Name: "ima-measurements",
-							VolumeSource: v1.VolumeSource{
-								HostPath: &v1.HostPathVolumeSource{
-									Path: agentConfig.IMAMeasurementLogPath,
-									Type: &pathFileType,
-								},
-							},
-						},
-					}, // Ensure pod is deployed on the new worker node
-					NodeSelector: map[string]string{
-						"kubernetes.io/hostname": newWorker.GetName(),
-					},
-				},
-			},
-		},
-	}
-
-	// Define the Service
-	agentService := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      agentServiceName,
-			Namespace: PodAttestationNamespace,
-		},
-		Spec: v1.ServiceSpec{
-			Selector: map[string]string{
-				"app": "agent",
-			},
-			Ports: []v1.ServicePort{
-				{
-					Protocol:   v1.ProtocolTCP,
-					Port:       AgentServicePort,
-					TargetPort: intstr.FromInt32(AgentServicePort),
-					NodePort:   agentNodePort,
-				},
-			},
-			Type: v1.ServiceTypeNodePort,
-		},
-	}
-
-	// Deploy the Deployment
-	agentDeployment, err = c.ClientSet.AppsV1().Deployments(PodAttestationNamespace).Create(context.TODO(), agentDeployment, metav1.CreateOptions{})
+	labelSelector := "app=agent"
+	fieldSelector := fmt.Sprintf("spec.nodeName=%s", nodeName)
+	pods, err := c.ClientSet.CoreV1().Pods(PodAttestationNamespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: labelSelector,
+		FieldSelector: fieldSelector,
+	})
 	if err != nil {
-		return false, "", "", -1, fmt.Errorf("error creating agent deployment '%s': %v", agentDeploymentName, err)
+		return "", fmt.Errorf("failed to list pods: %v", err)
 	}
-
-	// Deploy the Service
-	_, err = c.ClientSet.CoreV1().Services(PodAttestationNamespace).Create(context.TODO(), agentService, metav1.CreateOptions{})
-	if err != nil {
-		delErr := c.ClientSet.AppsV1().Deployments(PodAttestationNamespace).Delete(context.TODO(), agentDeployment.GetName(), metav1.DeleteOptions{})
-		if delErr != nil {
-			return false, "", "", -1, fmt.Errorf("error creating agent service '%s': %v; error deleting agent deployment '%s': %v", agentService.Name, err, agentDeployment.Name, delErr)
+	for _, pod := range pods.Items {
+		if pod.Spec.NodeName == nodeName {
+			return pod.GetName(), nil
 		}
-		return false, "", "", -1, fmt.Errorf("error creating agent service '%s': %v", agentService.GetName(), err)
 	}
+	return "", fmt.Errorf("no agent found for node '%s'", nodeName)
+}
 
-	agentConfig.AgentNodePortAllocation += 1
-	return true, agentDeployment.GetName(), agentHost, int(agentNodePort), nil
+// WaitForAgentReady waits until the agent pod (DaemonSet) on a given node is running
+func (c *ClusterInteraction) WaitForAgentReady(nodeName string, timeout time.Duration) (string, error) {
+	labelSelector := "app=agent"
+	fieldSelector := fmt.Sprintf("spec.nodeName=%s", nodeName)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	agentName := ""
+	for {
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("timeout waiting for agent pod on node %s", nodeName)
+		case <-ticker.C:
+			pods, err := c.ClientSet.CoreV1().Pods(PodAttestationNamespace).List(ctx, metav1.ListOptions{
+				LabelSelector: labelSelector,
+				FieldSelector: fieldSelector,
+			})
+
+			if agentName == "" {
+				agentName = pods.Items[0].GetName()
+			}
+
+			if err != nil {
+				return "", fmt.Errorf("failed to list pods: %v", err)
+			}
+
+			if len(pods.Items) == 0 {
+				continue // no pod yet scheduled
+			}
+
+			pod := pods.Items[0]
+			if pod.Status.Phase == v1.PodRunning {
+				allReady := true
+				for _, cs := range pod.Status.ContainerStatuses {
+					if !cs.Ready {
+						allReady = false
+						break
+					}
+				}
+				if allReady {
+					return agentName, nil
+				}
+			}
+		}
+	}
 }
 
 // WaitForAllDeploymentPodsRunning  waits for the given pod to reach the "Running" state

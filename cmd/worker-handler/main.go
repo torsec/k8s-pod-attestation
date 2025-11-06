@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"github.com/torsec/k8s-pod-attestation/pkg/logger"
-	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"github.com/torsec/k8s-pod-attestation/pkg/registrar"
 	"github.com/torsec/k8s-pod-attestation/pkg/whitelist"
 	"github.com/torsec/k8s-pod-attestation/pkg/worker_handler"
@@ -16,19 +15,13 @@ import (
 var (
 	attestationNamespaces        string
 	attestationEnabledNamespaces []string
-	agentImageName               string
 	registrarHost                string
 	registrarPort                int
 	whitelistHost                string
 	whitelistPort                int
-	agentPort                    int32 = 9090
-	agentNodePortAllocation      int32 = 31000
-	imaMountPath                 string
-	imaMlPath                    string
-	tpmPath                      string
+	agentPort                    int32 = 8080
 	defaultResync                int
 	verifierPublicKey            string
-	agentConfig                  model.AgentConfig
 	workerHandler                worker_handler.WorkerHandler
 	registrarClient              registrar.Client
 	whitelistClient              whitelist.Client
@@ -44,15 +37,11 @@ func loadEnvironmentVariables() {
 	}
 	attestationNamespaces = getEnv("ATTESTATION_NAMESPACES", "[\"default\"]")
 	whitelistHost = getEnv("WHITELIST_HOST", "localHost")
-	whitelistPort, err = strconv.Atoi(getEnv("WHITELIST_PORT", "9090"))
+	whitelistPort, err = strconv.Atoi(getEnv("WHITELIST_PORT", "8080"))
 	if err != nil {
 		logger.Fatal("failed to parse WHITELIST_PORT: %v", err)
 	}
 	verifierPublicKey = getEnv("VERIFIER_PUBLIC_KEY", "")
-	imaMountPath = getEnv("IMA_MOUNT_PATH", "/root/binary_runtime_measurements")
-	imaMlPath = getEnv("IMA_ML_PATH", "/sys/kernel/security/integrity/ima/binary_runtime_measurements")
-	tpmPath = getEnv("TPM_PATH", "/dev/tpm0")
-	agentImageName = getEnv("AGENT_IMAGE_NAME", "franczar/k8s-attestation-agent:dev")
 	defaultResyncEnv := getEnv("DEFAULT_RESYNC", "3")
 	defaultResync, err = strconv.Atoi(defaultResyncEnv)
 	if err != nil {
@@ -81,18 +70,8 @@ func getEnv(key, defaultValue string) string {
 // Main function
 func main() {
 	loadEnvironmentVariables()
-
-	agentConfig = model.AgentConfig{
-		TPMPath:                    tpmPath,
-		IMAMeasurementLogMountPath: imaMountPath,
-		IMAMeasurementLogPath:      imaMlPath,
-		ImageName:                  agentImageName,
-		AgentPort:                  agentPort,
-		AgentNodePortAllocation:    agentNodePortAllocation,
-	}
-
 	registrarClient.Init(registrarHost, int32(registrarPort), nil)
 	whitelistClient.Init(whitelistHost, int32(whitelistPort), nil)
-	workerHandler.Init([]byte(verifierPublicKey), attestationEnabledNamespaces, defaultResync, &registrarClient, &agentConfig, &whitelistClient)
+	workerHandler.Init([]byte(verifierPublicKey), attestationEnabledNamespaces, defaultResync, &registrarClient, agentPort, &whitelistClient)
 	workerHandler.WatchNodes()
 }

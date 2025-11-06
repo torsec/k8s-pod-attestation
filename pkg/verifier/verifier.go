@@ -125,7 +125,7 @@ func (v *Verifier) podAttestation(attestationRequest *cluster_interaction.Attest
 		return nil, fmt.Errorf("error while sending Attestation Request to Agent: service port not found")
 	}
 
-	v.agentClient.Init(attestationRequest.Spec.AgentIP, agentPort, nil)
+	v.agentClient.Init(attestationRequest.Spec.AgentName, agentPort, nil)
 
 	agentAttestationRequest, err := v.createAgentAttestationRequest(attestationRequest)
 	if err != nil {

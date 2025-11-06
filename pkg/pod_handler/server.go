@@ -234,22 +234,26 @@ func (s *Server) requestPodAttestation(c *gin.Context) {
 	tenantId := tenantIdResponse.Message
 
 	// get Pod information (Worker on which it is deployed, this is needed to also retrieve the Agent to contact, the Agent CRD to control ensuring Tenant ownership of pod to be attested)
-	workerDeploying, agentIP, podUid, err := s.clusterInteractor.GetAttestationInformation(podAttestationRequest.PodName)
+	workerDeploying, podUid, err := s.clusterInteractor.GetAttestationInformation(podAttestationRequest.PodName)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": err.Error()})
 		return
 	}
 
-	// check if Pod is signed into the target Agent CRD and if it is actually owned by the calling Tenant
+	// check if Pod is signed in to the target Agent CRD and if it is actually owned by the calling Tenant
 	_, err = s.clusterInteractor.IsPodTracked(workerDeploying, podAttestationRequest.PodName, tenantId)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": err.Error()})
 		return
 	}
 
-	agentName := fmt.Sprintf("agent-%s", workerDeploying)
+	agentName, err := s.clusterInteractor.GetAgentName(podAttestationRequest.PodName)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": err.Error()})
+		return
+	}
 	// issue an Attestation Request for target Pod and Agent, it will be intercepted by the Verifier
-	_, err = s.clusterInteractor.CreateAndIssueAttestationRequestCRD(podAttestationRequest.PodName, podUid, tenantId, agentName, agentIP, s.attestationSecret)
+	_, err = s.clusterInteractor.CreateAndIssueAttestationRequestCRD(podAttestationRequest.PodName, podUid, tenantId, agentName, s.attestationSecret)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": err.Error()})
 		return

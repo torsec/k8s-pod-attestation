@@ -50,7 +50,7 @@ func (c *Client) WorkerRegistrationCredentials(keyType string) (*model.WorkerCre
 	return &credentialsResponse, nil
 }
 
-func (c *Client) WaitForAgent(retryInterval, timeout time.Duration) error {
+func (c *Client) WaitForAgentServer(retryInterval, timeout time.Duration) error {
 	address := fmt.Sprintf("%s:%d", c.agentHost, c.agentPort)
 	start := time.Now()
 
@@ -59,7 +59,7 @@ func (c *Client) WaitForAgent(retryInterval, timeout time.Duration) error {
 		conn, err := net.DialTimeout("tcp", address, retryInterval)
 		if err == nil {
 			// If the connection is successful, close it and return
-			err := conn.Close()
+			err = conn.Close()
 			if err != nil {
 				return err
 			}

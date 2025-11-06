@@ -19,8 +19,6 @@ spec:
               - matchExpressions:
                   - key: node-role.kubernetes.io/control-plane
                     operator: DoesNotExist
-      hostname: "{{`{{ .Values.agent.daemonSet.appLabel }}`}}-{{`{{ .Values.nodeNamePlaceholder }}`}}"  # see explanation below
-      subdomain: agent
       containers:
         - name: {{ .Values.agent.container.name }}
           image: "{{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}"
