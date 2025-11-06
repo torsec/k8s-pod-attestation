@@ -21,7 +21,7 @@ spec:
             - name: WHITELIST_PORT
               value: {{ .Values.whitelistProvider.service.port | quote }}
             - name: WHITELIST_DB_URI
-              value: {{ .Values.whitelistProvider.env.dbUri | quote }}
+              value: "mongodb://{{ .Values.whitelistDb.service.name }}:{{ .Values.whitelistDb.service.port}}""
           ports:
             - containerPort: {{ .Values.whitelistProvider.container.port }}
       nodeSelector:

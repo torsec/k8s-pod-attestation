@@ -148,9 +148,6 @@ whitelistProvider:
     repository: franczar/k8s-attestation-whitelist-provider
     tag: dev
 
-  env:
-    dbUri: mongodb://whitelist-db-service:27017
-
   service:
     name: whitelist-provider
     port: 8080
