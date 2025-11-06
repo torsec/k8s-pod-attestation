@@ -318,7 +318,12 @@ func (v *Verifier) podAttestation(attestationRequest *cluster_interaction.Attest
 	trustedContainerRuntimeDependencies := filterTrustedDependencies(cgPathTarget.GetMatches().Measurements[ima.ContainerRuntime], &containerRuntimeValidationResponse.ErroredEntries)
 	trustedPodDependencies := filterTrustedDependencies(cgPathTarget.GetMatches().Measurements[ima.Pod], &podValidationResponse.ErroredEntries)
 
-	attestationResultJWT, isContainerRuntimeTrusted, isPodTrusted, err := v.createAttestationResult(attestationRequest.Spec.PodUid, trustedContainerRuntimeDependencies, trustedPodDependencies, &containerRuntimeValidationResponse.ErroredEntries, &podValidationResponse.ErroredEntries)
+	attestationResultJWT, isContainerRuntimeTrusted, isPodTrusted, err := v.createAttestationResult(
+		attestationRequest.Spec.PodUid,
+		trustedContainerRuntimeDependencies,
+		trustedPodDependencies,
+		&containerRuntimeValidationResponse.ErroredEntries,
+		&podValidationResponse.ErroredEntries)
 	if err != nil {
 		logger.Error("Failed to create attestation result: %s", err)
 		return &model.AttestationResult{
@@ -332,7 +337,7 @@ func (v *Verifier) podAttestation(attestationRequest *cluster_interaction.Attest
 		}, fmt.Errorf("failed to create attestation result: %v", err)
 	}
 
-	// send to RabbitMQ topic
+	// TODO: send to RabbitMQ topic
 	logger.Info("Attestation result: %s", attestationResultJWT)
 
 	if !isContainerRuntimeTrusted {

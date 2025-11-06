@@ -292,11 +292,21 @@ func (s *Server) podAttestation(c *gin.Context) {
 		return
 	}
 
+	err = measurementList.Close()
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, model.AttestationResponse{
+			SimpleResponse: model.SimpleResponse{
+				Message: fmt.Sprintf("Failed to close Measurement List: %v", err),
+				Status:  model.Error,
+			},
+		})
+	}
+
 	evidence, err := createAttestationEvidence(quote, mlContent)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, model.AttestationResponse{
 			SimpleResponse: model.SimpleResponse{
-				Message: "Failed to create attestation evidence",
+				Message: fmt.Sprintf("Failed to create attestation evidence: %v", err),
 				Status:  model.Error,
 			},
 		})

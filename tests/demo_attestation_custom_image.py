@@ -119,10 +119,9 @@ spec:
         if verify_signature(tenant_name, encoded_manifest, signature):
             pods_to_attest.append(pod_name)
 
+    # Wait for pods to be deployed
+    time.sleep(20)
     for i in range(3):
-        # Wait for pods to be deployed
-        time.sleep(20)
-
         # Perform pod attestation
         for pod_name in pods_to_attest:
             signature = sign_message(pod_name)
