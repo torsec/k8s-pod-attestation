@@ -58,7 +58,6 @@ metadata:
   name: {{ .Values.agent.service.name }}
   namespace: {{ .Values.namespace }}
 spec:
-  clusterIP: None
   selector:
     app: {{ .Values.agent.daemonSet.appLabel }}
   ports:
