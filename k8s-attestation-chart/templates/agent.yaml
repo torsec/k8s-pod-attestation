@@ -12,51 +12,31 @@ spec:
       labels:
         app: {{ .Values.agent.daemonSet.appLabel }}
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+                  - key: node-role.kubernetes.io/master
+                    operator: DoesNotExist
       subdomain: {{ .Values.agent.service.name }}
+
       containers:
         - name: {{ .Values.agent.container.name }}
           image: "{{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}"
-          imagePullPolicy: Always
           ports:
             - containerPort: {{ .Values.agent.container.port }}
           env:
-            - name: AGENT_PORT
-              value: "{{ .Values.agent.container.port }}"
-            - name: TPM_PATH
-              value: "{{ .Values.tpmPath }}"
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
           securityContext:
             privileged: true
-          volumeMounts:
-            - name: tpm-device
-              mountPath: "{{ .Values.tpmPath }}"
-            - name: ima-measurements
-              mountPath: "{{ .Values.imaMountPath }}"
-              readOnly: true
       volumes:
         - name: tpm-device
           hostPath:
             path: "{{ .Values.tpmPath }}"
             type: CharDevice
-        - name: ima-measurements
-          hostPath:
-            path: "{{ .Values.imaMlPath }}"
-            type: File
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Values.agent.service.name }}
-  namespace: {{ .Values.namespace }}
-spec:
-  clusterIP: None  # headless service
-  selector:
-    app: {{ .Values.agent.daemonSet.appLabel }}
-  ports:
-    - name: agent-port
-      port: {{ .Values.agent.service.port }}
-      targetPort: {{ .Values.agent.container.port }}
-      protocol: TCP
