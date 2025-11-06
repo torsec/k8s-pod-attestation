@@ -30,10 +30,6 @@ spec:
               value: "{{ .Values.agent.container.port }}"
             - name: TPM_PATH
               value: "{{ .Values.tpmPath }}"
-            - name: NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
           securityContext:
             privileged: true
           volumeMounts:
@@ -51,16 +47,3 @@ spec:
           hostPath:
             path: "{{ .Values.imaMlPath }}"
             type: File
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Values.agent.service.name }}
-  namespace: {{ .Values.namespace }}
-spec:
-  selector:
-    app: {{ .Values.agent.daemonSet.appLabel }}
-  ports:
-    - protocol: TCP
-      port: {{ .Values.agent.service.port }}
-      targetPort: {{ .Values.agent.container.port }}
