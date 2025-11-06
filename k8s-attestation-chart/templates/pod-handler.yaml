@@ -59,9 +59,9 @@ spec:
             - name: ATTESTATION_NAMESPACES
               value: {{ .Values.attestationNamespaces | quote}}
             - name: REGISTRAR_HOST
-              value: {{ .Values.registrar.env.host | quote }}
+              value: {{ .Values.registrar.service.name | quote }}
             - name: REGISTRAR_PORT
-              value: {{ .Values.registrar.service.nodePort | quote }}
+              value: {{ .Values.registrar.service.port | quote }}
             - name: POD_HANDLER_PORT
               value: {{ .Values.podHandler.container.port | quote}}
             - name: ATTESTATION_SECRET
@@ -94,5 +94,4 @@ spec:
     - protocol: TCP
       port: {{ .Values.podHandler.service.port }}
       targetPort: {{ .Values.podHandler.container.port }}
-      nodePort: {{ .Values.podHandler.service.nodePort }}
-  type: NodePort
+  type: {{ .Values.podHandler.service.type }}

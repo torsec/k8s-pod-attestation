@@ -30,9 +30,9 @@ podHandler:
     port: 8080
 
   service:
-    name: pod-handler-service
-    port: 8081
-    nodePort: 30001
+    name: pod-handler
+    port: 8080
+    type: ClusterIP  # internal-only service
 
 
 ##################################################################################
@@ -98,16 +98,13 @@ registrar:
     port: 8080
 
   image:
-    repository:  franczar/k8s-attestation-registrar
+    repository: franczar/k8s-attestation-registrar
     tag: dev
 
-  env:
-    host: 192.168.0.103
-
   service:
-    name: registrar-service
+    name: registrar
     port: 8080
-    nodePort: 30000
+    type: ClusterIP  # internal-only service
 
 
 ##################################################################################
@@ -152,13 +149,12 @@ whitelistProvider:
     tag: dev
 
   env:
-    host: 192.168.0.103
     dbUri: mongodb://whitelist-db-service:27017
 
   service:
     name: whitelist-provider-service
-    port: 8082
-    nodePort: 30002
+    port: 8080
+    type: ClusterIP  # internal-only service
 
 
 ####################################################################################

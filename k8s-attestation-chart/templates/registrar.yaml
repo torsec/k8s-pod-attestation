@@ -28,7 +28,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.registrar.deployment.name }}
+  name: {{ .Values.registrar.service.name }}
   namespace: {{ .Values.namespace }}
 spec:
   selector:
@@ -37,5 +37,6 @@ spec:
     - protocol: TCP
       port: {{ .Values.registrar.service.port }}
       targetPort: {{ .Values.registrar.container.port }}
-      nodePort: {{ .Values.registrar.service.nodePort }}
-  type: NodePort
+  type: {{ .Values.registrar.service.type }}
+
+

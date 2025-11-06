@@ -61,13 +61,13 @@ spec:
           imagePullPolicy: Always
           env:
             - name: REGISTRAR_HOST
-              value: {{ .Values.registrar.env.host }}
+              value: {{ .Values.registrar.service.name }}
             - name: REGISTRAR_PORT
-              value: {{ .Values.registrar.service.nodePort | quote }}
+              value: {{ .Values.registrar.service.port | quote }}
             - name: WHITELIST_HOST
-              value: {{ .Values.whitelistProvider.env.host }}
+              value: {{ .Values.whitelistProvider.service.name }}
             - name: WHITELIST_PORT
-              value: {{ .Values.whitelistProvider.service.nodePort | quote }}
+              value: {{ .Values.whitelistProvider.service.port | quote }}
             - name: VERIFIER_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:

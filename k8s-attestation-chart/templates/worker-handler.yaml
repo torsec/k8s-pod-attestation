@@ -63,13 +63,13 @@ spec:
             - name: ATTESTATION_NAMESPACES
               value: {{ .Values.attestationNamespaces | quote}}
             - name: REGISTRAR_HOST
-              value: {{ .Values.registrar.env.host | quote }}
+              value: {{ .Values.registrar.service.name | quote }}
             - name: REGISTRAR_PORT
-              value: {{ .Values.registrar.service.nodePort | quote }}
+              value: {{ .Values.registrar.service.port | quote }}
             - name: WHITELIST_HOST
-              value: {{ .Values.whitelistProvider.env.host | quote }}
+              value: {{ .Values.whitelistProvider.service.name | quote }}
             - name: WHITELIST_PORT
-              value: {{ .Values.whitelistProvider.service.nodePort | quote }}
+              value: {{ .Values.whitelistProvider.service.port | quote }}
             - name: IMA_MOUNT_PATH
               value: {{ .Values.imaMountPath | quote }}
             - name: IMA_ML_PATH

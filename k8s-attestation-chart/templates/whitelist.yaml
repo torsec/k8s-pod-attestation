@@ -19,7 +19,7 @@ spec:
           imagePullPolicy: Always
           env:
             - name: WHITELIST_PORT
-              value: {{ .Values.whitelistProvider.container.port | quote }}
+              value: {{ .Values.whitelistProvider.service.port | quote }}
             - name: WHITELIST_DB_URI
               value: {{ .Values.whitelistProvider.env.dbUri | quote }}
           ports:
@@ -39,8 +39,7 @@ spec:
     - protocol: TCP
       port: {{ .Values.whitelistProvider.service.port }}
       targetPort: {{ .Values.whitelistProvider.container.port }}
-      nodePort: {{ .Values.whitelistProvider.service.nodePort }}
-  type: NodePort
+  type: {{ .Values.whitelistProvider.service.type }}
 
 ---
 apiVersion: apps/v1
