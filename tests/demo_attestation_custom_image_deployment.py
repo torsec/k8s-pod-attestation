@@ -133,8 +133,10 @@ spec:
         # Send for verification/deployment
         if verify_and_deploy(tenant_name, encoded_manifest, signature):
             out = run_kubectl(["get", "pods", "-n", "it6-ns", "-l", "app=demo-app", "-o", "name"])
-            pod_name = out.split("/")[1]
-            pods_to_attest.append(pod_name)
+            pod_names = out.split("\n")
+            for p in pod_names:
+                pod_name = p.split("pod/")[1]
+                pods_to_attest.append(pod_name)
 
     for i in range(3):
         time.sleep(20)
