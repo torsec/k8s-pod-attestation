@@ -9,7 +9,6 @@ import (
 	"github.com/torsec/k8s-pod-attestation/pkg/model"
 	"github.com/torsec/k8s-pod-attestation/pkg/registrar"
 	"net/http"
-	"strconv"
 )
 
 const DeployResourceUrl = "/resource/deploy"
@@ -17,7 +16,7 @@ const AttestPodUrl = "/pod/attest"
 
 type Server struct {
 	podHandlerHost    string
-	podHandlerPort    int
+	podHandlerPort    int32
 	tlsCertificate    *x509.Certificate
 	registrarClient   *registrar.Client
 	attestationSecret []byte
@@ -26,7 +25,7 @@ type Server struct {
 	router            *gin.Engine
 }
 
-func (s *Server) Init(podHandlerHost string, podHandlerPort int, tlsCertificate *x509.Certificate, registrarClient *registrar.Client, attestationSecret []byte) {
+func (s *Server) Init(podHandlerHost string, podHandlerPort int32, tlsCertificate *x509.Certificate, registrarClient *registrar.Client, attestationSecret []byte) {
 	s.podHandlerHost = podHandlerHost
 	s.podHandlerPort = podHandlerPort
 	s.tlsCertificate = tlsCertificate
@@ -39,7 +38,7 @@ func (s *Server) SetHost(host string) {
 	s.podHandlerHost = host
 }
 
-func (s *Server) SetPort(port int) {
+func (s *Server) SetPort(port int32) {
 	s.podHandlerPort = port
 }
 
@@ -47,7 +46,11 @@ func (s *Server) SetPort(port int) {
 func (s *Server) secureDeployment(c *gin.Context) {
 	var deploymentRequest model.DeploymentRequest
 	if err := c.BindJSON(&deploymentRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request format"})
+		c.JSON(http.StatusBadRequest, model.PodHandlerResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: fmt.Sprintf("Invalid request format: %v", err)},
+		})
 		return
 	}
 
@@ -57,57 +60,76 @@ func (s *Server) secureDeployment(c *gin.Context) {
 		Signature: deploymentRequest.Signature,
 	}
 
-	// Verify the signature by calling the Registrar API
 	signatureVerificationResponse, err := s.registrarClient.VerifyTenantSignature(verifySignatureRequest)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": "Error contacting Registrar"})
+		c.JSON(http.StatusInternalServerError, model.PodHandlerResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: fmt.Sprintf("Failed to contact Registrar: %v", err),
+			},
+		})
 		return
 	}
 
 	if signatureVerificationResponse.Status != model.Success {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Invalid signature over provided resource Manifest"})
+		c.JSON(http.StatusUnauthorized, model.PodHandlerResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: fmt.Sprintf("Invalid signature over provided resource Manifest: %v", err),
+			},
+		})
 		return
 	}
 
-	if err = s.deployResourceByKind(deploymentRequest.ResourceKind, deploymentRequest.Manifest, deploymentRequest.TenantName); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": model.Error, "message": fmt.Sprintf("Failed to deploy resource: %v", err)})
+	if err = s.createResourceByKind(deploymentRequest.ResourceKind, deploymentRequest.Manifest, deploymentRequest.TenantName); err != nil {
+		c.JSON(http.StatusInternalServerError, model.PodHandlerResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: fmt.Sprintf("Failed to create resource: %v", err),
+			},
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": model.Success, "message": "Pod successfully deployed"})
+	c.JSON(http.StatusOK, model.PodHandlerResponse{
+		SimpleResponse: model.SimpleResponse{
+			Status:  model.Success,
+			Message: fmt.Sprintf("Resource '%s' successfully deployed", deploymentRequest.ResourceKind),
+		},
+	})
 }
 
-func (s *Server) deployResourceByKind(resourceKind string, manifest []byte, tenantName string) error {
+func (s *Server) createResourceByKind(resourceKind string, manifest []byte, tenantName string) error {
 	var err error
 	switch resourceKind {
 	case "Pod":
-		err = s.deployPod(manifest, tenantName)
+		err = s.createPod(manifest, tenantName)
 		if err != nil {
-			return fmt.Errorf("failed to deploy pod: %v", err)
+			return fmt.Errorf("failed to create pod: %v", err)
 		}
 		break
 	case "Deployment":
-		err = s.deployDeployment(manifest, tenantName)
+		err = s.createDeployment(manifest, tenantName)
 		if err != nil {
-			return fmt.Errorf("failed to deploy deployment: %v", err)
+			return fmt.Errorf("failed to create deployment: %v", err)
 		}
 		break
 	case "ReplicaSet":
-		err = s.deployReplicaSet(manifest, tenantName)
+		err = s.createReplicaSet(manifest, tenantName)
 		if err != nil {
-			return fmt.Errorf("failed to deploy replicaSet: %v", err)
+			return fmt.Errorf("failed to create replicaSet: %v", err)
 		}
 		break
 	case "DaemonSet":
-		err = s.deployDaemonSet(manifest, tenantName)
+		err = s.createDaemonSet(manifest, tenantName)
 		if err != nil {
-			return fmt.Errorf("failed to deploy daemonSet: %v", err)
+			return fmt.Errorf("failed to create daemonSet: %v", err)
 		}
 		break
 	case "StatefulSet":
-		err = s.deployStatefulSet(manifest, tenantName)
+		err = s.createStatefulSet(manifest, tenantName)
 		if err != nil {
-			return fmt.Errorf("failed to deploy statefulSet: %v", err)
+			return fmt.Errorf("failed to create statefulSet: %v", err)
 		}
 		break
 	default:
@@ -117,7 +139,7 @@ func (s *Server) deployResourceByKind(resourceKind string, manifest []byte, tena
 }
 
 // request pod deployment
-func (s *Server) deployPod(podManifest []byte, tenantName string) error {
+func (s *Server) createPod(podManifest []byte, tenantName string) error {
 	tenantIdResponse, err := s.registrarClient.GetTenantIdByName(tenantName)
 	if err != nil {
 		return fmt.Errorf("error retrieving tenant ID: %v", err)
@@ -134,10 +156,10 @@ func (s *Server) deployPod(podManifest []byte, tenantName string) error {
 }
 
 // request deployment of a Deployment
-func (s *Server) deployDeployment(deploymentManifest []byte, tenantName string) error {
+func (s *Server) createDeployment(deploymentManifest []byte, tenantName string) error {
 	tenantIdResponse, err := s.registrarClient.GetTenantIdByName(tenantName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to retrieve tenant Id: %v", err)
 	}
 
 	tenantId := tenantIdResponse.Message
@@ -151,10 +173,10 @@ func (s *Server) deployDeployment(deploymentManifest []byte, tenantName string) 
 }
 
 // request deployment of a ReplicaSet
-func (s *Server) deployReplicaSet(replicaSetManifest []byte, tenantName string) error {
+func (s *Server) createReplicaSet(replicaSetManifest []byte, tenantName string) error {
 	tenantIdResponse, err := s.registrarClient.GetTenantIdByName(tenantName)
 	if err != nil {
-		return err
+		return fmt.Errorf("error retrieving tenant Id: %v", err)
 	}
 
 	tenantId := tenantIdResponse.Message
@@ -168,10 +190,10 @@ func (s *Server) deployReplicaSet(replicaSetManifest []byte, tenantName string) 
 }
 
 // request deployment of a DaemonSet
-func (s *Server) deployDaemonSet(daemonSetManifest []byte, tenantName string) error {
+func (s *Server) createDaemonSet(daemonSetManifest []byte, tenantName string) error {
 	tenantIdResponse, err := s.registrarClient.GetTenantIdByName(tenantName)
 	if err != nil {
-		return err
+		return fmt.Errorf("error retrieving tenant Id: %v", err)
 	}
 
 	tenantId := tenantIdResponse.Message
@@ -185,10 +207,10 @@ func (s *Server) deployDaemonSet(daemonSetManifest []byte, tenantName string) er
 }
 
 // request deployment of a statefulSet
-func (s *Server) deployStatefulSet(statefulSetManifest []byte, tenantName string) error {
+func (s *Server) createStatefulSet(statefulSetManifest []byte, tenantName string) error {
 	tenantIdResponse, err := s.registrarClient.GetTenantIdByName(tenantName)
 	if err != nil {
-		return err
+		return fmt.Errorf("error retrieving tenant Id: %v", err)
 	}
 
 	tenantId := tenantIdResponse.Message
@@ -204,7 +226,12 @@ func (s *Server) deployStatefulSet(statefulSetManifest []byte, tenantName string
 func (s *Server) requestPodAttestation(c *gin.Context) {
 	var podAttestationRequest model.PodAttestationRequest
 	if err := c.BindJSON(&podAttestationRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": model.Error, "message": "Invalid request format"})
+		c.JSON(http.StatusBadRequest, model.PodHandlerResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: fmt.Sprintf("Invalid request format: %v", err),
+			},
+		})
 		return
 	}
 
@@ -217,49 +244,99 @@ func (s *Server) requestPodAttestation(c *gin.Context) {
 	// Verify the signature by calling the Registrar API
 	signatureVerificationResponse, err := s.registrarClient.VerifyTenantSignature(verifySignatureRequest)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Error contacting Registrar"})
+		c.JSON(http.StatusUnauthorized, model.PodHandlerResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: fmt.Sprintf("Error contacting Registrar: %v", err),
+			},
+		})
 		return
 	}
 
 	if signatureVerificationResponse.Status != model.Success {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Invalid Signature"})
+		c.JSON(http.StatusUnauthorized, model.PodHandlerResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: fmt.Sprintf("Invalid Signature: %s", signatureVerificationResponse.Message),
+			},
+		})
 		return
 	}
 
 	tenantIdResponse, err := s.registrarClient.GetTenantIdByName(podAttestationRequest.TenantName)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": "Failed to retrieve Tenant info"})
+		c.JSON(http.StatusUnauthorized, model.PodHandlerResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: fmt.Sprintf("Failed to retrieve Tenant info: %v", err),
+			},
+		})
 		return
 	}
 	tenantId := tenantIdResponse.Message
 
-	// get Pod information (Worker on which it is deployed, this is needed to also retrieve the Agent to contact, the Agent CRD to control ensuring Tenant ownership of pod to be attested)
 	workerDeploying, podUid, err := s.clusterInteractor.GetAttestationInformation(podAttestationRequest.PodName)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": err.Error()})
+		c.JSON(http.StatusUnauthorized, model.PodHandlerResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: fmt.Sprintf("Failed to retrieve pod attestation needed details: %v", err),
+			},
+		})
 		return
 	}
 
 	// check if Pod is signed in to the target Agent CRD and if it is actually owned by the calling Tenant
-	_, err = s.clusterInteractor.IsPodTracked(workerDeploying, podAttestationRequest.PodName, tenantId)
+	isTracked, err := s.clusterInteractor.IsPodTracked(workerDeploying, podAttestationRequest.PodName, tenantId)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": err.Error()})
+		c.JSON(http.StatusUnauthorized, model.PodHandlerResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: fmt.Sprintf("Failed to retrieve : %v", err),
+			},
+		})
 		return
 	}
 
-	agentName, err := s.clusterInteractor.GetAgentName(podAttestationRequest.PodName)
+	if !isTracked {
+		c.JSON(http.StatusUnauthorized, model.PodHandlerResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: fmt.Sprintf("Pod '%s' is not tracked for attestation: cannot perform attestation", podAttestationRequest.PodName),
+			},
+		})
+	}
+
+	agentIP, err := s.clusterInteractor.GetAgentIP(workerDeploying)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": err.Error()})
+		c.JSON(http.StatusUnauthorized, model.PodHandlerResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: fmt.Sprintf("Failed to retrieve agent IP: %v", err),
+			},
+		})
 		return
 	}
+
+	agentName := fmt.Sprintf("agent-%s", workerDeploying)
 	// issue an Attestation Request for target Pod and Agent, it will be intercepted by the Verifier
-	_, err = s.clusterInteractor.CreateAndIssueAttestationRequestCRD(podAttestationRequest.PodName, podUid, tenantId, agentName, s.attestationSecret)
+	_, err = s.clusterInteractor.CreateAndIssueAttestationRequestCRD(podAttestationRequest.PodName, podUid, tenantId, agentName, agentIP, s.attestationSecret)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": model.Error, "message": err.Error()})
+		c.JSON(http.StatusUnauthorized, model.PodHandlerResponse{
+			SimpleResponse: model.SimpleResponse{
+				Status:  model.Error,
+				Message: fmt.Sprintf("Failed to create attestation request for verifier: %v", err),
+			},
+		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"status": model.Success, "message": "Attestation Request issued with success"})
+	c.JSON(http.StatusCreated, model.PodHandlerResponse{
+		SimpleResponse: model.SimpleResponse{
+			Status:  model.Error,
+			Message: "Attestation Request issued with success",
+		},
+	})
 	return
 }
 
@@ -269,7 +346,7 @@ func (s *Server) Start() {
 	s.router.POST(AttestPodUrl, s.requestPodAttestation)
 
 	logger.Info("server is running on port: %d", s.podHandlerPort)
-	err := s.router.Run(":" + strconv.Itoa(s.podHandlerPort))
+	err := s.router.Run(fmt.Sprintf(":%d", s.podHandlerPort))
 	if err != nil {
 		logger.Fatal("failed to start pod handler: %v", err)
 	}

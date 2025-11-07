@@ -62,6 +62,6 @@ func getEnv(key, defaultValue string) string {
 func main() {
 	loadEnvironmentVariables()
 	registrarClient.Init(registrarHost, int32(registrarPort), nil)
-	podHandlerServer.Init(podHandlerHost, podHandlerPort, nil, &registrarClient, attestationSecret)
+	podHandlerServer.Init(podHandlerHost, int32(podHandlerPort), nil, &registrarClient, attestationSecret)
 	podHandlerServer.Start()
 }

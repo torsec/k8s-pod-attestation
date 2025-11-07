@@ -20,6 +20,7 @@ var (
 	whitelistHost       string
 	whitelistPort       int
 	attestationSecret   []byte
+	agentPort           int32 = 8080
 	verifierPrivateKey  crypto.PrivateKey
 	defaultResync       int
 )
@@ -64,6 +65,6 @@ func main() {
 	loadEnvironmentVariables()
 	registrarClient.Init(registrarHost, int32(registrarPort), nil)
 	whitelistClient.Init(whitelistHost, int32(whitelistPort), nil)
-	attestationVerifier.Init(defaultResync, attestationSecret, verifierPrivateKey, &registrarClient, &whitelistClient)
+	attestationVerifier.Init(defaultResync, attestationSecret, verifierPrivateKey, &registrarClient, &whitelistClient, agentPort)
 	attestationVerifier.WatchAttestationRequestCRDs()
 }

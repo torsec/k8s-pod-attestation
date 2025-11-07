@@ -1,3 +1,5 @@
+// +kubebuilder:object:generate=true
+// +groupName=attestation.com
 package cluster_interaction
 
 import (
@@ -41,6 +43,7 @@ type AttestationRequestSpec struct {
 	PodUid    string    `json:"podUid"`
 	TenantId  string    `json:"tenantId"`
 	AgentName string    `json:"agentName"`
+	AgentIP   string    `json:"agentIP"`
 	Issued    time.Time `json:"issued"`
 	HMAC      []byte    `json:"hmac"`
 }
@@ -59,6 +62,7 @@ type PodStatus struct {
 	LastCheck time.Time           `json:"lastCheck"`
 }
 
+// +kubebuilder:object:generate=true
 type AgentSpec struct {
 	AgentName  string               `json:"agentName"`
 	NodeStatus model.NodeStatusType `json:"nodeStatus"`
@@ -66,6 +70,8 @@ type AgentSpec struct {
 	LastUpdate time.Time            `json:"lastUpdate"`
 }
 
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 type Agent struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -247,7 +253,7 @@ func (ar *AttestationRequest) FromUnstructured(unstructuredObj *unstructured.Uns
 	return nil
 }
 
-func NewAttestationRequest(podName, podUid, tenantId, agentName string) *AttestationRequest {
+func NewAttestationRequest(podName, podUid, tenantId, agentName, agentIP string) *AttestationRequest {
 	attestationRequestName := fmt.Sprintf("attestation-request-%s", podName)
 	return &AttestationRequest{
 		TypeMeta: metav1.TypeMeta{
@@ -262,6 +268,7 @@ func NewAttestationRequest(podName, podUid, tenantId, agentName string) *Attesta
 			PodUid:    podUid,
 			TenantId:  tenantId,
 			AgentName: agentName,
+			AgentIP:   agentIP,
 			Issued:    time.Now(),
 			HMAC:      nil, // to be computed later
 		},
@@ -269,7 +276,7 @@ func NewAttestationRequest(podName, podUid, tenantId, agentName string) *Attesta
 }
 
 func (ar *AttestationRequest) ComputeHMAC(key []byte) error {
-	integrityMessage := []byte(fmt.Sprintf("%s::%s::%s::%s", ar.Spec.PodName, ar.Spec.PodUid, ar.Spec.TenantId, ar.Spec.AgentName))
+	integrityMessage := []byte(fmt.Sprintf("%s::%s::%s::%s::%s", ar.Spec.PodName, ar.Spec.PodUid, ar.Spec.TenantId, ar.Spec.AgentName, ar.Spec.AgentIP))
 	hmac, err := cryptoUtils.ComputeHMAC(integrityMessage, key, DefaultHashAlgo)
 	if err != nil {
 		return fmt.Errorf("failed to compute HMAC: %v", err)
@@ -282,7 +289,7 @@ func (ar *AttestationRequest) ValidateHMAC(key []byte) (bool, error) {
 	if ar.Spec.HMAC == nil || len(ar.Spec.HMAC) == 0 {
 		return false, fmt.Errorf("missing HMAC in Attestation request")
 	}
-	integrityMessage := []byte(fmt.Sprintf("%s::%s::%s::%s", ar.Spec.PodName, ar.Spec.PodUid, ar.Spec.TenantId, ar.Spec.AgentName))
+	integrityMessage := []byte(fmt.Sprintf("%s::%s::%s::%s::%s", ar.Spec.PodName, ar.Spec.PodUid, ar.Spec.TenantId, ar.Spec.AgentName, ar.Spec.AgentIP))
 	err := cryptoUtils.VerifyHMAC(integrityMessage, key, ar.Spec.HMAC, DefaultHashAlgo)
 	if err != nil {
 		return false, fmt.Errorf("failed to validate Attestation request HMAC: %v", err)
@@ -448,11 +455,11 @@ func (c *ClusterInteraction) CreateTenantDeploymentFromManifest(deploymentManife
 		return nil, fmt.Errorf("provided manifest is not a Deployment")
 	}
 
-	if deployment.Annotations == nil {
-		deployment.Annotations = make(map[string]string)
+	if deployment.Spec.Template.ObjectMeta.Annotations == nil {
+		deployment.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
 	}
 
-	deployment.Annotations["tenantId"] = tenantId
+	deployment.Spec.Template.ObjectMeta.Annotations["tenantId"] = tenantId
 
 	createdDeployment, err := c.ClientSet.AppsV1().Deployments(deployment.GetNamespace()).Create(context.TODO(), deployment, metav1.CreateOptions{})
 	if err != nil {
@@ -472,11 +479,11 @@ func (c *ClusterInteraction) CreateTenantReplicaSetFromManifest(replicaSetManife
 		return nil, fmt.Errorf("provided manifest is not a Replicaset")
 	}
 
-	if replicaSet.Annotations == nil {
-		replicaSet.Annotations = make(map[string]string)
+	if replicaSet.Spec.Template.ObjectMeta.Annotations == nil {
+		replicaSet.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
 	}
 
-	replicaSet.Annotations["tenantId"] = tenantId
+	replicaSet.Spec.Template.ObjectMeta.Annotations["tenantId"] = tenantId
 
 	createdReplicaSet, err := c.ClientSet.AppsV1().ReplicaSets(replicaSet.GetNamespace()).Create(context.TODO(), replicaSet, metav1.CreateOptions{})
 	if err != nil {
@@ -497,11 +504,11 @@ func (c *ClusterInteraction) CreateTenantStatefulSetFromManifest(statefulSetMani
 		return nil, fmt.Errorf("provided manifest is not a StatefulSet")
 	}
 
-	if statefulSet.Annotations == nil {
-		statefulSet.Annotations = make(map[string]string)
+	if statefulSet.Spec.Template.ObjectMeta.Annotations == nil {
+		statefulSet.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
 	}
 
-	statefulSet.Annotations["tenantId"] = tenantId
+	statefulSet.Spec.Template.ObjectMeta.Annotations["tenantId"] = tenantId
 
 	createdStatefulSet, err := c.ClientSet.AppsV1().StatefulSets(statefulSet.GetNamespace()).Create(context.TODO(), statefulSet, metav1.CreateOptions{})
 	if err != nil {
@@ -521,11 +528,11 @@ func (c *ClusterInteraction) CreateTenantDaemonSetFromManifest(daemonSetManifest
 		return nil, fmt.Errorf("provided manifest is not a DaemonSet")
 	}
 
-	if daemonSet.Annotations == nil {
-		daemonSet.Annotations = make(map[string]string)
+	if daemonSet.Spec.Template.ObjectMeta.Annotations == nil {
+		daemonSet.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
 	}
 
-	daemonSet.Annotations["tenantId"] = tenantId
+	daemonSet.Spec.Template.ObjectMeta.Annotations["tenantId"] = tenantId
 
 	createdDaemonSet, err := c.ClientSet.AppsV1().DaemonSets(daemonSet.GetNamespace()).Create(context.TODO(), daemonSet, metav1.CreateOptions{})
 	if err != nil {
@@ -621,28 +628,8 @@ func (c *ClusterInteraction) DeleteAllPodsFromNode(nodeName string) (bool, error
 	return true, nil
 }
 
-// GetAgentPort returns the NodePort for a given service in a namespace
-func (c *ClusterInteraction) GetAgentPort(agentName string) (int32, error) {
-	agentServiceName := fmt.Sprintf("%s-service", agentName)
-
-	// Get the Service from the given namespace
-	service, err := c.ClientSet.CoreV1().Services(PodAttestationNamespace).Get(context.TODO(), agentServiceName, metav1.GetOptions{})
-	if err != nil {
-		return -1, fmt.Errorf("failed to get service: %v", err)
-	}
-
-	// Iterate through the service ports to find a NodePort
-	for _, port := range service.Spec.Ports {
-		if port.NodePort != 0 {
-			return port.NodePort, nil
-		}
-	}
-
-	return -1, fmt.Errorf("no NodePort found for service %s", agentServiceName)
-}
-
-func (c *ClusterInteraction) CreateAndIssueAttestationRequestCRD(podName, podUid, tenantId, agentName string, hmacKey []byte) (bool, error) {
-	attestationRequest := NewAttestationRequest(podName, podUid, tenantId, agentName)
+func (c *ClusterInteraction) CreateAndIssueAttestationRequestCRD(podName, podUid, tenantId, agentName, agentIP string, hmacKey []byte) (bool, error) {
+	attestationRequest := NewAttestationRequest(podName, podUid, tenantId, agentName, agentIP)
 	err := attestationRequest.ComputeHMAC(hmacKey)
 	if err != nil {
 		return false, fmt.Errorf("failed to compute hmac: %v", err)
@@ -767,35 +754,8 @@ func (c *ClusterInteraction) GetWorkerInternalIP(worker *v1.Node) (string, error
 	return workerIP, nil
 }
 
-func (c *ClusterInteraction) DeleteAgent(workerName string) error {
-	deploymentName := fmt.Sprintf("agent-%s-deployment", workerName)
-	serviceName := fmt.Sprintf("agent-%s-service", workerName)
-
-	// Delete the Service
-	err := c.ClientSet.CoreV1().Services(PodAttestationNamespace).Delete(context.TODO(), serviceName, metav1.DeleteOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to delete Agent service '%s': %v", serviceName, err)
-	}
-
-	// Delete the Deployment
-	err = c.ClientSet.AppsV1().Deployments(PodAttestationNamespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to delete Agent deplooyment '%s': %v", deploymentName, err)
-	}
-	return nil
-}
-
-// GetAgentName obtains the name of the attestation agent running on the same node as the attestation target pod with name "podName"
-func (c *ClusterInteraction) GetAgentName(podName string) (string, error) {
-	targetPod, err := c.ClientSet.CoreV1().Pods("").Get(context.TODO(), podName, metav1.GetOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to retrieve Pod '%s': %v", podName, err)
-	}
-	nodeName := targetPod.Spec.NodeName
-	if nodeName == "" {
-		return "", fmt.Errorf("no node name found for pod '%s'", podName)
-	}
-
+// GetAgentIP obtains the ip of the attestation agent running on the same node as the attestation target pod with name "podName"
+func (c *ClusterInteraction) GetAgentIP(nodeName string) (string, error) {
 	labelSelector := "app=agent"
 	fieldSelector := fmt.Sprintf("spec.nodeName=%s", nodeName)
 	pods, err := c.ClientSet.CoreV1().Pods(PodAttestationNamespace).List(context.TODO(), metav1.ListOptions{
@@ -807,7 +767,7 @@ func (c *ClusterInteraction) GetAgentName(podName string) (string, error) {
 	}
 	for _, pod := range pods.Items {
 		if pod.Spec.NodeName == nodeName {
-			return pod.GetName(), nil
+			return pod.Status.PodIP, nil
 		}
 	}
 	return "", fmt.Errorf("no agent found for node '%s'", nodeName)
@@ -824,7 +784,7 @@ func (c *ClusterInteraction) WaitForAgentReady(nodeName string, timeout time.Dur
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
-	agentName := ""
+	agentIP := ""
 	for {
 		select {
 		case <-ctx.Done():
@@ -835,8 +795,8 @@ func (c *ClusterInteraction) WaitForAgentReady(nodeName string, timeout time.Dur
 				FieldSelector: fieldSelector,
 			})
 
-			if agentName == "" {
-				agentName = pods.Items[0].GetName()
+			if agentIP == "" {
+				agentIP = pods.Items[0].Status.PodIP
 			}
 
 			if err != nil {
@@ -857,7 +817,7 @@ func (c *ClusterInteraction) WaitForAgentReady(nodeName string, timeout time.Dur
 					}
 				}
 				if allReady {
-					return agentName, nil
+					return agentIP, nil
 				}
 			}
 		}
@@ -1155,6 +1115,7 @@ func (c *ClusterInteraction) IsPodTracked(nodeName, podName, tenantId string) (b
 		if tenantId != pod.Annotations["tenantId"] {
 			return false, fmt.Errorf("tenant ID mismatch for pod '%s'", podName)
 		}
+		return true, nil
 	}
 
 	agentName := "agent-" + nodeName
@@ -1248,7 +1209,7 @@ func (c *ClusterInteraction) UpdatePodStatus(nodeName, podName, tenantId, reason
 
 func (c *ClusterInteraction) UpdateAgentCRDWithAttestationResult(attestationResult *model.AttestationResult) (bool, error) {
 	// Get the dynamic client resource interface for the CRD
-	agentResource := c.DynamicClient.Resource(AgentGVR).Namespace(PodAttestationNamespace) // Modify namespace if needed
+	agentResource := c.DynamicClient.Resource(AgentGVR).Namespace(PodAttestationNamespace)
 
 	// Fetch the CRD instance for the given node
 	unstructuredObj, err := agentResource.Get(context.Background(), attestationResult.Agent, metav1.GetOptions{})

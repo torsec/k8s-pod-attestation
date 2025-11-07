@@ -33,7 +33,7 @@ type WorkerHandler struct {
 	clusterInteractor cluster_interaction.ClusterInteraction
 	informerFactory   informers.SharedInformerFactory
 	registrarClient   *registrar.Client
-	agentClient       *agent.Client
+	agentClient       agent.Client
 	agentPort         int32
 	whitelistClient   *whitelist.Client
 	verifierPublicKey []byte
@@ -44,16 +44,12 @@ func (wh *WorkerHandler) Init(verifierPublicKey []byte, attestationEnabledNamesp
 	wh.clusterInteractor.ConfigureKubernetesClient()
 	wh.clusterInteractor.AttestationEnabledNamespaces = attestationEnabledNamespaces
 	wh.informerFactory = informers.NewSharedInformerFactory(wh.clusterInteractor.ClientSet, time.Minute*time.Duration(defaultResync))
-	err := wh.clusterInteractor.DefineAgentCRD()
-	if err != nil {
-		logger.Error("Failed to initialize Worker Handler: %v", err)
-	}
 	wh.registrarClient = registrarClient
 	wh.agentPort = agentPort
 	wh.whitelistClient = whitelistClient
 }
 
-func (wh *WorkerHandler) SetAgentClient(agentClient *agent.Client) {
+func (wh *WorkerHandler) SetAgentClient(agentClient agent.Client) {
 	wh.agentClient = agentClient
 }
 
@@ -71,23 +67,28 @@ func (wh *WorkerHandler) deleteNodeHandling(obj interface{}) {
 		return
 	}
 
-	logger.Info("Worker node '%s' removed from the cluster; removing Agent and Agent CRD", node.GetName())
+	workerResponse, err := wh.registrarClient.GetWorkerIdByName(node.GetName())
+	if err != nil {
+		logger.Error("Failed to determine if node '%s' is registered: %v", node.GetName(), err)
+		return
+	}
+
+	if workerResponse.Status != model.Success {
+		logger.Info("node '%s' is not registered; skipping Agent CRD removal", node.GetName())
+		return
+	}
+
+	logger.Info("Worker node '%s' removed from the cluster; removing Agent CRD", node.GetName())
 
 	registrarResponse, err := wh.registrarClient.RemoveWorker(node.GetName())
 	if err != nil {
 		logger.Error("Failed to remove contact Registrar to remove worker '%s': %v", node.GetName(), err)
-		return
 	}
 
 	if registrarResponse.Status != model.Success {
 		logger.Error("Failed to remove worker '%s' from Registrar: %s", node.GetName(), registrarResponse.Message)
 	}
 
-	err = wh.clusterInteractor.DeleteAgent(node.GetName())
-	if err != nil {
-		logger.Error("Failed to delete Agent from worker '%s': %v", node.GetName(), err)
-		return
-	}
 	err = wh.clusterInteractor.DeleteAgentCRDInstance(node.GetName())
 	if err != nil {
 		logger.Error("Failed to delete Agent CRD of worker '%s': %v", node.GetName(), err)
@@ -135,16 +136,17 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 
 	if !isNewWorkerRegistered {
 		logger.Error("Failed to register node '%s'; deleting node from cluster", node.GetName())
-		_, err := wh.clusterInteractor.DeleteNode(node.GetName())
+		_, err = wh.clusterInteractor.DeleteNode(node.GetName())
 		if err != nil {
 			logger.Fatal("Failed to delete node '%s': %v", node.GetName(), err)
 		}
+		return
 	}
 
 	isAgentCreated, err := wh.clusterInteractor.CreateAgentCRDInstance(node.GetName())
 	if err != nil || !isAgentCreated {
 		logger.Error("Failed to create agent CRD instance on node '%s': %v; deleting node from cluster", node.GetName(), err)
-		_, err := wh.clusterInteractor.DeleteNode(node.GetName())
+		_, err = wh.clusterInteractor.DeleteNode(node.GetName())
 		if err != nil {
 			logger.Fatal("Failed to delete node '%s': %v", node.GetName(), err)
 		}
@@ -153,14 +155,13 @@ func (wh *WorkerHandler) addNodeHandling(obj interface{}) {
 
 // workerRegistration registers the worker node by calling the identification API
 func (wh *WorkerHandler) workerRegistration(newWorker *corev1.Node) bool {
-	agentName, err := wh.clusterInteractor.WaitForAgentReady(newWorker.GetName(), 1*time.Minute)
+	agentIP, err := wh.clusterInteractor.WaitForAgentReady(newWorker.GetName(), 1*time.Minute)
 	if err != nil {
 		logger.Error("Agent not ready to run: %v", err)
 		return false
 	}
 
-	wh.agentClient = &agent.Client{}
-	wh.agentClient.Init(agentName, int32(8080), nil)
+	wh.agentClient.Init(agentIP, int32(8080), nil)
 
 	err = wh.agentClient.WaitForAgentServer(1*time.Second, 1*time.Minute)
 	if err != nil {

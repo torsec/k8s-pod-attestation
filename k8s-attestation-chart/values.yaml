@@ -30,9 +30,9 @@ podHandler:
     port: 8080
 
   service:
-    name: pod-handler-service
-    port: 8081
-    nodePort: 30001
+    name: pod-handler
+    port: 8080
+    type: ClusterIP
 
 
 ##################################################################################
@@ -98,40 +98,37 @@ registrar:
     port: 8080
 
   image:
-    repository:  franczar/k8s-attestation-registrar
+    repository: franczar/k8s-attestation-registrar
     tag: latest
 
-  env:
-    host: 192.168.0.103
-
   service:
-    name: registrar-service
+    name: registrar
     port: 8080
-    nodePort: 30000
+    type: ClusterIP  # internal-only service
 
 
 ##################################################################################
 # verifier configuration
 ##################################################################################
 verifier:
-    serviceAccount:
-        name: verifier-sa
+  serviceAccount:
+    name: verifier-sa
 
-    rbac:
-        roleName: verifier-role
-        roleBindingName: verifier-rolebinding
+  rbac:
+    roleName: verifier-role
+    roleBindingName: verifier-rolebinding
 
-    deployment:
-        name: verifier
-        appLabel: verifier
-        replicas: 1
+  deployment:
+    name: verifier
+    appLabel: verifier
+    replicas: 1
 
-    container:
-        name: verifier
+  container:
+    name: verifier
 
-    image:
-        repository: franczar/k8s-attestation-verifier
-        tag: latest
+  image:
+    repository: franczar/k8s-attestation-verifier
+    tag: latest
 
 
 ####################################################################################
@@ -151,66 +148,62 @@ whitelistProvider:
     repository: franczar/k8s-attestation-whitelist-provider
     tag: latest
 
-  env:
-    host: 192.168.0.103
-    dbUri: mongodb://whitelist-db-service:27017
-
   service:
-    name: whitelist-provider-service
-    port: 8082
-    nodePort: 30002
+    name: whitelist-provider
+    port: 8080
+    type: ClusterIP  # internal-only service
 
 
 ####################################################################################
 # whitelist database configuration
 ####################################################################################
 whitelistDb:
-    deployment:
-        name: whitelist-db
-        appLabel: whitelist-db
-        replicas: 1
+  deployment:
+    name: whitelist-db
+    appLabel: whitelist-db
+    replicas: 1
 
-    container:
-        name: whitelist-db
-        port: 27017
+  container:
+    name: whitelist-db
+    port: 27017
 
-    image:
-        repository: mongo
-        tag: latest
+  image:
+    repository: mongo
+    tag: latest
 
-    volume:
-      name: whitelist-storage
-      mountPath: /root/whitelist-db
-      hostPath: /home/node/whitelist-db
+  volume:
+    name: whitelist-storage
+    mountPath: /root/whitelist-db
+    hostPath: /home/node/whitelist-db
 
-    service:
-        name: whitelist-db-service
-        port: 27017
+  service:
+    name: whitelist-db
+    port: 27017
 
 
 ####################################################################################
 # worker handler configuration
 ####################################################################################
 workerHandler:
-    serviceAccount:
-        name: worker-handler-sa
+  serviceAccount:
+    name: worker-handler-sa
 
-    rbac:
-        roleName: worker-handler-role
-        roleBindingName: worker-handler-rolebinding
+  rbac:
+    roleName: worker-handler-role
+    roleBindingName: worker-handler-rolebinding
 
-    deployment:
-        name: worker-handler
-        appLabel: worker-handler
-        replicas: 1
+  deployment:
+    name: worker-handler
+    appLabel: worker-handler
+    replicas: 1
 
-    container:
-        name: worker-handler
-        port: 8080
+  container:
+    name: worker-handler
+    port: 8080
 
-    image:
-        repository: franczar/k8s-attestation-worker-handler
-        tag: latest
+  image:
+    repository: franczar/k8s-attestation-worker-handler
+    tag: latest
 
 
 ################################################################################
@@ -228,9 +221,31 @@ kubernetesConfigVolume:
 attestationNamespaces: "[\"it6-ns\"]"                                         # namespaces to monitor for pod attestation
 kubeConfigPath: /home/node/.kube                                              # path to kube config on the host
 namespace: attestation-system                                                 # attestation system namespace
+
 imaMountPath: /root/binary_runtime_measurements                                # IMA mount path on the container
 imaMlPath: /sys/kernel/security/integrity/ima/binary_runtime_measurements      # IMA measurements file path on the host
 tpmPath: /dev/tpm0                                                            # TPM device path on host
+
+
+###############################################################################
+# agent configuration
+##############################################################################
+agent:
+  daemonSet:
+    name: agent
+    appLabel: agent
+
+  container:
+    name: agent
+    port: 8080
+
+  image:
+    repository: franczar/k8s-attestation-agent
+    tag: latest
+
+  service:
+    name: agent
+    port: 8080
 
 
 ################################################################################

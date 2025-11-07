@@ -37,23 +37,21 @@ type Verifier struct {
 	agentClient       agent.Client
 	registrarClient   *registrar.Client
 	whitelistClient   *whitelist.Client
+	agentPort         int32
 	attestationSecret []byte
 	privateKey        crypto.PrivateKey
 	validator         *ima.Validator
 	podsIntegrity     map[string]*ima.Integrity
 }
 
-func (v *Verifier) Init(defaultResync int, attestationSecret []byte, privateKey crypto.PrivateKey, registrarClient *registrar.Client, whitelistClient *whitelist.Client) {
+func (v *Verifier) Init(defaultResync int, attestationSecret []byte, privateKey crypto.PrivateKey, registrarClient *registrar.Client, whitelistClient *whitelist.Client, agentPort int32) {
 	v.clusterInteractor.ConfigureKubernetesClient()
-	err := v.clusterInteractor.DefineAttestationRequestCRD()
-	if err != nil {
-		logger.Error("Failed to initialize Verifier: %v", err)
-	}
 	v.informerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(v.clusterInteractor.DynamicClient, time.Minute*time.Duration(defaultResync), cluster_interaction.PodAttestationNamespace, nil)
 	v.attestationSecret = attestationSecret
 	v.privateKey = privateKey
 	v.registrarClient = registrarClient
 	v.whitelistClient = whitelistClient
+	v.agentPort = agentPort
 	v.podsIntegrity = make(map[string]*ima.Integrity)
 }
 
@@ -120,12 +118,7 @@ func (v *Verifier) validatePodQuote(workerName string, podQuote *pb.Quote, nonce
 }
 
 func (v *Verifier) podAttestation(attestationRequest *cluster_interaction.AttestationRequest) (*model.AttestationResult, error) {
-	agentPort, err := v.clusterInteractor.GetAgentPort(attestationRequest.Spec.AgentName)
-	if err != nil {
-		return nil, fmt.Errorf("error while sending Attestation Request to Agent: service port not found")
-	}
-
-	v.agentClient.Init(attestationRequest.Spec.AgentName, agentPort, nil)
+	v.agentClient.Init(attestationRequest.Spec.AgentIP, v.agentPort, nil)
 
 	agentAttestationRequest, err := v.createAgentAttestationRequest(attestationRequest)
 	if err != nil {
