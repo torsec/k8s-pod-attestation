@@ -136,8 +136,8 @@ spec:
             pod_name = out.split("/")[1]
             pods_to_attest.append(pod_name)
 
-    time.sleep(20)
     for i in range(3):
+        time.sleep(20)
         # Perform pod attestation
         for pod_name in pods_to_attest:
             signature = sign_message(pod_name)
