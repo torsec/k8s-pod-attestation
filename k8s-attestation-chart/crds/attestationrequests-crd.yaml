@@ -1,0 +1,38 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: attestationrequests.attestation.com
+spec:
+  group: attestation.com
+  scope: Namespaced
+  names:
+    kind: AttestationRequest
+    listKind: AttestationRequestList
+    plural: attestationrequests
+    singular: attestationrequest
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                podName:
+                  type: string
+                podUid:
+                  type: string
+                tenantId:
+                  type: string
+                agentName:
+                  type: string
+                agentIP:
+                  type: string
+                issued:
+                  type: string
+                  format: date-time
+                hmac:
+                  type: string
