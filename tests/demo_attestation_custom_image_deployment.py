@@ -119,6 +119,13 @@ spec:
       labels:
         app: demo-app
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
       containers:
       - name: demo-container
         image: franczar/app-to-attest:latest
