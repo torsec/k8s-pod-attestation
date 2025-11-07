@@ -3,6 +3,7 @@ import json
 import random
 import subprocess
 import sys
+import time
 
 import requests
 import rsa
@@ -132,7 +133,13 @@ spec:
         # Send for verification/deployment
         if verify_and_deploy(tenant_name, encoded_manifest, signature):
             out = run_kubectl(["get", "pods", "-n", "it6-ns", "-l", "app=demo-app", "-o", "name"])
-            print(out)
-            pods_to_attest.append(out)
+            pod_name = out.split("/")[1]
+            pods_to_attest.append(pod_name)
 
+    time.sleep(20)
+    for i in range(3):
+        # Perform pod attestation
+        for pod_name in pods_to_attest:
+            signature = sign_message(pod_name)
+            pod_attestation(tenant_name, pod_name, signature)
 
