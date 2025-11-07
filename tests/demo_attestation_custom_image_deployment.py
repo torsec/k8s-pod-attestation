@@ -135,7 +135,7 @@ spec:
             out = run_kubectl(["get", "pods", "-n", "it6-ns", "-l", "app=demo-app", "-o", "name"])
             pod_names = out.split("\n")
             for p in pod_names:
-                pod_name = p.split("pod/")[1]
+                pod_name = p.replace("pod/", "")
                 pods_to_attest.append(pod_name)
 
     for i in range(3):
