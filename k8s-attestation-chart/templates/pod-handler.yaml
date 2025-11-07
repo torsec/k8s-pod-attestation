@@ -10,24 +10,21 @@ kind: ClusterRole
 metadata:
   name: {{ .Values.podHandler.rbac.roleName }}
 rules:
+  # Core API resources
   - apiGroups: [""]
-    resources: ["pods"]
+    resources: ["pods", "nodes"]
     verbs: ["get", "list", "watch", "create"]
-  - apiGroups: [""]
-    resources: ["deployments"]
+
+  # Workload controllers under apps/v1
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "daemonsets"]
     verbs: ["get", "list", "watch", "create"]
-  - apiGroups: [""]
-    resources: ["replicasets"]
-    verbs: ["get", "list", "watch", "create"]
-  - apiGroups: [""]
-    resources: ["daemonsets"]
-    verbs: ["get", "list", "watch", "create"]
-  - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
+
+  # Custom attestation CRDs
   - apiGroups: ["attestation.com"]
     resources: ["agents"]
     verbs: ["get", "list", "watch"]
+
   - apiGroups: ["attestation.com"]
     resources: ["attestationrequests"]
     verbs: ["get", "list", "watch", "create"]
