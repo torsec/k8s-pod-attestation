@@ -9,7 +9,22 @@ The goal is to ensure that workloads are executed on trusted worker nodes and th
 
 ## Reference
 
-Zaritto, F., Bravi, E., Sisinni, S., Lioy, A. **Extending Kubernetes for Pods Integrity Verification.** *Journal of Network and Systems Management*, 34, 14 (2026). [https://doi.org/10.1007/s10922-025-09988-z](https://doi.org/10.1007/s10922-025-09988-z)
+```bibtex
+@article{k8s_pod_attestation,
+  author       = {Francesco Zaritto and
+                  Enrico Bravi and
+                  Silvia Sisinni and
+                  Antonio Lioy},
+  title        = {Extending Kubernetes for Pods Integrity Verification},
+  journal      = {Journal of Network and Systems Management},
+  volume       = {34},
+  number       = {1},
+  pages        = {14},
+  year         = {2026},
+  url          = {https://doi.org/10.1007/s10922-025-09988-z},
+  doi          = {10.1007/S10922-025-09988-Z}
+}
+```
 
 ## Design
 
