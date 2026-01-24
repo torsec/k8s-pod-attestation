@@ -1,4 +1,4 @@
-# Kubernets Pods Remote Attestation
+# Kubernetes Pods Remote Attestation
 
 ## Overview
 
